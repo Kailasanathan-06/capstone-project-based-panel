@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Analytics - SecureDT{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: var(--space-6);">
+  <h1 class="page-title">Analytics</h1>
+  <p class="page-subtitle">System performance and operational metrics</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-6); margin-bottom: var(--space-6);">
+  <section class="card" aria-labelledby="cpu-chart-heading">
+    <header class="card-header"><h2 class="card-title" id="cpu-chart-heading">CPU Utilization</h2></header>
+    <div class="card-content"><div class="chart-container"><canvas id="analytics-cpu-chart"></canvas></div></div>
+  </section>
+  <section class="card" aria-labelledby="ram-chart-heading">
+    <header class="card-header"><h2 class="card-title" id="ram-chart-heading">Memory Utilization</h2></header>
+    <div class="card-content"><div class="chart-container"><canvas id="analytics-ram-chart"></canvas></div></div>
+  </section>
+  <section class="card" aria-labelledby="latency-chart-heading">
+    <header class="card-header"><h2 class="card-title" id="latency-chart-heading">Network Latency</h2></header>
+    <div class="card-content"><div class="chart-container"><canvas id="analytics-latency-chart"></canvas></div></div>
+  </section>
+  <section class="card" aria-labelledby="energy-chart-heading">
+    <header class="card-header"><h2 class="card-title" id="energy-chart-heading">Energy Consumption</h2></header>
+    <div class="card-content"><div class="chart-container"><canvas id="analytics-energy-chart"></canvas></div></div>
+  </section>
+  <section class="card" aria-labelledby="throughput-chart-heading">
+    <header class="card-header"><h2 class="card-title" id="throughput-chart-heading">Task Throughput</h2></header>
+    <div class="card-content"><div class="chart-container"><canvas id="analytics-throughput-chart"></canvas></div></div>
+  </section>
+  <section class="card" aria-labelledby="risk-chart-heading">
+    <header class="card-header"><h2 class="card-title" id="risk-chart-heading">Security Risk Trend</h2></header>
+    <div class="card-content"><div class="chart-container"><canvas id="analytics-risk-chart"></canvas></div></div>
+  </section>
+</div>
+
+<section class="card" aria-labelledby="mec-comparison-heading">
+  <header class="card-header"><h2 class="card-title" id="mec-comparison-heading">MEC Comparison</h2></header>
+  <div class="card-content">
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>MEC</th>
+            <th>Status</th>
+            <th>Avg CPU</th>
+            <th>Avg RAM</th>
+            <th>Avg Latency</th>
+            <th>Tasks Processed</th>
+            <th>Total Energy</th>
+            <th>Uptime</th>
+          </tr>
+        </thead>
+        <tbody id="analytics-mec-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.dataset.page = 'analytics';
+  // Charts initialized by main.js
+});
+</script>
+{% endblock %}

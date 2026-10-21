@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dataset Manager - SecureDT{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: var(--space-6);">
+  <h1 class="page-title">Dataset Manager</h1>
+  <p class="page-subtitle">Real public datasets for intelligent and secure task scheduling</p>
+</div>
+
+<!-- ===== SUMMARY CARDS ===== -->
+<section class="card" style="margin-bottom: var(--space-6);">
+  <header class="card-header"><h2 class="card-title">Dataset Overview</h2></header>
+  <div class="card-content">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--space-4);" id="overview-cards">
+      <div style="padding:var(--space-4);border-radius:var(--radius-lg);background:var(--color-surface-alt);">
+        <div style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:var(--space-1);">Total Datasets</div>
+        <div style="font-size:1.5rem;font-weight:700;" id="ov-total">--</div>
+      </div>
+      <div style="padding:var(--space-4);border-radius:var(--radius-lg);background:var(--color-surface-alt);">
+        <div style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:var(--space-1);">ATTACKED Records</div>
+        <div style="font-size:1.5rem;font-weight:700;color:#ef4444;" id="ov-attack">--</div>
+      </div>
+      <div style="padding:var(--space-4);border-radius:var(--radius-lg);background:var(--color-surface-alt);">
+        <div style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:var(--space-1);">BENIGN Records</div>
+        <div style="font-size:1.5rem;font-weight:700;color:#22c55e;" id="ov-benign">--</div>
+      </div>
+      <div style="padding:var(--space-4);border-radius:var(--radius-lg);background:var(--color-surface-alt);">
+        <div style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:var(--space-1);">Total Records</div>
+        <div style="font-size:1.5rem;font-weight:700;" id="ov-total-records">--</div>
+      </div>
+      <div style="padding:var(--space-4);border-radius:var(--radius-lg);background:var(--color-surface-alt);">
+        <div style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:var(--space-1);">Storage (MB)</div>
+        <div style="font-size:1.5rem;font-weight:700;" id="ov-storage">--</div>
+      </div>
+      <div style="padding:var(--space-4);border-radius:var(--radius-lg);background:var(--color-surface-alt);">
+        <div style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:var(--space-1);">Validation Status</div>
+        <div style="font-size:1.5rem;font-weight:700;" id="ov-status">--</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CHARTS ===== -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-6);margin-bottom:var(--space-6);">
+  <section class="card">
+    <header class="card-header"><h2 class="card-title">Attack Class Distribution</h2></header>
+    <div class="card-content"><canvas id="chart-attack-dist" height="260"></canvas></div>
+  </section>
+  <section class="card">
+    <header class="card-header"><h2 class="card-title">Benign vs Attack (Processed)</h2></header>
+    <div class="card-content"><canvas id="chart-benign-attack" height="260"></canvas></div>
+  </section>
+</div>
+
+<!-- ===== TWO PANELS ===== -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-6);margin-bottom:var(--space-6);">
+  <!-- ATTACKED PANEL -->
+  <section class="card">
+    <header class="card-header"><h2 class="card-title" style="color:#ef4444;">ATTACKED Datasets</h2></header>
+    <div class="card-content" style="padding:0;">
+      <div class="table-container">
+        <table class="table">
+          <thead><tr>
+            <th>Dataset</th><th>Type</th><th>Records</th><th>Status</th><th>Source</th><th>Drive</th>
+          </tr></thead>
+          <tbody id="panel-attacked"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- BENIGN PANEL -->
+  <section class="card">
+    <header class="card-header"><h2 class="card-title" style="color:#22c55e;">BENIGN Datasets</h2></header>
+    <div class="card-content" style="padding:0;">
+      <div class="table-container">
+        <table class="table">
+          <thead><tr>
+            <th>Dataset</th><th>Origin</th><th>Records</th><th>Label</th><th>Source</th><th>Drive</th>
+          </tr></thead>
+          <tbody id="panel-benign"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ===== VERIFIED RESEARCH CATALOG ===== -->
+<section class="card" style="margin-bottom:var(--space-6);">
+  <header class="card-header">
+    <h2 class="card-title">Verified Research Catalog <span style="color:var(--color-text-muted);font-weight:400;font-size:0.85rem;">(scripts/verify_datasets.py)</span></h2>
+  </header>
+  <div class="card-content">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:var(--space-4);margin-bottom:var(--space-4);" id="vc-overview">
+      <div style="padding:var(--space-4);border-radius:var(--radius-lg);background:var(--color-surface-alt);">
+        <div style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:var(--space-1);">Total Datasets</div>
+        <div style="font-size:1.5rem;font-weight:700;" id="vc-total">--</div>
+      </div>
+      <div style="padding:var(--space-4);border-radius:var(--radius-lg);background:var(--color-surface-alt);">
+        <div style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:var(--space-1);">Verified</div>
+        <div style="font-size:1.5rem;font-weight:700;color:#22c55e;" id="vc-verified">--</div>
+      </div>
+      <div style="padding:var(--space-4);border-radius:var(--radius-lg);background:var(--color-surface-alt);">
+        <div style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:var(--space-1);">Partial</div>
+        <div style="font-size:1.5rem;font-weight:700;color:#eab308;" id="vc-partial">--</div>
+      </div>
+      <div style="padding:var(--space-4);border-radius:var(--radius-lg);background:var(--color-surface-alt);">
+        <div style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:var(--space-1);">Total Records</div>
+        <div style="font-size:1.5rem;font-weight:700;" id="vc-records">--</div>
+      </div>
+      <div style="padding:var(--space-4);border-radius:var(--radius-lg);background:var(--color-surface-alt);">
+        <div style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:var(--space-1);">Report Generated</div>
+        <div style="font-size:1.2rem;font-weight:700;" id="vc-date">--</div>
+      </div>
+    </div>
+    <div class="table-container">
+      <table class="table">
+        <thead><tr>
+          <th>Dataset</th><th>Category</th><th>Status</th><th>Files</th><th>Size (MB)</th><th>Records</th><th>Source</th>
+        </tr></thead>
+        <tbody id="vc-rows"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===== EXPERIMENT SELECTOR ===== -->
+<section class="card" style="margin-bottom:var(--space-6);">
+  <header class="card-header"><h2 class="card-title">Dataset Selection for Experiments</h2></header>
+  <div class="card-content">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-4);align-items:end;">
+      <div class="form-group">
+        <label>Attacked Dataset</label>
+        <select id="exp-attacked" class="form-select"></select>
+      </div>
+      <div class="form-group">
+        <label>Benign Dataset</label>
+        <select id="exp-benign" class="form-select"></select>
+      </div>
+      <div class="form-group">
+        <label>Dataset Mode</label>
+        <div style="display:flex;gap:var(--space-2);">
+          <button class="btn btn-sm btn-primary" data-mode="ATTACKED">ATTACKED</button>
+          <button class="btn btn-sm btn-secondary" data-mode="BENIGN">BENIGN</button>
+          <button class="btn btn-sm btn-secondary" data-mode="COMBINED">COMBINED</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  const fmt = n => n==null ? '--' : n.toLocaleString();
+  let _charts={};
+  const ACCENT='#35e0ff', RED='#ef4444', GREEN='#22c55e', MUTED='rgba(150,150,150,0.5)';
+  const COLORS=[RED,'#f97316','#eab308','#22c55e','#35e0ff','#6366f1','#ec4899','#14b8a6','#f43f5e','#84cc16','#8b5cf6','#0ea5e9'];
+
+  async function loadOverview(){
+    try{const r=await fetch('/datasets/app/api/datasets/overview');const d=await r.json();
+      document.getElementById('ov-total').textContent=d.total_datasets;
+      document.getElementById('ov-attack').textContent=fmt(d.attacked_records);
+      document.getElementById('ov-benign').textContent=fmt(d.benign_records);
+      document.getElementById('ov-total-records').textContent=fmt(d.total_records);
+      document.getElementById('ov-storage').textContent=d.storage_usage_mb;
+      document.getElementById('ov-status').textContent=d.validation_status;
+    }catch(e){console.error('overview error',e)}
+  }
+
+  async function loadCharts(){
+    try{const r=await fetch('/datasets/app/api/datasets/visualizations');const d=await r.json();
+      // Attack distribution bar
+      const atk=d.attack_distribution||{labels:[],counts:[]};
+      if(_charts.atk)_charts.atk.destroy();
+      _charts.atk=new Chart(document.getElementById('chart-attack-dist'),{
+        type:'bar',
+        data:{labels:atk.labels.map(s=>s.length>14?s.slice(0,14)+'...':s),
+              datasets:[{label:'Records',data:atk.counts,backgroundColor:COLORS.slice(0,atk.labels.length)}]},
+        options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+      });
+      // Benign vs Attack pie
+      const bal=d.benign_vs_attack||{labels:[],counts:[]};
+      if(_charts.bal)_charts.bal.destroy();
+      _charts.bal=new Chart(document.getElementById('chart-benign-attack'),{
+        type:'doughnut',
+        data:{labels:bal.labels,datasets:[{data:bal.counts,backgroundColor:[GREEN,RED]}]},
+        options:{responsive:true,plugins:{legend:{position:'bottom'}}}
+      });
+    }catch(e){console.error('charts error',e)}
+  }
+
+  async function loadPanels(){
+    try{const r=await fetch('/datasets/app/api/datasets/cards');const d=await r.json();
+      const aBody=document.getElementById('panel-attacked');
+      const bBody=document.getElementById('panel-benign');
+      aBody.innerHTML='';
+      bBody.innerHTML='';
+      (d.attacked||[]).forEach(c=>{
+        const statusBadge=c.status==='LOCAL'
+          ?'<span style="color:#22c55e;">LOCAL</span>'
+          :'<span style="color:#eab308;">MANUAL</span>';
+        aBody.innerHTML+=`<tr>
+          <td style="font-weight:600;">${c.name}</td>
+          <td><span style="padding:2px 8px;border-radius:4px;background:rgba(239,68,68,0.12);color:#ef4444;font-size:0.75rem;">ATTACKED</span></td>
+          <td>${fmt(c.records_local)}</td>
+          <td>${statusBadge}</td>
+          <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;"><a href="${c.source}" target="_blank" style="color:var(--color-primary);text-decoration:underline;">Official</a></td>
+          <td style="font-size:0.75rem;">${c.drive_status}</td>
+        </tr>`;
+      });
+      (d.benign||[]).forEach(c=>{
+        bBody.innerHTML+=`<tr>
+          <td style="font-weight:600;">${c.name}</td>
+          <td style="font-size:0.8rem;">${c.origin||'NSL-KDD normal class'}</td>
+          <td>${fmt(c.records_local)}</td>
+          <td style="font-size:0.75rem;">${c.label||'benign'}</td>
+          <td style="max-width:120px;"><a href="${c.source}" target="_blank" style="color:var(--color-primary);text-decoration:underline;">Official</a></td>
+          <td style="font-size:0.75rem;">${c.drive_status||'NOT_UPLOADED'}</td>
+        </tr>`;
+      });
+    }catch(e){console.error('panels error',e)}
+  }
+
+  async function loadExpOptions(){
+    try{const r=await fetch('/datasets/app/api/datasets/experiment-options');const d=await r.json();
+      const a=document.getElementById('exp-attacked');const b=document.getElementById('exp-benign');
+      a.innerHTML='';b.innerHTML='';
+      (d.attacked||[]).forEach(n=>{const o=document.createElement('option');o.textContent=n;o.value=n;a.appendChild(o)});
+      (d.benign||[]).forEach(n=>{const o=document.createElement('option');o.textContent=n;o.value=n;b.appendChild(o)});
+    }catch(e){console.error('exp options error',e)}
+  }
+
+  async function loadVerifiedCatalog(){
+    try{const r=await fetch('/datasets/app/api/datasets/verified-catalog');const d=await r.json();
+      if(d.error){console.error(d.error);return}
+      const o=d.overview||{};
+      document.getElementById('vc-total').textContent=fmt(o.total_datasets);
+      document.getElementById('vc-verified').textContent=fmt(o.verified);
+      document.getElementById('vc-partial').textContent=fmt(o.partial);
+      document.getElementById('vc-records').textContent=fmt(o.total_records);
+      const dt=(d.generated_at||'').slice(0,10);
+      document.getElementById('vc-date').textContent=dt||'--';
+      const body=document.getElementById('vc-rows');
+      body.innerHTML='';
+      (d.datasets||[]).forEach(c=>{
+        const st=c.verification_status;
+        const col=st==='VERIFIED'?'#22c55e':st==='PARTIALLY VERIFIED'?'#eab308':'#ef4444';
+        body.innerHTML+=`<tr>
+          <td style="font-weight:600;">${c.name}</td>
+          <td style="font-size:0.8rem;">${c.category}</td>
+          <td><span style="padding:2px 8px;border-radius:4px;background:rgba(150,150,150,0.12);color:${col};font-size:0.75rem;">${st}</span></td>
+          <td>${c.files}</td>
+          <td>${c.file_size_mb.toLocaleString()}</td>
+          <td>${fmt(c.record_count)}</td>
+          <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;">
+            ${c.official_source?`<a href="${c.official_source}" target="_blank" style="color:var(--color-primary);text-decoration:underline;">Official</a>`:'--'}
+          </td>
+        </tr>`;
+      });
+    }catch(e){console.error('verified catalog error',e)}
+  }
+
+  loadOverview();loadCharts();loadPanels();loadExpOptions();loadVerifiedCatalog();
+})();
+</script>
+{% endblock %}

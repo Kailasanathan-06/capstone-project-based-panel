@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Performance - SecureDT{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: var(--space-6);">
+  <h1 class="page-title">Performance Analytics</h1>
+  <p class="page-subtitle">System performance benchmarks and scheduling efficiency metrics</p>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: var(--space-6);">
+  <article class="kpi-card"><span class="kpi-label">Scheduler Efficiency</span><span class="kpi-value success" id="sched-efficiency">87.3%</span></article>
+  <article class="kpi-card"><span class="kpi-label">Avg Latency Reduction</span><span class="kpi-value primary" id="latency-reduction">34%</span></article>
+  <article class="kpi-card"><span class="kpi-label">Energy Savings</span><span class="kpi-value warning" id="energy-savings">22%</span></article>
+  <article class="kpi-card"><span class="kpi-label">Deadline Success</span><span class="kpi-value info" id="deadline-success">91.5%</span></article>
+  <article class="kpi-card"><span class="kpi-label">GA Convergence</span><span class="kpi-value primary" id="ga-conv">Gen 23</span></article>
+  <article class="kpi-card"><span class="kpi-label">Baseline Gap</span><span class="kpi-value success" id="baseline-gap">+15.2%</span></article>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-6);">
+  <section class="card" aria-labelledby="algo-comparison-heading">
+    <header class="card-header"><h2 class="card-title" id="algo-comparison-heading">Algorithm Comparison</h2></header>
+    <div class="card-content">
+      <div class="chart-container"><canvas id="algo-comparison-chart"></canvas></div>
+      <div class="table-container" style="margin-top: var(--space-4);">
+        <table class="table">
+          <thead><tr><th>Algorithm</th><th>Latency</th><th>Energy</th><th>Privacy</th><th>Security</th><th>Deadline</th><th>Overall</th></tr></thead>
+          <tbody id="algo-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="scalability-heading">
+    <header class="card-header"><h2 class="card-title" id="scalability-heading">Scalability Test</h2></header>
+    <div class="card-content">
+      <div class="chart-container"><canvas id="scalability-chart"></canvas></div>
+    </div>
+  </section>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6);">
+  <section class="card" aria-labelledby="resource-util-heading">
+    <header class="card-header"><h2 class="card-title" id="resource-util-heading">Resource Utilization</h2></header>
+    <div class="card-content">
+      <div class="chart-container"><canvas id="utilization-chart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="benchmark-heading">
+    <header class="card-header"><h2 class="card-title" id="benchmark-heading">Benchmarks</h2></header>
+    <div class="card-content">
+      <div class="table-container">
+        <table class="table">
+          <thead><tr><th>Metric</th><th>Value</th><th>Unit</th><th>Baseline</th><th>Improvement</th></tr></thead>
+          <tbody id="benchmark-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.dataset.page = 'performance';
+});
+</script>
+{% endblock %}

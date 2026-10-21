@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Digital Twin - SecureDT{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: var(--space-6);">
+  <h1 class="page-title">Digital Twin</h1>
+  <p class="page-subtitle">Real-time virtual representation of your edge-cloud infrastructure</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 400px; gap: var(--space-6); margin-bottom: var(--space-6);">
+  <section class="card" aria-labelledby="twin-topology-heading">
+    <header class="card-header">
+      <h2 class="card-title" id="twin-topology-heading">Infrastructure Topology</h2>
+    </header>
+    <div class="card-content" style="padding: 0;">
+      <div id="twin-topology" class="topology-container" style="height: 500px;" role="img" aria-label="Digital twin topology visualization"></div>
+    </div>
+  </section>
+  
+  <section class="card" aria-labelledby="twin-resources-heading">
+    <header class="card-header">
+      <h2 class="card-title" id="twin-resources-heading">Resource States</h2>
+    </header>
+    <div class="card-content" style="padding: 0; max-height: 500px; overflow-y: auto;">
+      <div id="twin-resources" class="mec-grid" style="padding: var(--space-4);"></div>
+    </div>
+  </section>
+</div>
+
+<section class="card" aria-labelledby="twin-history-heading">
+  <header class="card-header">
+    <h2 class="card-title" id="twin-history-heading">State History</h2>
+  </header>
+  <div class="card-content">
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Resource</th>
+            <th>CPU</th>
+            <th>RAM</th>
+            <th>Risk</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="twin-history-body">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.dataset.page = 'digital_twin';
+  // Implementation would load digital twin state via API
+});
+</script>
+{% endblock %}

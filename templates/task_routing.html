@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Task Routing - SecureDT{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: var(--space-6);">
+  <h1 class="page-title">Task Routing</h1>
+  <p class="page-subtitle">Visualize and control task scheduling across edge-cloud infrastructure</p>
+</div>
+
+<!-- Pipeline Visualization -->
+<section class="card" aria-labelledby="pipeline-heading" style="margin-bottom: var(--space-6);">
+  <header class="card-header">
+    <h2 class="card-title" id="pipeline-heading">Scheduling Pipeline</h2>
+    <div class="flex gap-2">
+      <button class="btn btn-primary btn-sm" id="run-scheduler">
+        <svg class="icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        Run GA Scheduler
+      </button>
+      <button class="btn btn-secondary btn-sm" id="clear-pipeline">Clear</button>
+    </div>
+  </header>
+  <div class="card-content">
+    <div class="pipeline" id="scheduling-pipeline" role="list" aria-label="Task scheduling pipeline stages">
+      <article class="pipeline-stage" data-stage="1" role="listitem">
+        <span class="stage-number">1</span>
+        <span class="stage-name">Task Received</span>
+        <span class="stage-status pending">Pending</span>
+      </article>
+      <article class="pipeline-stage" data-stage="2" role="listitem">
+        <span class="stage-number">2</span>
+        <span class="stage-name">AI Risk Assessment</span>
+        <span class="stage-status pending">Waiting</span>
+      </article>
+      <article class="pipeline-stage" data-stage="3" role="listitem">
+        <span class="stage-number">3</span>
+        <span class="stage-name">Digital Twin Sync</span>
+        <span class="stage-status pending">Waiting</span>
+      </article>
+      <article class="pipeline-stage" data-stage="4" role="listitem">
+        <span class="stage-number">4</span>
+        <span class="stage-name">Genetic Algorithm</span>
+        <span class="stage-status pending">Waiting</span>
+      </article>
+      <article class="pipeline-stage" data-stage="5" role="listitem">
+        <span class="stage-number">5</span>
+        <span class="stage-name">Node Selection</span>
+        <span class="stage-status pending">Waiting</span>
+      </article>
+      <article class="pipeline-stage" data-stage="6" role="listitem">
+        <span class="stage-number">6</span>
+        <span class="stage-name">Data Transfer</span>
+        <span class="stage-status pending">Waiting</span>
+      </article>
+      <article class="pipeline-stage" data-stage="7" role="listitem">
+        <span class="stage-number">7</span>
+        <span class="stage-name">Execution</span>
+        <span class="stage-status pending">Waiting</span>
+      </article>
+      <article class="pipeline-stage" data-stage="8" role="listitem">
+        <span class="stage-number">8</span>
+        <span class="stage-name">Result Return</span>
+        <span class="stage-status pending">Waiting</span>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- Task Form & Live Routing -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-6);">
+  <!-- Create Task -->
+  <section class="card" aria-labelledby="create-task-heading">
+    <header class="card-header">
+      <h2 class="card-title" id="create-task-heading">Submit New Task</h2>
+    </header>
+    <div class="card-content">
+      <form id="task-form" class="task-form" style="display: flex; flex-direction: column; gap: var(--space-4);">
+        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+          <div class="form-group">
+            <label for="task-id">Task ID</label>
+            <input type="text" id="task-id" name="task_id" value="TASK-{{ timestamp|date:'YmdHis' }}" required class="form-input">
+          </div>
+          <div class="form-group">
+            <label for="task-name">Task Name</label>
+            <input type="text" id="task-name" name="name" placeholder="e.g., Video Analytics Processing" required class="form-input">
+          </div>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="priority">Priority</label>
+            <select id="priority" name="priority" class="form-select">
+              <option value="1">Critical (1)</option>
+              <option value="2" selected>High (2)</option>
+              <option value="3">Normal (3)</option>
+              <option value="4">Low (4)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="data-size">Data Size (MB)</label>
+            <input type="number" id="data-size" name="data_size_mb" value="50" min="1" max="10000" class="form-input">
+          </div>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="cpu-cycles">CPU Cycles (Giga)</label>
+            <input type="number" id="cpu-cycles" name="cpu_cycles_giga" value="2.5" min="0.1" max="100" step="0.1" class="form-input">
+          </div>
+          <div class="form-group">
+            <label for="memory">Memory (MB)</label>
+            <input type="number" id="memory" name="memory_mb" value="512" min="64" max="32768" class="form-input">
+          </div>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="deadline">Deadline (ms)</label>
+            <input type="number" id="deadline" name="deadline_ms" value="5000" min="100" max="300000" class="form-input">
+          </div>
+          <div class="form-group">
+            <label for="privacy">Privacy Sensitivity</label>
+            <input type="range" id="privacy" name="privacy_sensitivity" min="0" max="1" step="0.1" value="0.3" class="form-range">
+            <span id="privacy-value" style="font-size: var(--font-size-sm); color: var(--color-text-muted);">0.3</span>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="security">Security Sensitivity</label>
+          <input type="range" id="security" name="security_sensitivity" min="0" max="1" step="0.1" value="0.2" class="form-range">
+          <span id="security-value" style="font-size: var(--font-size-sm); color: var(--color-text-muted);">0.2</span>
+        </div>
+        
+        <div class="flex gap-3" style="margin-top: var(--space-2);">
+          <button type="submit" class="btn btn-primary btn-lg" style="flex: 1;">
+            <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Submit Task
+          </button>
+          <button type="button" class="btn btn-secondary" id="run-ga-btn">
+            <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon><line x1="12" y1="22" x2="12" y2="15.5"></line><polyline points="22 8.5 12 15.5 2 8.5"></polyline></svg>
+            Run GA Optimization
+          </button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Live Routing Visualization -->
+  <section class="card" aria-labelledby="routing-heading">
+    <header class="card-header">
+      <h2 class="card-title" id="routing-heading">Live Routing</h2>
+    </header>
+    <div class="card-content" style="min-height: 400px;">
+      <div id="routing-visualization" class="topology-container" style="height: 380px;" role="img" aria-label="Live task routing visualization"></div>
+      
+      <div id="routing-details" class="mt-4" style="display: none;">
+        <h3 style="font-size: var(--font-size-base); margin-bottom: var(--space-3);">Task Details</h3>
+        <div class="grid-2" style="gap: var(--space-3);">
+          <div class="metric-row">
+            <span class="metric-label">Task ID</span>
+            <span class="metric-value font-mono" id="rt-task-id">—</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Source</span>
+            <span class="metric-value" id="rt-source">USER</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Destination</span>
+            <span class="metric-value font-mono" id="rt-destination">—</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Data Size</span>
+            <span class="metric-value" id="rt-data-size">—</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Latency</span>
+            <span class="metric-value" id="rt-latency">—</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Execution Time</span>
+            <span class="metric-value" id="rt-exec-time">—</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Energy</span>
+            <span class="metric-value" id="rt-energy">—</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Security Risk</span>
+            <span class="metric-value" id="rt-risk">—</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Status</span>
+            <span class="metric-value" id="rt-status"><span class="badge badge-pending">Queued</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Task Queue Table -->
+<section class="card" aria-labelledby="queue-heading">
+  <header class="card-header">
+    <h2 class="card-title" id="queue-heading">Task Queue</h2>
+    <div class="flex gap-2">
+      <select id="queue-filter" class="form-select" style="width: auto; min-width: 160px;">
+        <option value="">All Statuses</option>
+        <option value="PENDING">Pending</option>
+        <option value="QUEUED">Queued</option>
+        <option value="ASSIGNED">Assigned</option>
+        <option value="RUNNING">Running</option>
+        <option value="COMPLETED">Completed</option>
+        <option value="FAILED">Failed</option>
+      </select>
+      <button class="btn btn-secondary btn-sm" id="refresh-queue">Refresh</button>
+    </div>
+  </header>
+  <div class="card-content" style="padding: 0;">
+    <div class="table-container">
+      <table class="table" id="task-queue-table">
+        <thead>
+          <tr>
+            <th>Task ID</th>
+            <th>Name</th>
+            <th>Priority</th>
+            <th>Data Size</th>
+            <th>MEC</th>
+            <th>Status</th>
+            <th>Progress</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="task-queue-body">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.dataset.page = 'task_routing';
+  
+  // Range input value display
+  $('#privacy')?.addEventListener('input', e => $('#privacy-value').textContent = e.target.value);
+  $('#security')?.addEventListener('input', e => $('#security-value').textContent = e.target.value);
+  
+  // Form submission
+  $('#task-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    
+    // Convert numbers
+    ['priority', 'data_size_mb', 'cpu_cycles_giga', 'memory_mb', 'deadline_ms'].forEach(k => {
+      if (data[k]) data[k] = parseFloat(data[k]);
+    });
+    ['privacy_sensitivity', 'security_sensitivity'].forEach(k => {
+      if (data[k]) data[k] = parseFloat(data[k]);
+    });
+    
+    try {
+      const result = await SecureDT.api('/tasks/', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      SecureDT.showToast(`Task ${result.task_id} created successfully`, 'success');
+      loadTaskQueue();
+    } catch (err) {
+      SecureDT.showToast('Failed to create task: ' + err.message, 'error');
+    }
+  });
+  
+  // Run GA button
+  $('#run-ga-btn')?.addEventListener('click', async () => {
+    const taskId = $('#task-id').value;
+    if (!taskId) return;
+    
+    const stages = $$('#scheduling-pipeline .pipeline-stage');
+    stages.forEach((s, i) => {
+      s.classList.remove('active', 'completed', 'failed');
+      s.querySelector('.stage-status').textContent = i === 0 ? 'Active' : 'Waiting';
+      s.querySelector('.stage-status').className = 'stage-status ' + (i === 0 ? 'active' : 'pending');
+      if (i > 0) s.classList.add('pending');
+    });
+    
+    // Simulate pipeline progression
+    for (let i = 0; i < stages.length; i++) {
+      stages[i].classList.add('active');
+      stages[i].querySelector('.stage-status').textContent = 'Processing...';
+      stages[i].querySelector('.stage-status').className = 'stage-status active';
+      
+      await new Promise(r => setTimeout(r, 800));
+      
+      stages[i].classList.remove('active');
+      stages[i].classList.add('completed');
+      stages[i].querySelector('.stage-status').textContent = 'Completed';
+      stages[i].querySelector('.stage-status').className = 'stage-status completed';
+      
+      if (i + 1 < stages.length) {
+        stages[i + 1].classList.remove('pending');
+      }
+    }
+    
+    // Simulate task assignment
+    const mecIds = ['MEC-001', 'MEC-002', 'MEC-003', 'CLOUD'];
+    const selectedMec = mecIds[Math.floor(Math.random() * mecIds.length)];
+    
+    $('#rt-task-id').textContent = taskId;
+    $('#rt-destination').textContent = selectedMec;
+    $('#rt-data-size').textContent = $('#data-size').value + ' MB';
+    $('#rt-latency').textContent = (Math.random() * 50 + 10).toFixed(1) + ' ms';
+    $('#rt-exec-time').textContent = (Math.random() * 5 + 1).toFixed(2) + ' s';
+    $('#rt-energy').textContent = (Math.random() * 0.5 + 0.1).toFixed(3) + ' Wh';
+    $('#rt-risk').textContent = (Math.random() * 0.3).toFixed(2);
+    $('#rt-status').innerHTML = '<span class="badge badge-completed">Completed</span>';
+    $('#routing-details').style.display = 'block';
+    
+    SecureDT.showToast(`Task routed to ${selectedMec}`, 'success');
+  });
+  
+  // Load task queue
+  async function loadTaskQueue() {
+    try {
+      const tasks = await SecureDT.api('/tasks/');
+      const tbody = $('#task-queue-body');
+      if (!tbody) return;
+      
+      tbody.innerHTML = tasks.map(task => `
+        <tr>
+          <td><code class="font-mono">${task.task_id}</code></td>
+          <td>${task.name}</td>
+          <td>${task.priority}</td>
+          <td>${task.data_size_mb} MB</td>
+          <td>${task.assigned_mec?.device_id || '—'}</td>
+          <td>${SecureDT.createBadge?.(task.status, getStatusVariant(task.status)).outerHTML || getStatusBadge(task.status)}</td>
+          <td>
+            <div class="progress-bar">
+              <div class="progress-fill ${getProgressClass(task.status)}" style="width: ${getProgressWidth(task.status)}%"></div>
+            </div>
+          </td>
+          <td>${timeAgo(task.created_at)}</td>
+          <td>
+            ${task.status === 'RUNNING' || task.status === 'ASSIGNED' ? 
+              `<button class="btn btn-danger btn-sm" onclick="failTask('${task.task_id}')">Fail</button>` : ''}
+            ${task.status === 'PENDING' || task.status === 'QUEUED' ? 
+              `<button class="btn btn-primary btn-sm" onclick="assignTask('${task.task_id}')">Assign</button>` : ''}
+          </td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      console.error('Failed to load queue:', err);
+    }
+  }
+  
+  function getStatusBadge(status) {
+    const variants = { 'PENDING': 'info', 'QUEUED': 'info', 'ASSIGNED': 'primary', 'RUNNING': 'primary', 'COMPLETED': 'success', 'FAILED': 'danger', 'CANCELLED': 'warning', 'RETRYING': 'warning' };
+    return `<span class="badge badge-${variants[status] || 'info'}">${status}</span>`;
+  }
+  
+  function getStatusVariant(status) {
+    const variants = { 'PENDING': 'info', 'QUEUED': 'info', 'ASSIGNED': 'primary', 'RUNNING': 'primary', 'COMPLETED': 'success', 'FAILED': 'danger', 'CANCELLED': 'warning', 'RETRYING': 'warning' };
+    return variants[status] || 'info';
+  }
+  
+  function getProgressClass(status) {
+    if (['COMPLETED'].includes(status)) return 'cpu';
+    if (['FAILED'].includes(status)) return 'danger';
+    return 'cpu';
+  }
+  
+  function getProgressWidth(status) {
+    const widths = { 'PENDING': 10, 'QUEUED': 20, 'ASSIGNED': 30, 'RUNNING': 60, 'COMPLETED': 100, 'FAILED': 0, 'CANCELLED': 0, 'RETRYING': 40 };
+    return widths[status] || 0;
+  }
+  
+  function timeAgo(dateString) {
+    const now = new Date();
+    const then = new Date(dateString);
+    const diff = Math.floor((now - then) / 1000);
+    if (diff < 60) return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+  }
+  
+  window.failTask = async (taskId) => {
+    try {
+      await SecureDT.api(`/tasks/${taskId}/fail/`, { method: 'POST' });
+      SecureDT.showToast('Task marked as failed', 'warning');
+      loadTaskQueue();
+    } catch (err) {
+      SecureDT.showToast('Failed: ' + err.message, 'error');
+    }
+  };
+  
+  window.assignTask = async (taskId) => {
+    // Would show MEC selection modal
+    SecureDT.showToast('MEC assignment dialog would open here', 'info');
+  };
+  
+  $('#refresh-queue')?.addEventListener('click', loadTaskQueue);
+  $('#queue-filter')?.addEventListener('change', loadTaskQueue);
+  
+  loadTaskQueue();
+});
+</script>
+{% endblock %}

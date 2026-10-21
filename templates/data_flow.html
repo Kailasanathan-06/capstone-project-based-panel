@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Data Flow - SecureDT{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: var(--space-6);">
+  <h1 class="page-title">Data Flow Visualization</h1>
+  <p class="page-subtitle">Animated visualization of data movement through the edge-cloud pipeline</p>
+</div>
+
+<!-- Pipeline Overview -->
+<section class="card" aria-labelledby="flow-pipeline-heading" style="margin-bottom: var(--space-6);">
+  <header class="card-header"><h2 class="card-title" id="flow-pipeline-heading">End-to-End Data Flow</h2></header>
+  <div class="card-content">
+    <div class="pipeline" id="data-flow-pipeline">
+      <article class="pipeline-stage completed"><span class="stage-number">1</span><span class="stage-name">User Upload</span><span class="stage-status completed">Complete</span></article>
+      <article class="pipeline-stage completed"><span class="stage-number">2</span><span class="stage-name">Validation & Security</span><span class="stage-status completed">Complete</span></article>
+      <article class="pipeline-stage completed"><span class="stage-number">3</span><span class="stage-name">Google Drive Storage</span><span class="stage-status completed">Complete</span></article>
+      <article class="pipeline-stage active"><span class="stage-number">4</span><span class="stage-name">Scheduler (GA)</span><span class="stage-status active">Processing</span></article>
+      <article class="pipeline-stage pending"><span class="stage-number">5</span><span class="stage-name">MEC Selection</span><span class="stage-status pending">Waiting</span></article>
+      <article class="pipeline-stage pending"><span class="stage-number">6</span><span class="stage-name">Data Transfer</span><span class="stage-status pending">Waiting</span></article>
+      <article class="pipeline-stage pending"><span class="stage-number">7</span><span class="stage-name">MEC Processing</span><span class="stage-status pending">Waiting</span></article>
+      <article class="pipeline-stage pending"><span class="stage-number">8</span><span class="stage-name">Result Return</span><span class="stage-status pending">Waiting</span></article>
+      <article class="pipeline-stage pending"><span class="stage-number">9</span><span class="stage-name">Drive Storage</span><span class="stage-status pending">Waiting</span></article>
+      <article class="pipeline-stage pending"><span class="stage-number">10</span><span class="stage-name">User Notification</span><span class="stage-status pending">Waiting</span></article>
+    </div>
+  </div>
+</section>
+
+<!-- Network Topology with Animated Packets -->
+<div style="display: grid; grid-template-columns: 1fr 400px; gap: var(--space-6); margin-bottom: var(--space-6);">
+  <section class="card" aria-labelledby="flow-topology-heading">
+    <header class="card-header">
+      <h2 class="card-title" id="flow-topology-heading">Live Network Topology</h2>
+      <div class="flex gap-2">
+        <button class="btn btn-secondary btn-sm" id="flow-start-animation">Start Animation</button>
+        <button class="btn btn-secondary btn-sm" id="flow-stop-animation">Stop</button>
+      </div>
+    </header>
+    <div class="card-content" style="padding: 0;">
+      <div id="flow-topology" class="topology-container" style="height: 500px;" role="img" aria-label="Animated data flow topology"></div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="transfer-metrics-heading">
+    <header class="card-header"><h2 class="card-title" id="transfer-metrics-heading">Transfer Metrics</h2></header>
+    <div class="card-content">
+      <div class="kpi-grid" style="margin-bottom: var(--space-4);">
+        <article class="kpi-card"><span class="kpi-label">Active Transfers</span><span class="kpi-value info" id="active-transfers">0</span></article>
+        <article class="kpi-card"><span class="kpi-label">Total Bandwidth</span><span class="kpi-value primary" id="total-bandwidth">0 MB/s</span></article>
+        <article class="kpi-card"><span class="kpi-label">Avg Latency</span><span class="kpi-value warning" id="transfer-latency">0 ms</span></article>
+        <article class="kpi-card"><span class="kpi-label">Success Rate</span><span class="kpi-value success" id="transfer-success">100%</span></article>
+      </div>
+      <div class="chart-container" style="height: 250px;">
+        <canvas id="transfer-history-chart" aria-label="Transfer history over time"></canvas>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Packet Details -->
+<section class="card" aria-labelledby="packet-details-heading">
+  <header class="card-header"><h2 class="card-title" id="packet-details-heading">Packet Details</h2></header>
+  <div class="card-content">
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Packet ID</th>
+            <th>Type</th>
+            <th>Source</th>
+            <th>Destination</th>
+            <th>Size</th>
+            <th>Speed</th>
+            <th>Duration</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="packet-details-body">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.dataset.page = 'data_flow';
+  
+  // Animation controls
+  let animationInterval = null;
+  
+  $('#flow-start-animation')?.addEventListener('click', () => {
+    if (animationInterval) return;
+    animationInterval = setInterval(() => {
+      // Simulate packet movement
+      SecureDT.showToast('Packet animation running...', 'info');
+    }, 2000);
+  });
+  
+  $('#flow-stop-animation')?.addEventListener('click', () => {
+    if (animationInterval) {
+      clearInterval(animationInterval);
+      animationInterval = null;
+    }
+  });
+});
+</script>
+{% endblock %}

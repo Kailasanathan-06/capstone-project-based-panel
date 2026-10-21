@@ -1,0 +1,81 @@
+<!DOCTYPE html>{% load static %}
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In - SecureDT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body data-theme="dark" class="auth-page">
+
+<main class="auth-shell">
+  <div class="auth-visual" aria-hidden="true">
+    <div class="vis-network" id="vis-rings"></div>
+    <div class="auth-brand-lockup">
+      <span class="brand-icon" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 32 32" fill="none">
+          <rect x="4" y="4" width="24" height="24" rx="6" stroke="currentColor" stroke-width="2"/>
+          <path d="M10 16L14 20L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="auth-wordmark">SecureDT</span>
+    </div>
+    <p class="auth-tagline">Intelligent &amp; Secure Task Scheduling for<br>Digital Twin-Enabled Edge&ndash;Cloud Networks</p>
+  </div>
+
+  <div class="auth-card">
+    <div class="auth-brand">
+      <h1 class="auth-title">Welcome back</h1>
+      <p class="auth-sub muted">Sign in to the SecureDT operations console.</p>
+    </div>
+
+    {% if messages %}
+      {% for m in messages %}
+        <div class="alert {% if m.tags == 'error' %}alert-danger{% elif m.tags == 'success' %}alert-success{% endif %}">{{ m }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" class="stack" autocomplete="off">
+      {% csrf_token %}
+      {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+      <label class="field">
+        <span>Username</span>
+        {{ form.username }}
+      </label>
+      <label class="field">
+        <span>Password</span>
+        {{ form.password }}
+      </label>
+      {% if form.errors %}
+        <div class="alert alert-danger">
+          {% for field_errors in form.errors.values %}{% for err in field_errors %}{{ err }} {% endfor %}{% endfor %}
+        </div>
+      {% endif %}
+      <button class="btn btn-primary block" type="submit">Sign In</button>
+    </form>
+
+    <div class="auth-foot muted small">
+      New here? <a href="{% url 'register' %}">Create an account</a>
+    </div>
+  </div>
+</main>
+
+<script>
+  var rings = document.getElementById('vis-rings');
+  if (rings) {
+    var cx = 80, cy = 80;
+    var svg = '<svg viewBox="0 0 160 160" width="260" height="260" class="va-ring">';
+    for (var i = 1; i <= 4; i++) {
+      var r = i * 16;
+      svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="rgba(56,189,248,.25)" stroke-width="1" class="ring-' + i + '"/>';
+    }
+    svg += '<circle cx="' + cx + '" cy="' + cy + '" r="4" fill="#38bdf8"/>';
+    svg += '</svg>';
+    rings.innerHTML = svg;
+  }
+</script>
+</body>
+</html>

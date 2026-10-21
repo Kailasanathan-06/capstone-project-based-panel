@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard - SecureDT{% endblock %}
+
+{% block extra_css %}
+<style>
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-12);
+    color: var(--color-text-muted);
+    text-align: center;
+  }
+  .empty-state svg { width: 64px; height: 64px; margin-bottom: var(--space-4); opacity: 0.5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header" style="margin-bottom: var(--space-6);">
+  <h1 class="page-title">Dashboard</h1>
+  <p class="page-subtitle">Real-time overview of your edge-cloud infrastructure</p>
+</div>
+
+<!-- KPI Grid -->
+<section aria-labelledby="kpi-heading" style="margin-bottom: var(--space-6);">
+  <h2 id="kpi-heading" class="visually-hidden">Key Performance Indicators</h2>
+  <div class="kpi-grid" role="list">
+    <article class="kpi-card" role="listitem">
+      <span class="kpi-label">Total MECs</span>
+      <span class="kpi-value primary" id="kpi-total-mecs">—</span>
+      <div class="kpi-meta">
+        <span class="kpi-trend up">+2 this week</span>
+      </div>
+    </article>
+    <article class="kpi-card" role="listitem">
+      <span class="kpi-label">Online MECs</span>
+      <span class="kpi-value success" id="kpi-online-mecs">—</span>
+      <div class="kpi-meta">
+        <span id="kpi-online-pct" class="kpi-trend up">100%</span>
+      </div>
+    </article>
+    <article class="kpi-card" role="listitem">
+      <span class="kpi-label">Offline MECs</span>
+      <span class="kpi-value success" id="kpi-offline-mecs">—</span>
+      <div class="kpi-meta">
+        <span class="kpi-trend">No issues</span>
+      </div>
+    </article>
+    <article class="kpi-card" role="listitem">
+      <span class="kpi-label">Active Tasks</span>
+      <span class="kpi-value info" id="kpi-active-tasks">—</span>
+      <div class="kpi-meta">
+        <span id="kpi-queued" class="kpi-trend">Queued: 0</span>
+      </div>
+    </article>
+    <article class="kpi-card" role="listitem">
+      <span class="kpi-label">Completed Tasks</span>
+      <span class="kpi-value success" id="kpi-completed-tasks">—</span>
+      <div class="kpi-meta">
+        <span class="kpi-trend up">+12 today</span>
+      </div>
+    </article>
+    <article class="kpi-card" role="listitem">
+      <span class="kpi-label">Failed Tasks</span>
+      <span class="kpi-value danger" id="kpi-failed-tasks">—</span>
+      <div class="kpi-meta">
+        <span id="kpi-fail-rate" class="kpi-trend">0%</span>
+      </div>
+    </article>
+    <article class="kpi-card" role="listitem">
+      <span class="kpi-label">Avg CPU Utilization</span>
+      <span class="kpi-value primary" id="kpi-avg-cpu">—</span>
+      <div class="kpi-meta">
+        <span class="kpi-trend">Normal</span>
+      </div>
+    </article>
+    <article class="kpi-card" role="listitem">
+      <span class="kpi-label">Avg Latency</span>
+      <span class="kpi-value warning" id="kpi-avg-latency">—</span>
+      <div class="kpi-meta">
+        <span class="kpi-trend">Optimal</span>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- Main Content Grid -->
+<div style="display: grid; grid-template-columns: 1fr 420px; gap: var(--space-6); margin-bottom: var(--space-6);">
+  <!-- MEC Infrastructure -->
+  <section class="card" aria-labelledby="mec-heading">
+    <header class="card-header">
+      <h2 class="card-title" id="mec-heading">MEC Infrastructure</h2>
+      <a href="{% url 'mec_infrastructure' %}" class="btn btn-ghost btn-sm">View All</a>
+    </header>
+    <div class="card-content" style="padding: 0; overflow: hidden;">
+      <div id="mec-grid" class="mec-grid" style="padding: var(--space-4);" role="list">
+        <!-- MEC cards rendered by JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Charts Panel -->
+  <section class="card" aria-labelledby="charts-heading">
+    <header class="card-header">
+      <h2 class="card-title" id="charts-heading">System Metrics</h2>
+    </header>
+    <div class="card-content" style="display: flex; flex-direction: column; gap: var(--space-6);">
+      <div class="chart-container" style="height: 200px;">
+        <canvas id="cpu-ram-chart" aria-label="CPU and Memory utilization over time"></canvas>
+      </div>
+      <div class="chart-container" style="height: 200px;">
+        <canvas id="throughput-chart" aria-label="Weekly task throughput"></canvas>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Network Topology -->
+<section class="card" aria-labelledby="topology-heading" style="margin-bottom: var(--space-6);">
+  <header class="card-header">
+    <h2 class="card-title" id="topology-heading">Network Topology</h2>
+    <div class="flex gap-2">
+      <span class="status-pill info" style="font-size: 11px;">
+        <span class="status-dot" style="width: 4px; height: 4px;"></span>
+        Live
+      </span>
+      <button class="btn btn-ghost btn-sm" id="topology-fullscreen">Fullscreen</button>
+    </div>
+  </header>
+  <div class="card-content" style="padding: 0;">
+    <div id="topology-canvas" class="topology-container" role="img" aria-label="Network topology showing USER, DJANGO, MEC nodes, and CLOUD with animated data packets"></div>
+  </div>
+</section>
+
+<!-- Recent Tasks -->
+<section class="card" aria-labelledby="tasks-heading">
+  <header class="card-header">
+    <h2 class="card-title" id="tasks-heading">Active Tasks</h2>
+    <a href="{% url 'task_routing' %}" class="btn btn-ghost btn-sm">View All</a>
+  </header>
+  <div class="card-content" style="padding: 0;">
+    <div id="recent-tasks" role="list">
+      <!-- Tasks rendered by JS -->
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Page is initialized by main.js
+  document.body.dataset.page = 'dashboard';
+});
+</script>
+{% endblock %}

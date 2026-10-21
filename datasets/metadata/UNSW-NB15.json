@@ -1,0 +1,31 @@
+{
+  "name": "UNSW-NB15",
+  "type": "attacked",
+  "source": "https://research.unsw.edu.au/projects/unsw-nb15-dataset",
+  "download_url": "https://unsw-my.sharepoint.com/:f:/g/personal/z5025758_ad_unsw_edu_au/EnuQZZn3XuNBjgfcUu4DIVMBLCHyoLHqOswirpOQifr1ag",
+  "doi": "10.21227/8vf7-s525",
+  "format": "CSV",
+  "size": "",
+  "record_count": "",
+  "features": [],
+  "attack_types": [
+    "Generic",
+    "Exploits",
+    "Fuzzers",
+    "DoS",
+    "Reconnaissance",
+    "Analysis",
+    "Backdoors",
+    "Shellcode",
+    "Worms"
+  ],
+  "benign_available": true,
+  "label_key": "Label",
+  "category_key": "attack_cat",
+  "benign_value": 0,
+  "license": "Free for academic research (perpetuity); commercial use requires author agreement; cite the 5 UNSW-NB15 papers.",
+  "download_date": "2026-09-13T13:30:18Z",
+  "download_status": "MANUAL_DOWNLOAD_REQUIRED",
+  "local_path": "",
+  "checksum_sha256": ""
+}

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Cloud Storage - SecureDT{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: var(--space-6);">
+  <h1 class="page-title">Cloud Storage</h1>
+  <p class="page-subtitle">Google Drive integration for dataset and result storage</p>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: var(--space-6);">
+  <article class="kpi-card"><span class="kpi-label">Total Files</span><span class="kpi-value primary" id="cloud-total-files">—</span></article>
+  <article class="kpi-card"><span class="kpi-label">Total Size</span><span class="kpi-value warning" id="cloud-total-size">—</span></article>
+  <article class="kpi-card"><span class="kpi-label">Datasets</span><span class="kpi-value info" id="cloud-datasets">—</span></article>
+  <article class="kpi-card"><span class="kpi-label">Results</span><span class="kpi-value success" id="cloud-results">—</span></article>
+  <article class="kpi-card"><span class="kpi-label">Models</span><span class="kpi-value primary" id="cloud-models">—</span></article>
+  <article class="kpi-card"><span class="kpi-label">Free Space</span><span class="kpi-value success" id="cloud-free-space">—</span></article>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-6);">
+  <section class="card" aria-labelledby="folder-structure-heading">
+    <header class="card-header"><h2 class="card-title" id="folder-structure-heading">Folder Structure</h2></header>
+    <div class="card-content">
+      <div id="folder-tree" style="font-family: var(--font-mono); font-size: var(--font-size-sm);">
+        <div class="folder-item" style="padding: var(--space-2); border-left: 2px solid var(--color-primary); margin-left: var(--space-2);">
+          <span style="color: var(--color-primary);">📁</span> <strong>Intelligent_Secure_Scheduling/</strong>
+          <div style="margin-left: var(--space-4); margin-top: var(--space-1);">
+            <div class="folder-item"><span style="color: var(--color-info);">📁</span> <strong>datasets/</strong></div>
+            <div class="folder-item"><span style="color: var(--color-warning);">📁</span> <strong>pcap/</strong></div>
+            <div class="folder-item"><span style="color: var(--color-success);">📁</span> <strong>processed/</strong></div>
+            <div class="folder-item"><span style="color: var(--color-primary);">📁</span> <strong>results/</strong></div>
+            <div class="folder-item"><span style="color: var(--color-danger);">📁</span> <strong>models/</strong></div>
+            <div class="folder-item"><span style="color: var(--color-warning);">📁</span> <strong>experiments/</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="drive-operations-heading">
+    <header class="card-header"><h2 class="card-title" id="drive-operations-heading">Drive Operations</h2></header>
+    <div class="card-content">
+      <div style="display: flex; flex-direction: column; gap: var(--space-3);">
+        <button class="btn btn-primary" id="create-root-folder">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          Create Project Folders
+        </button>
+        <button class="btn btn-secondary" id="list-all-files">
+          <svg class="icon" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          List All Files
+        </button>
+        <button class="btn btn-secondary" id="check-quota">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          Check Quota
+        </button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<section class="card" aria-labelledby="recent-files-heading">
+  <header class="card-header"><h2 class="card-title" id="recent-files-heading">Recent Files</h2></header>
+  <div class="card-content">
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Size</th>
+            <th>Folder</th>
+            <th>Modified</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="cloud-files-body">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.dataset.page = 'cloud_storage';
+});
+</script>
+{% endblock %}

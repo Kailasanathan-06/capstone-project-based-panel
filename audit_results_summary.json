@@ -1,0 +1,440 @@
+{
+  "timestamp": "2026-10-02T16:11:34.791152",
+  "environment": {
+    "server_os": "Windows 11 (10.0.26300)",
+    "django_version": "5.2.16",
+    "python_version": "3.13.15",
+    "mysql_host": "127.0.0.1",
+    "mysql_port": "3307",
+    "mysql_database": "securetdb",
+    "server_ip": "127.0.0.1",
+    "web_port": "8000",
+    "api_port": "8000",
+    "cpu_count": 12,
+    "ram_gb": 7.33,
+    "disk_free_gb": 109.44
+  },
+  "test_cases": [
+    {
+      "test_id": "TC-DATA-01",
+      "category": "Test Data",
+      "name": "Synthetic data creation",
+      "input": "8 synthetic test artifacts",
+      "expected": "All synthetic files generated with fake labels",
+      "actual": "8 files generated successfully without real credentials",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-UI-ALL",
+      "category": "UI Testing",
+      "name": "All 16 dashboard and management templates render",
+      "input": "16 views",
+      "expected": "HTTP 200 with proper HTML",
+      "actual": "All 16 views rendered HTTP 200",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-EXE-01",
+      "category": "MEC EXE",
+      "name": "Executable presence and size",
+      "input": "release\\MEC_Agent.exe",
+      "expected": "File exists > 15MB",
+      "actual": "Exists: True, Size: 19.04 MB",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-EXE-02",
+      "category": "MEC EXE",
+      "name": "Configuration persistence and separation",
+      "input": "C:\\Users\\mkail\\.mec_agent\\config.json",
+      "expected": "Loads from user home profile",
+      "actual": "Path: C:\\Users\\mkail\\.mec_agent\\config.json, Loaded defaults properly",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-REG-01",
+      "category": "Device Registration",
+      "name": "Sequential registration of MEC 01 and MEC 02",
+      "input": "{'code1': 'SDT-30A0455E-77D4', 'code2': 'SDT-8C7E3600-9BA5'}",
+      "expected": "Both get distinct unique device IDs",
+      "actual": "MEC 01: MEC-013, MEC 02: MEC-014",
+      "status": "PASS",
+      "security_impact": "High",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-REG-02",
+      "category": "Device Registration",
+      "name": "Rejection of already-used pairing code",
+      "input": "{'pairing_code': 'SDT-30A0455E-77D4'}",
+      "expected": "HTTP 400 Bad Request",
+      "actual": "HTTP 400: Invalid or already-used pairing code",
+      "status": "PASS",
+      "security_impact": "High",
+      "recommendation": "Enforce one-time use of pairing codes to prevent device impersonation"
+    },
+    {
+      "test_id": "TC-HB-01",
+      "category": "Heartbeat",
+      "name": "Valid telemetry heartbeat marks agents ONLINE",
+      "input": "{'agent1': 'MEC-013', 'agent2': 'MEC-014'}",
+      "expected": "is_online == True for both",
+      "actual": "Agent1 online: True, Agent2 online: True",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-HB-02",
+      "category": "Heartbeat",
+      "name": "MEC 01 becomes OFFLINE while MEC 02 remains ONLINE",
+      "input": "{'agent1_last_seen': None}",
+      "expected": "MEC 01 OFFLINE, MEC 02 ONLINE",
+      "actual": "MEC 01: OFFLINE, MEC 02: ONLINE",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-HB-03",
+      "category": "Heartbeat",
+      "name": "MEC 01 recovery back to ONLINE",
+      "input": "{'hb_status': 200}",
+      "expected": "MEC 01 restored to ONLINE",
+      "actual": "Status: ONLINE",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-FILE-01",
+      "category": "File Sharing",
+      "name": "SHA-256 file integrity check during cloud storage upload",
+      "input": "{'orig_hash': '3d09c693d2cfbb2bff188321cf7f91fc5363dfb2647a02b1994e1f269cb80c92'}",
+      "expected": "Original hash == Received hash",
+      "actual": "Match: True, Hash: 3d09c693d2cfbb2b...",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-FILE-02",
+      "category": "File Sharing",
+      "name": "Unicode and spaces in uploaded filenames",
+      "input": "task_unicode_2026_test.json",
+      "expected": "HTTP 201 Created safely handled",
+      "actual": "HTTP 201",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-SEC-01",
+      "category": "File Security",
+      "name": "Path traversal injection in uploaded filenames",
+      "input": "['../../etc/passwd', '..\\\\..\\\\boot.ini', '/absolute/path/traversal.txt']",
+      "expected": "Treated as object metadata; no local filesystem traversal escape",
+      "actual": "Protected: True",
+      "status": "PASS",
+      "security_impact": "Critical",
+      "recommendation": "Sanitize filenames to base names with secure filename utilities"
+    },
+    {
+      "test_id": "TC-STORE-01",
+      "category": "Data Storage",
+      "name": "Password hashing algorithm in MySQL user store",
+      "input": "3 human users with PBKDF2 hashes, 15 agent service accounts",
+      "expected": "Human users PBKDF2 hashed; agent accounts use unusable passwords + token auth",
+      "actual": "All human passwords hashed: True (PBKDF2), Service accounts token-only: True",
+      "status": "PASS",
+      "security_impact": "Critical",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-STORE-02",
+      "category": "Data Storage",
+      "name": "Absence of hardcoded production secrets in repository",
+      "input": "Repository tree",
+      "expected": "Zero hardcoded production cloud credentials",
+      "actual": "Confirmed dev-only mock/simulation configurations",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-DB-01",
+      "category": "Database Security",
+      "name": "SQL injection resilience on ORM parameterized queries",
+      "input": "[\"' OR 1=1 --\", '\" OR \"\"=\"', '1; DROP TABLE tasks_task;', \"' UNION SELECT NULL, NULL, NULL --\"]",
+      "expected": "Clean HTTP 404 / 400 rejection with no 500 SQL syntax errors",
+      "actual": "Protected: True",
+      "status": "PASS",
+      "security_impact": "Critical",
+      "recommendation": "Maintain Django ORM parameterized queries across all endpoints"
+    },
+    {
+      "test_id": "TC-AUTH-01",
+      "category": "Authorization",
+      "name": "RBAC & Unauthenticated API access blocking",
+      "input": "Anonymous & Normal User requests to protected areas",
+      "expected": "HTTP 401/403 for API, 302 redirect for admin",
+      "actual": "Anon API tasks: 403, Norm user admin: 302",
+      "status": "PASS",
+      "security_impact": "High",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-API-01",
+      "category": "API Security",
+      "name": "HTTP method restrictions and malformed JSON parsing",
+      "input": "{'DELETE /api/mec/register/': 405, 'Malformed JSON': 400}",
+      "expected": "Method Not Allowed (405) and Bad Request (400)",
+      "actual": "DELETE status: 405, Bad JSON status: 400",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-WEB-01",
+      "category": "Web Security",
+      "name": "Clickjacking protection (X-Frame-Options header)",
+      "input": "GET /",
+      "expected": "Header present (DENY or SAMEORIGIN)",
+      "actual": "Present: True (DENY)",
+      "status": "PASS",
+      "security_impact": "Medium",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-XSS-01",
+      "category": "XSS Testing",
+      "name": "Harmless script injection in task name rendered in dashboard",
+      "input": "<script>alert(\"XSS_AUDIT_TEST\")</script>",
+      "expected": "Script tags escaped in HTML template output",
+      "actual": "Safely escaped: True",
+      "status": "PASS",
+      "security_impact": "High",
+      "recommendation": "Maintain Django auto-escaping in all template rendering contexts"
+    },
+    {
+      "test_id": "TC-CSRF-01",
+      "category": "CSRF Testing",
+      "name": "Enforcement of CSRF token on state-changing web POST",
+      "input": "POST /login/ without CSRF token",
+      "expected": "HTTP 403 Forbidden",
+      "actual": "HTTP 403",
+      "status": "PASS",
+      "security_impact": "Medium",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-UP-01",
+      "category": "File Upload Security",
+      "name": "Double extension handling (harmless.php.txt)",
+      "input": "harmless.php.txt",
+      "expected": "Treated purely as data, not executed as PHP",
+      "actual": "HTTP 201: Stored safely with mime text/plain",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-TASK-01",
+      "category": "Task Scheduling",
+      "name": "Complete task state progression (PENDING -> QUEUED -> ASSIGNED -> COMPLETED)",
+      "input": "{'task_id': 'TASK-2026100216121945FC'}",
+      "expected": "Full state transition lifecycle verified",
+      "actual": "QUEUED: True, ASSIGNED: True, COMPLETED: True",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-DT-01",
+      "category": "Digital Twin",
+      "name": "Virtual replica synchronization with database MECs",
+      "input": "{'dev1_id': 'MEC-013'}",
+      "expected": "Digital Twin reflects LOCAL, CLOUD, and registered MECs",
+      "actual": "Resources count: 16, Sync: True",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-GA-01",
+      "category": "GA Scheduler",
+      "name": "GA optimization vs Random/Greedy baselines",
+      "input": "10 tasks load",
+      "expected": "GA executes selection, crossover, mutation, convergence",
+      "actual": "GA Latency: 219.94ms vs Random: 245.42ms, Fitness: 0.2644",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-RISK-01",
+      "category": "Risk Engine",
+      "name": "Dynamic threat classification thresholds",
+      "input": "{'scores': [0.15, 0.45, 0.85]}",
+      "expected": "LOW, MEDIUM, CRITICAL levels",
+      "actual": "Levels: LOW, MEDIUM, CRITICAL",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-ATK-01",
+      "category": "Attack Simulation",
+      "name": "Simulated DDoS attack and automated mitigation response",
+      "input": "{'target': 'MEC-014', 'type': 'DDoS', 'severity': 0.85}",
+      "expected": "Risk inflated -> status escalated -> mitigated -> restored",
+      "actual": "Escalated: True, Mitigated: True",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-PROT-01",
+      "category": "Data Protection",
+      "name": "API state and telemetry responses redact credentials",
+      "input": "/api/state/",
+      "expected": "No password or secret exposure in JSON payload",
+      "actual": "Exposed: False",
+      "status": "PASS",
+      "security_impact": "Critical",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-NET-01",
+      "category": "Network Interruption",
+      "name": "Automated requeuing of tasks when MEC drops offline",
+      "input": "{'task_id': 'TASK-2026100216121907C7', 'dropped_mec': 'MEC-014'}",
+      "expected": "Task status reset to QUEUED and unassigned",
+      "actual": "Requeued: True, New status: QUEUED",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-CLOUD-01",
+      "category": "Cloud Storage",
+      "name": "Google Drive simulation mode and metadata tracking",
+      "input": "GET /api/cloud/files/",
+      "expected": "Mode is simulation and file metadata returned",
+      "actual": "Mode: simulation, Files count: 7",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-LOG-01",
+      "category": "Logging and Audit",
+      "name": "Task queue state transition history records",
+      "input": "{'task_id': 'TASK-2026100216121945FC'}",
+      "expected": "At least 2 state transitions logged in TaskQueueHistory",
+      "actual": "Logged entries: 3",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-PERF-01",
+      "category": "Performance",
+      "name": "Analytics overview API endpoint latency",
+      "input": "5 sequential requests",
+      "expected": "Response time < 200ms",
+      "actual": "Average latency: 35.66 ms",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-STRESS-01",
+      "category": "Performance",
+      "name": "GA Scheduler scaling under 10, 50, 100 tasks",
+      "input": "100 tasks queue",
+      "expected": "100 tasks scheduled under 2.0s without memory crash",
+      "actual": "100 tasks in 0.0396s",
+      "status": "PASS",
+      "security_impact": "Low",
+      "recommendation": "None"
+    },
+    {
+      "test_id": "TC-EXE-SEC-01",
+      "category": "MEC EXE",
+      "name": "Binary inspection for hardcoded private keys or production secrets",
+      "input": "release\\MEC_Agent.exe",
+      "expected": "Zero embedded private keys or production secrets",
+      "actual": "Violations: 0",
+      "status": "PASS",
+      "security_impact": "Critical",
+      "recommendation": "Ensure PyInstaller bundles only runtime logic without embedding secrets"
+    },
+    {
+      "test_id": "TC-RESP-01",
+      "category": "Attack Simulation",
+      "name": "Automated avoidance of compromised node during dispatch",
+      "input": "{'compromised_node': 'MEC-013', 'healthy_node': 'MEC-014'}",
+      "expected": "GA scheduler avoids high-risk node and assigns task to healthy node",
+      "actual": "Assigned to: MEC-014 (Avoided compromised: True)",
+      "status": "PASS",
+      "security_impact": "High",
+      "recommendation": "None"
+    }
+  ],
+  "benchmarks": {
+    "dispatch_time_s": 0.3029,
+    "ga_comparison": {
+      "ga_latency_ms": 219.94,
+      "random_latency_ms": 245.42,
+      "greedy_latency_ms": 217.78,
+      "privacy_latency_ms": 305.93,
+      "ga_fitness": 0.2644
+    },
+    "api_overview_avg_ms": 35.66,
+    "stress_scaling": {
+      "10_tasks": {
+        "duration_s": 0.0301,
+        "fitness": 0.1125
+      },
+      "50_tasks": {
+        "duration_s": 0.0314,
+        "fitness": 0.1123
+      },
+      "100_tasks": {
+        "duration_s": 0.0396,
+        "fitness": 0.1127
+      }
+    }
+  },
+  "vulnerabilities": [],
+  "scorecard": {
+    "UI Testing": "PASS",
+    "MEC EXE": "PASS",
+    "Device Registration": "PASS",
+    "Heartbeat": "PASS",
+    "Authorization": "PASS",
+    "API Security": "PASS",
+    "File Sharing": "PASS",
+    "File Security": "PASS",
+    "Data Storage": "PASS",
+    "Database Security": "PASS",
+    "Digital Twin": "PASS",
+    "GA Scheduler": "PASS",
+    "Risk Engine": "PASS",
+    "Attack Simulation": "PASS",
+    "Data Protection": "PASS",
+    "Network Interruption": "PASS",
+    "Cloud Storage": "PASS",
+    "Logging and Audit": "PASS",
+    "Performance": "PASS"
+  }
+}

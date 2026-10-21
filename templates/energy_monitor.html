@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Energy Monitor - SecureDT{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: var(--space-6);">
+  <h1 class="page-title">Energy Monitor</h1>
+  <p class="page-subtitle">Real-time power and energy consumption tracking</p>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: var(--space-6);">
+  <article class="kpi-card"><span class="kpi-label">Total Power</span><span class="kpi-value primary" id="total-power">—</span><div class="kpi-meta"><span class="kpi-trend">Watts</span></div></article>
+  <article class="kpi-card"><span class="kpi-label">Energy (1h)</span><span class="kpi-value warning" id="energy-1h">—</span><div class="kpi-meta"><span class="kpi-trend">Wh</span></div></article>
+  <article class="kpi-card"><span class="kpi-label">Energy (24h)</span><span class="kpi-value info" id="energy-24h">—</span><div class="kpi-meta"><span class="kpi-trend">Wh</span></div></article>
+  <article class="kpi-card"><span class="kpi-label">CO₂ Estimate</span><span class="kpi-value success" id="co2-estimate">—</span><div class="kpi-meta"><span class="kpi-trend">g CO₂/kWh</span></div></article>
+  <article class="kpi-card"><span class="kpi-label">Avg PUE</span><span class="kpi-value primary" id="avg-pue">—</span><div class="kpi-meta"><span class="kpi-trend">Power Usage Effectiveness</span></div></article>
+  <article class="kpi-card"><span class="kpi-label">Cost Estimate</span><span class="kpi-value warning" id="cost-estimate">—</span><div class="kpi-meta"><span class="kpi-trend">$/hour</span></div></article>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-6);">
+  <section class="card" aria-labelledby="power-chart-heading">
+    <header class="card-header"><h2 class="card-title" id="power-chart-heading">Power Consumption (Real-time)</h2></header>
+    <div class="card-content"><div class="chart-container"><canvas id="power-realtime-chart"></canvas></div></div>
+  </section>
+  <section class="card" aria-labelledby="energy-breakdown-heading">
+    <header class="card-header"><h2 class="card-title" id="energy-breakdown-heading">Energy by Component</h2></header>
+    <div class="card-content"><div class="chart-container"><canvas id="energy-breakdown-chart"></canvas></div></div>
+  </section>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6);">
+  <section class="card" aria-labelledby="mec-energy-heading">
+    <header class="card-header"><h2 class="card-title" id="mec-energy-heading">Per-MEC Energy</h2></header>
+    <div class="card-content" style="max-height: 400px; overflow-y: auto;">
+      <div id="mec-energy-list" style="display: flex; flex-direction: column; gap: var(--space-3);">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </section>
+  <section class="card" aria-labelledby="energy-history-heading">
+    <header class="card-header"><h2 class="card-title" id="energy-history-heading">Historical Trend</h2></header>
+    <div class="card-content"><div class="chart-container"><canvas id="energy-history-chart"></canvas></div></div>
+  </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.dataset.page = 'energy_monitor';
+});
+</script>
+{% endblock %}

@@ -1,0 +1,37 @@
+# SecureDT optional configuration overlay.
+# Copy to config.yaml next to config.py to override defaults.
+# Keys mirror config.py module-level names; unknown keys are ignored.
+# All values are optional - the application works without this file.
+
+server:
+  host: 127.0.0.1
+  port: 8000
+  debug: false
+
+ga:
+  population: 40
+  generations: 50
+  mutation_rate: 0.12
+  crossover_rate: 0.85
+
+datasets:
+  seed: 42
+  default_bigdata_rows: 500000
+
+security:
+  rate_limit_per_min: 60
+  upload_max_bytes: 8388608
+  upload_max_rows: 100000
+
+data_source:
+  label: "SIMULATION DATA"
+
+# Optional Zeek log directory for LIVE TELEMETRY mode.
+# zeek_logs_dir: "C:/path/to/zeek/logs"
+
+# No API keys are required for the core application.
+# The optional Groq Cloud LLM layer is enabled via .env / environment
+# variables only (AI_PROVIDER=groq + GROQ_API_KEY) - see docs/API_KEYS.md.
+# For the core key-policy scan, the app builds its own keyring:
+# keys and credentials are injected via environment configuration, never
+# via this overlay file.

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Genetic Algorithm - SecureDT{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: var(--space-6);">
+  <h1 class="page-title">Genetic Algorithm Scheduler</h1>
+  <p class="page-subtitle">Multi-objective optimization for secure task scheduling</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-6);">
+  <section class="card" aria-labelledby="ga-config-heading">
+    <header class="card-header">
+      <h2 class="card-title" id="ga-config-heading">Configuration</h2>
+    </header>
+    <div class="card-content">
+      <form id="ga-config-form" style="display: flex; flex-direction: column; gap: var(--space-4);">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="ga-population">Population Size</label>
+            <input type="number" id="ga-population" name="population" value="40" min="10" max="200" class="form-input">
+          </div>
+          <div class="form-group">
+            <label for="ga-generations">Generations</label>
+            <input type="number" id="ga-generations" name="generations" value="50" min="10" max="200" class="form-input">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="ga-mutation">Mutation Rate</label>
+            <input type="range" id="ga-mutation" name="mutation_rate" min="0.01" max="0.5" step="0.01" value="0.12" class="form-range">
+            <span id="ga-mutation-value">0.12</span>
+          </div>
+          <div class="form-group">
+            <label for="ga-crossover">Crossover Rate</label>
+            <input type="range" id="ga-crossover" name="crossover_rate" min="0.1" max="1.0" step="0.05" value="0.85" class="form-range">
+            <span id="ga-crossover-value">0.85</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Fitness Weights</label>
+          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-3);">
+            <div class="form-group"><label>Latency</label><input type="range" name="w_latency" min="0" max="1" step="0.05" value="0.25" class="form-range"><span class="weight-value">0.25</span></div>
+            <div class="form-group"><label>Energy</label><input type="range" name="w_energy" min="0" max="1" step="0.05" value="0.15" class="form-range"><span class="weight-value">0.15</span></div>
+            <div class="form-group"><label>Privacy</label><input type="range" name="w_privacy" min="0" max="1" step="0.05" value="0.20" class="form-range"><span class="weight-value">0.20</span></div>
+            <div class="form-group"><label>Security</label><input type="range" name="w_security" min="0" max="1" step="0.05" value="0.30" class="form-range"><span class="weight-value">0.30</span></div>
+            <div class="form-group"><label>Deadline</label><input type="range" name="w_deadline" min="0" max="1" step="0.05" value="0.10" class="form-range"><span class="weight-value">0.10</span></div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Run Optimization</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="ga-results-heading">
+    <header class="card-header">
+      <h2 class="card-title" id="ga-results-heading">Optimization Results</h2>
+    </header>
+    <div class="card-content">
+      <div class="kpi-grid" style="margin-bottom: var(--space-4);">
+        <article class="kpi-card"><span class="kpi-label">Best Fitness</span><span class="kpi-value primary" id="ga-best-fitness">—</span></article>
+        <article class="kpi-card"><span class="kpi-label">Generations Run</span><span class="kpi-value info" id="ga-generations-run">—</span></article>
+        <article class="kpi-card"><span class="kpi-label">Avg Latency</span><span class="kpi-value warning" id="ga-avg-latency">—</span></article>
+        <article class="kpi-card"><span class="kpi-label">Security Score</span><span class="kpi-value success" id="ga-security-score">—</span></article>
+      </div>
+      <div class="chart-container" style="height: 300px;">
+        <canvas id="ga-convergence-chart" aria-label="GA convergence over generations"></canvas>
+      </div>
+    </div>
+  </section>
+</div>
+
+<section class="card" aria-labelledby="ga-assignment-heading">
+  <header class="card-header">
+    <h2 class="card-title" id="ga-assignment-heading">Task Assignments</h2>
+  </header>
+  <div class="card-content">
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Task ID</th>
+            <th>Name</th>
+            <th>Assigned Resource</th>
+            <th>Est. Latency</th>
+            <th>Est. Energy</th>
+            <th>Privacy Loss</th>
+            <th>Security Risk</th>
+          </tr>
+        </thead>
+        <tbody id="ga-assignments-body">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.dataset.page = 'genetic_algorithm';
+  $('#ga-mutation')?.addEventListener('input', e => $('#ga-mutation-value').textContent = e.target.value);
+  $('#ga-crossover')?.addEventListener('input', e => $('#ga-crossover-value').textContent = e.target.value);
+  $$('.weight-value').forEach((el, i) => {
+    const input = el.previousElementSibling;
+    input?.addEventListener('input', e => el.textContent = parseFloat(e.target.value).toFixed(2));
+  });
+});
+</script>
+{% endblock %}

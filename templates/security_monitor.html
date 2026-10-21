@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Security Monitor - SecureDT{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: var(--space-6);">
+  <h1 class="page-title">Security Monitor</h1>
+  <p class="page-subtitle">Real-time threat detection and security posture</p>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: var(--space-6);">
+  <article class="kpi-card"><span class="kpi-label">Threat Level</span><span class="kpi-value danger" id="threat-level">LOW</span></article>
+  <article class="kpi-card"><span class="kpi-label">Active Alerts</span><span class="kpi-value warning" id="active-alerts">0</span></article>
+  <article class="kpi-card"><span class="kpi-label">Detected Attacks</span><span class="kpi-value info" id="detected-attacks">0</span></article>
+  <article class="kpi-card"><span class="kpi-label">Mitigated</span><span class="kpi-value success" id="mitigated-attacks">0</span></article>
+  <article class="kpi-card"><span class="kpi-label">Quarantined</span><span class="kpi-value danger" id="quarantined">0</span></article>
+  <article class="kpi-card"><span class="kpi-label">Detection Rate</span><span class="kpi-value primary" id="detection-rate">0%</span></article>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-6);">
+  <section class="card" aria-labelledby="threat-timeline-heading">
+    <header class="card-header"><h2 class="card-title" id="threat-timeline-heading">Threat Timeline</h2></header>
+    <div class="card-content"><div class="chart-container"><canvas id="threat-timeline-chart"></canvas></div></div>
+  </section>
+  <section class="card" aria-labelledby="attack-types-heading">
+    <header class="card-header"><h2 class="card-title" id="attack-types-heading">Attack Types</h2></header>
+    <div class="card-content"><div class="chart-container"><canvas id="attack-types-chart"></canvas></div></div>
+  </section>
+</div>
+
+<section class="card" aria-labelledby="security-events-heading">
+  <header class="card-header"><h2 class="card-title" id="security-events-heading">Security Events</h2></header>
+  <div class="card-content">
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Type</th>
+            <th>Severity</th>
+            <th>Resource</th>
+            <th>Description</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="security-events-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.dataset.page = 'security_monitor';
+});
+</script>
+{% endblock %}

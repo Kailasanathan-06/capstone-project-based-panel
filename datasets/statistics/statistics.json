@@ -1,0 +1,363 @@
+{
+  "generated_at": "2026-09-13T13:06:08.300929+00:00",
+  "attacked_distribution": {
+    "status": "OK",
+    "path": "C:\\Users\\mkail\\capstone project\\project vs code\\SecureDT\\datasets\\processed\\attacked\\nsl_kdd_attacked.csv",
+    "total_records": 70940,
+    "classes": 39,
+    "rows": [
+      {
+        "label": "neptune",
+        "count": 45716,
+        "percentage": 64.44
+      },
+      {
+        "label": "satan",
+        "count": 4360,
+        "percentage": 6.15
+      },
+      {
+        "label": "ipsweep",
+        "count": 3643,
+        "percentage": 5.14
+      },
+      {
+        "label": "smurf",
+        "count": 3108,
+        "percentage": 4.38
+      },
+      {
+        "label": "portsweep",
+        "count": 3070,
+        "percentage": 4.33
+      },
+      {
+        "label": "nmap",
+        "count": 1566,
+        "percentage": 2.21
+      },
+      {
+        "label": "back",
+        "count": 1300,
+        "percentage": 1.83
+      },
+      {
+        "label": "guess_passwd",
+        "count": 1284,
+        "percentage": 1.81
+      },
+      {
+        "label": "mscan",
+        "count": 996,
+        "percentage": 1.4
+      },
+      {
+        "label": "warezmaster",
+        "count": 964,
+        "percentage": 1.36
+      },
+      {
+        "label": "teardrop",
+        "count": 901,
+        "percentage": 1.27
+      },
+      {
+        "label": "warezclient",
+        "count": 890,
+        "percentage": 1.25
+      },
+      {
+        "label": "apache2",
+        "count": 737,
+        "percentage": 1.04
+      },
+      {
+        "label": "processtable",
+        "count": 685,
+        "percentage": 0.97
+      },
+      {
+        "label": "snmpguess",
+        "count": 331,
+        "percentage": 0.47
+      },
+      {
+        "label": "saint",
+        "count": 319,
+        "percentage": 0.45
+      },
+      {
+        "label": "mailbomb",
+        "count": 293,
+        "percentage": 0.41
+      },
+      {
+        "label": "pod",
+        "count": 221,
+        "percentage": 0.31
+      },
+      {
+        "label": "snmpgetattack",
+        "count": 178,
+        "percentage": 0.25
+      },
+      {
+        "label": "httptunnel",
+        "count": 133,
+        "percentage": 0.19
+      },
+      {
+        "label": "buffer_overflow",
+        "count": 50,
+        "percentage": 0.07
+      },
+      {
+        "label": "multihop",
+        "count": 25,
+        "percentage": 0.04
+      },
+      {
+        "label": "rootkit",
+        "count": 23,
+        "percentage": 0.03
+      },
+      {
+        "label": "land",
+        "count": 22,
+        "percentage": 0.03
+      },
+      {
+        "label": "named",
+        "count": 17,
+        "percentage": 0.02
+      },
+      {
+        "label": "ps",
+        "count": 15,
+        "percentage": 0.02
+      },
+      {
+        "label": "sendmail",
+        "count": 14,
+        "percentage": 0.02
+      },
+      {
+        "label": "xterm",
+        "count": 13,
+        "percentage": 0.02
+      },
+      {
+        "label": "imap",
+        "count": 12,
+        "percentage": 0.02
+      },
+      {
+        "label": "ftp_write",
+        "count": 11,
+        "percentage": 0.02
+      },
+      {
+        "label": "loadmodule",
+        "count": 11,
+        "percentage": 0.02
+      },
+      {
+        "label": "xlock",
+        "count": 9,
+        "percentage": 0.01
+      },
+      {
+        "label": "phf",
+        "count": 6,
+        "percentage": 0.01
+      },
+      {
+        "label": "perl",
+        "count": 5,
+        "percentage": 0.01
+      },
+      {
+        "label": "xsnoop",
+        "count": 4,
+        "percentage": 0.01
+      },
+      {
+        "label": "spy",
+        "count": 2,
+        "percentage": 0.0
+      },
+      {
+        "label": "worm",
+        "count": 2,
+        "percentage": 0.0
+      },
+      {
+        "label": "sqlattack",
+        "count": 2,
+        "percentage": 0.0
+      },
+      {
+        "label": "udpstorm",
+        "count": 2,
+        "percentage": 0.0
+      }
+    ]
+  },
+  "benign_summary": {
+    "status": "OK",
+    "path": "C:\\Users\\mkail\\capstone project\\project vs code\\SecureDT\\datasets\\processed\\benign\\nsl_kdd_benign.csv",
+    "total_records": 76967,
+    "columns": [
+      "duration",
+      "protocol_type",
+      "service",
+      "flag",
+      "src_bytes",
+      "dst_bytes",
+      "land",
+      "wrong_fragment",
+      "urgent",
+      "hot",
+      "num_failed_logins",
+      "logged_in",
+      "num_compromised",
+      "root_shell",
+      "su_attempted",
+      "num_root",
+      "num_file_creations",
+      "num_shells",
+      "num_access_files",
+      "num_outbound_cmds",
+      "is_host_login",
+      "is_guest_login",
+      "count",
+      "srv_count",
+      "serror_rate",
+      "srv_serror_rate",
+      "rerror_rate",
+      "srv_rerror_rate",
+      "same_srv_rate",
+      "diff_srv_rate",
+      "srv_diff_host_rate",
+      "dst_host_count",
+      "dst_host_srv_count",
+      "dst_host_same_srv_rate",
+      "dst_host_diff_srv_rate",
+      "dst_host_same_src_port_rate",
+      "dst_host_srv_diff_host_rate",
+      "dst_host_serror_rate",
+      "dst_host_srv_serror_rate",
+      "dst_host_rerror_rate",
+      "dst_host_srv_rerror_rate",
+      "label",
+      "difficulty",
+      "security_label",
+      "attack_type",
+      "risk_score",
+      "flow_rate",
+      "byte_count"
+    ],
+    "sample_rows": 1000,
+    "missing_values": {},
+    "duplicate_rows": 0,
+    "data_types": {
+      "duration": "str",
+      "protocol_type": "str",
+      "service": "str",
+      "flag": "str",
+      "src_bytes": "str",
+      "dst_bytes": "str",
+      "land": "str",
+      "wrong_fragment": "str",
+      "urgent": "str",
+      "hot": "str",
+      "num_failed_logins": "str",
+      "logged_in": "str",
+      "num_compromised": "str",
+      "root_shell": "str",
+      "su_attempted": "str",
+      "num_root": "str",
+      "num_file_creations": "str",
+      "num_shells": "str",
+      "num_access_files": "str",
+      "num_outbound_cmds": "str",
+      "is_host_login": "str",
+      "is_guest_login": "str",
+      "count": "str",
+      "srv_count": "str",
+      "serror_rate": "str",
+      "srv_serror_rate": "str",
+      "rerror_rate": "str",
+      "srv_rerror_rate": "str",
+      "same_srv_rate": "str",
+      "diff_srv_rate": "str",
+      "srv_diff_host_rate": "str",
+      "dst_host_count": "str",
+      "dst_host_srv_count": "str",
+      "dst_host_same_srv_rate": "str",
+      "dst_host_diff_srv_rate": "str",
+      "dst_host_same_src_port_rate": "str",
+      "dst_host_srv_diff_host_rate": "str",
+      "dst_host_serror_rate": "str",
+      "dst_host_srv_serror_rate": "str",
+      "dst_host_rerror_rate": "str",
+      "dst_host_srv_rerror_rate": "str",
+      "label": "str",
+      "difficulty": "str",
+      "security_label": "str",
+      "attack_type": "str",
+      "risk_score": "str",
+      "flow_rate": "str",
+      "byte_count": "str"
+    },
+    "simulated_or_real": "REAL PUBLIC DATASET (NSL-KDD normal class)",
+    "source_notes": "Filtered from NSL-KDD: original label 'normal' -> unified label 'benign'."
+  },
+  "records": {
+    "UNSW-NB15": {
+      "expected": 2540044,
+      "local_rows": 0,
+      "status": "MANUAL_DOWNLOAD_REQUIRED"
+    },
+    "CIC-IDS2017": {
+      "expected": 2886020,
+      "local_rows": 0,
+      "status": "MANUAL_DOWNLOAD_REQUIRED"
+    },
+    "CSE-CIC-IDS2018": {
+      "expected": 16800000,
+      "local_rows": 0,
+      "status": "MANUAL_DOWNLOAD_REQUIRED"
+    },
+    "CIC-DDoS2019": {
+      "expected": 50000000,
+      "local_rows": 0,
+      "status": "MANUAL_DOWNLOAD_REQUIRED"
+    },
+    "BoT-IoT": {
+      "expected": 73370044,
+      "local_rows": 0,
+      "status": "MANUAL_DOWNLOAD_REQUIRED"
+    },
+    "TON_IoT": {
+      "expected": 461043,
+      "local_rows": 0,
+      "status": "MANUAL_DOWNLOAD_REQUIRED"
+    },
+    "NSL-KDD": {
+      "expected": 148517,
+      "local_rows": 297034,
+      "status": "LOCAL"
+    }
+  },
+  "processed": {
+    "attacked_rows": 70940,
+    "benign_rows": 76967,
+    "total_processed_rows": 147907
+  },
+  "storage_usage": {
+    "bytes": 167866350,
+    "mb": 160.09,
+    "gb": 0.16
+  }
+}

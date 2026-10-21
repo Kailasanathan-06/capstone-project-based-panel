@@ -1,0 +1,30 @@
+{
+  "name": "CSE-CIC-IDS2018",
+  "type": "attacked",
+  "source": "https://www.unb.ca/cic/datasets/ids-2018.html",
+  "download_url": "https://www.unb.ca/cic/datasets/ids-2018.html",
+  "doi": null,
+  "format": "CSV",
+  "size": "",
+  "record_count": "",
+  "features": [],
+  "attack_types": [
+    "Benign",
+    "DoS",
+    "DDoS",
+    "Botnet",
+    "Brute Force",
+    "SQL Injection",
+    "XSS",
+    "Infiltration"
+  ],
+  "benign_available": true,
+  "label_key": "Label",
+  "category_key": "Label",
+  "benign_value": "Benign",
+  "license": "Research licence - see UNB CIC website.",
+  "download_date": "2026-09-13T13:30:18Z",
+  "download_status": "MANUAL_DOWNLOAD_REQUIRED",
+  "local_path": "",
+  "checksum_sha256": ""
+}

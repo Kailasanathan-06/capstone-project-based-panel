@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Storage Security - SecureDT{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: var(--space-6);">
+  <h1 class="page-title">Storage Security</h1>
+  <p class="page-subtitle">Simulated storage attacks and protection visualization</p>
+</div>
+
+<div class="kpi-grid" style="margin-bottom: var(--space-6);">
+  <article class="kpi-card"><span class="kpi-label">Storage Status</span><span class="kpi-value success" id="storage-status">SECURE</span></article>
+  <article class="kpi-card"><span class="kpi-label">Active Threats</span><span class="kpi-value danger" id="storage-threats">0</span></article>
+  <article class="kpi-card"><span class="kpi-label">Data Integrity</span><span class="kpi-value success" id="data-integrity">100%</span></article>
+  <article class="kpi-card"><span class="kpi-label">Encryption</span><span class="kpi-value primary" id="encryption-status">AES-256</span></article>
+  <article class="kpi-card"><span class="kpi-label">Isolated Blocks</span><span class="kpi-value info" id="isolated-blocks">0</span></article>
+  <article class="kpi-card"><span class="kpi-label">Rerouted Data</span><span class="kpi-value warning" id="rerouted-data">0 GB</span></article>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-6);">
+  <section class="card" aria-labelledby="storage-viz-heading">
+    <header class="card-header"><h2 class="card-title" id="storage-viz-heading">Storage Topology</h2></header>
+    <div class="card-content" style="padding: 0;">
+      <div id="storage-topology" class="topology-container" style="height: 400px;" role="img" aria-label="Storage topology with attack visualization"></div>
+    </div>
+  </section>
+  
+  <section class="card" aria-labelledby="launch-storage-attack-heading">
+    <header class="card-header"><h2 class="card-title" id="launch-storage-attack-heading">Simulate Storage Attack</h2></header>
+    <div class="card-content">
+      <form id="storage-attack-form" style="display: flex; flex-direction: column; gap: var(--space-4);">
+        <div class="form-group">
+          <label for="storage-target">Target Storage</label>
+          <select id="storage-target" name="target" class="form-select">
+            <option value="STORAGE-A">STORAGE-A (Encrypted, High Privacy)</option>
+            <option value="STORAGE-B">STORAGE-B (Encrypted, Medium Privacy)</option>
+            <option value="STORAGE-C">STORAGE-C (Unencrypted, Low Privacy)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="storage-attack-type">Attack Type</label>
+          <select id="storage-attack-type" name="attack_type" class="form-select">
+            <option value="Data_Exfiltration">Data Exfiltration</option>
+            <option value="Ransomware_Encryption">Ransomware Encryption</option>
+            <option value="Data_Corruption">Data Corruption</option>
+            <option value="Unauthorized_Access">Unauthorized Access</option>
+            <option value="Deletion">Data Deletion</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="storage-severity">Severity <span id="storage-severity-value">0.5</span></label>
+          <input type="range" id="storage-severity" name="severity" min="0.1" max="1.0" step="0.1" value="0.5" class="form-range">
+        </div>
+        <button type="submit" class="btn btn-danger">
+          <svg class="icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          Launch Storage Attack
+        </button>
+      </form>
+    </div>
+  </section>
+</div>
+
+<section class="card" aria-labelledby="defense-heading">
+  <header class="card-header"><h2 class="card-title" id="defense-heading">Automated Defense Response</h2></header>
+  <div class="card-content">
+    <div class="pipeline" id="defense-pipeline">
+      <article class="pipeline-stage"><span class="stage-number">1</span><span class="stage-name">Attack Detected</span><span class="stage-status pending">Monitoring</span></article>
+      <article class="pipeline-stage"><span class="stage-number">2</span><span class="stage-name">Threat Analysis</span><span class="stage-status pending">Waiting</span></article>
+      <article class="pipeline-stage"><span class="stage-number">3</span><span class="stage-name">Risk Isolation</span><span class="stage-status pending">Waiting</span></article>
+      <article class="pipeline-stage"><span class="stage-number">4</span><span class="stage-name">Data Rerouting</span><span class="stage-status pending">Waiting</span></article>
+      <article class="pipeline-stage"><span class="stage-number">5</span><span class="stage-name">Secure Recovery</span><span class="stage-status pending">Waiting</span></article>
+      <article class="pipeline-stage"><span class="stage-number">6</span><span class="stage-name">Attack Blocked</span><span class="stage-status pending">Waiting</span></article>
+    </div>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="storage-blocks-heading">
+  <header class="card-header"><h2 class="card-title" id="storage-blocks-heading">Storage Blocks Status</h2></header>
+  <div class="card-content">
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Block ID</th>
+            <th>Storage</th>
+            <th>Status</th>
+            <th>Encryption</th>
+            <th>Privacy Level</th>
+            <th>Integrity</th>
+            <th>Size</th>
+          </tr>
+        </thead>
+        <tbody id="storage-blocks-body">
+          <!-- Populated by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.dataset.page = 'storage_attack';
+  $('#storage-severity')?.addEventListener('input', e => $('#storage-severity-value').textContent = e.target.value);
+});
+</script>
+{% endblock %}

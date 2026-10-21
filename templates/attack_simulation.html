@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Attack Simulation - SecureDT{% endblock %}
+
+{% block content %}
+<div class="page-header" style="margin-bottom: var(--space-6);">
+  <h1 class="page-title">Attack Simulation</h1>
+  <p class="page-subtitle">Controlled security testing with simulated attacks (visualization only)</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-6);">
+  <section class="card" aria-labelledby="launch-attack-heading">
+    <header class="card-header"><h2 class="card-title" id="launch-attack-heading">Launch Simulated Attack</h2></header>
+    <div class="card-content">
+      <form id="attack-form" style="display: flex; flex-direction: column; gap: var(--space-4);">
+        <div class="form-group">
+          <label for="attack-target">Target Resource</label>
+          <select id="attack-target" name="target" class="form-select">
+            <option value="">Select target...</option>
+            <option value="LOCAL">LOCAL (Edge Device)</option>
+            <option value="MEC-1">MEC-1</option>
+            <option value="MEC-2">MEC-2</option>
+            <option value="MEC-3">MEC-3</option>
+            <option value="CLOUD">CLOUD</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="attack-type">Attack Type</label>
+          <select id="attack-type" name="attack_type" class="form-select">
+            <option value="DDoS">DDoS / Resource Overload</option>
+            <option value="Eavesdropping">Eavesdropping</option>
+            <option value="Tampering">Data Tampering</option>
+            <option value="Data_Poisoning">Data Poisoning</option>
+            <option value="Credential_Abuse">Credential Abuse</option>
+            <option value="Brute_Force">Brute Force</option>
+            <option value="Ransomware">Simulated Ransomware</option>
+            <option value="APT">Advanced Persistent Threat</option>
+            <option value="MITM">Man-in-the-Middle</option>
+            <option value="Supply_Chain">Simulated Supply Chain Attack</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="attack-severity">Severity <span id="severity-value">0.5</span></label>
+          <input type="range" id="attack-severity" name="severity" min="0.1" max="1.0" step="0.1" value="0.5" class="form-range">
+        </div>
+        <div class="flex gap-3">
+          <button type="submit" class="btn btn-danger flex-1">
+            <svg class="icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            Launch Attack
+          </button>
+          <button type="button" class="btn btn-primary" id="mitigate-btn">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            Mitigate
+          </button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="attack-status-heading">
+    <header class="card-header"><h2 class="card-title" id="attack-status-heading">Active Attack Status</h2></header>
+    <div class="card-content">
+      <div id="attack-status" class="kpi-grid">
+        <article class="kpi-card"><span class="kpi-label">Status</span><span class="kpi-value" id="attack-status-value">No active attack</span></article>
+        <article class="kpi-card"><span class="kpi-label">Target</span><span class="kpi-value" id="attack-target-value">—</span></article>
+        <article class="kpi-card"><span class="kpi-label">Type</span><span class="kpi-value" id="attack-type-value">—</span></article>
+        <article class="kpi-card"><span class="kpi-label">Severity</span><span class="kpi-value" id="attack-severity-value">—</span></article>
+        <article class="kpi-card"><span class="kpi-label">Phase</span><span class="kpi-value" id="attack-phase-value">—</span></article>
+        <article class="kpi-card"><span class="kpi-label">Risk Increase</span><span class="kpi-value" id="attack-risk-value">—</span></article>
+      </div>
+    </div>
+  </section>
+</div>
+
+<section class="card" aria-labelledby="kill-chain-heading">
+  <header class="card-header"><h2 class="card-title" id="kill-chain-heading">Kill Chain Progression</h2></header>
+  <div class="card-content">
+    <div class="pipeline" id="kill-chain-pipeline">
+      <article class="pipeline-stage" data-phase="1"><span class="stage-number">1</span><span class="stage-name">RECONNAISSANCE</span><span class="stage-status pending">Pending</span></article>
+      <article class="pipeline-stage" data-phase="2"><span class="stage-number">2</span><span class="stage-name">WEAPONIZATION</span><span class="stage-status pending">Pending</span></article>
+      <article class="pipeline-stage" data-phase="3"><span class="stage-number">3</span><span class="stage-name">DELIVERY</span><span class="stage-status pending">Pending</span></article>
+      <article class="pipeline-stage" data-phase="4"><span class="stage-number">4</span><span class="stage-name">EXPLOITATION</span><span class="stage-status pending">Pending</span></article>
+      <article class="pipeline-stage" data-phase="5"><span class="stage-number">5</span><span class="stage-name">PERSISTENCE</span><span class="stage-status pending">Pending</span></article>
+      <article class="pipeline-stage" data-phase="6"><span class="stage-number">6</span><span class="stage-name">COMMAND & CONTROL</span><span class="stage-status pending">Pending</span></article>
+      <article class="pipeline-stage" data-phase="7"><span class="stage-number">7</span><span class="stage-name">ACTIONS ON OBJECTIVES</span><span class="stage-status pending">Pending</span></article>
+    </div>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="attack-log-heading">
+  <header class="card-header"><h2 class="card-title" id="attack-log-heading">Attack Event Log</h2></header>
+  <div class="card-content">
+    <div class="log-box" id="attack-log" style="height: 300px; background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3); font-family: var(--font-mono); font-size: var(--font-size-xs); overflow-y: auto;">
+      <div class="log-line info"><span class="t">[System]</span> Attack simulation ready. All attacks are <strong>simulated only</strong> - no real systems affected.</div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.body.dataset.page = 'attack_simulation';
+  $('#attack-severity')?.addEventListener('input', e => $('#severity-value').textContent = e.target.value);
+  
+  $('#attack-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    data.severity = parseFloat(data.severity);
+    
+    try {
+      const result = await SecureDT.api('/digital-twin/attack/', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      SecureDT.showToast(`Attack launched on ${data.target}`, 'warning');
+      updateAttackUI(result);
+    } catch (err) {
+      SecureDT.showToast('Failed: ' + err.message, 'error');
+    }
+  });
+  
+  $('#mitigate-btn')?.addEventListener('click', async () => {
+    const target = $('#attack-target').value;
+    if (!target) return;
+    try {
+      await SecureDT.api('/digital-twin/mitigate/', {
+        method: 'POST',
+        body: JSON.stringify({ resource_id: target })
+      });
+      SecureDT.showToast('Mitigation initiated', 'success');
+    } catch (err) {
+      SecureDT.showToast('Failed: ' + err.message, 'error');
+    }
+  });
+  
+  function updateAttackUI(data) {
+    // Update UI with attack status
+  }
+});
+</script>
+{% endblock %}

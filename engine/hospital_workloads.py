@@ -15,6 +15,7 @@ Synthetic data is completely non-identifiable and reproducible.
 import os
 import json
 import time
+import uuid
 import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
@@ -389,6 +390,31 @@ def get_synthetic_appointment_batch_fixture() -> Dict[str, Any]:
             {"request_id": "REQ-104", "provider_id": "DR_PATEL", "requested_slot": "10:00-10:30", "priority": "ROUTINE", "room": "EXAM_RM_2"},
         ],
     }
+
+
+def get_synthetic_corrupted_image_fixture(output_path: Optional[Path] = None) -> Path:
+    """Generate or retrieve a corrupted medical binary stream with invalid header."""
+    artifacts = get_workload_artifacts_dir()
+    corrupted_path = output_path or (artifacts / "corrupted_scan.bin")
+    if not corrupted_path.exists():
+        with open(corrupted_path, "wb") as fh:
+            fh.write(b"CORRUPTED_STREAM_XYZ999_HEADER_INVALID_123456789")
+    return corrupted_path
+
+
+def get_synthetic_incomplete_patient_record_fixture() -> Dict[str, Any]:
+    """Generate incomplete patient clinical record missing mandatory identifiers and vitals."""
+    return {
+        "note": "incomplete_record_omits_patient_uuid_and_vitals",
+        "encounter_id": "ENC-ERR-9999",
+        "gender": "undisclosed",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def get_synthetic_unsupported_format_fixture() -> str:
+    """Generate legacy XML/unsupported schema string not accepted by JSON pipeline."""
+    return "<xml><ClinicalEncounter format='legacy_v1'><Status>Mismatch</Status></ClinicalEncounter></xml>"
 
 
 # ---------------------------------------------------------------------------
@@ -802,10 +828,9 @@ def ensure_all_14_scenarios_registered() -> int:
     doc_fixture = get_synthetic_medical_document_fixture()
     appt_fixture = get_synthetic_appointment_batch_fixture()
 
-    corrupted_path = artifacts_dir / "corrupted_scan.bin"
-    if not corrupted_path.exists():
-        with open(corrupted_path, "wb") as fh:
-            fh.write(b"CORRUPTED_STREAM_XYZ999_HEADER_INVALID_123456789")
+    corrupted_path = get_synthetic_corrupted_image_fixture()
+    incomplete_fixture = get_synthetic_incomplete_patient_record_fixture()
+    unsupported_fixture = get_synthetic_unsupported_format_fixture()
 
     fixture_map = {
         "HOSP-SUCCESS-01": (str(img_fixture), "{}", img_fixture.stat().st_size if img_fixture.exists() else 1024),
@@ -813,9 +838,9 @@ def ensure_all_14_scenarios_registered() -> int:
         "HOSP-SUCCESS-03": ("", json.dumps(lab_fixture), len(json.dumps(lab_fixture))),
         "HOSP-SUCCESS-04": ("", json.dumps(doc_fixture), len(json.dumps(doc_fixture))),
         "HOSP-SUCCESS-05": ("", json.dumps(appt_fixture), len(json.dumps(appt_fixture))),
-        "HOSP-ERROR-01": (str(artifacts_dir / "corrupted_scan.bin"), "CORRUPTED_STREAM_XYZ999", 512),
-        "HOSP-ERROR-02": ("", json.dumps({"note": "missing patient_uuid and vitals"}), 48),
-        "HOSP-ERROR-03": ("", "<xml><invalid>schema_mismatch</invalid></xml>", 45),
+        "HOSP-ERROR-01": (str(corrupted_path), "CORRUPTED_STREAM_XYZ999", corrupted_path.stat().st_size if corrupted_path.exists() else 512),
+        "HOSP-ERROR-02": ("", json.dumps(incomplete_fixture), len(json.dumps(incomplete_fixture))),
+        "HOSP-ERROR-03": ("", unsupported_fixture, len(unsupported_fixture)),
         "HOSP-SEC-01": ("", json.dumps({"action": "unauthorized_task_post"}), 38),
         "HOSP-SEC-02": ("", json.dumps({"device_id": "MEC-ROGUE-01", "auth_token": "expired_or_fake_token"}), 72),
         "HOSP-SEC-03": ("", json.dumps({"dataset_id": "LOCAL_PATIENT_RECORDS", "target": "CLOUD_STORAGE"}), 68),
@@ -859,17 +884,424 @@ def ensure_all_14_scenarios_registered() -> int:
 
 
 # ---------------------------------------------------------------------------
+# Defensive Security and Sanitization Engine
+# ---------------------------------------------------------------------------
+def sanitize_audit_details(data: Any) -> Any:
+    """
+    Recursively redacts values of dictionary keys containing sensitive keywords
+    (password, token, secret, auth, key) to guarantee zero plaintext leak in audit logs.
+    """
+    SENSITIVE_KEYWORDS = ("password", "token", "secret", "auth", "key")
+    if isinstance(data, dict):
+        sanitized = {}
+        for k, v in data.items():
+            if any(s in str(k).lower() for s in SENSITIVE_KEYWORDS):
+                sanitized[str(k)] = "[REDACTED]"
+            else:
+                sanitized[str(k)] = sanitize_audit_details(v)
+        return sanitized
+    elif isinstance(data, (list, tuple)):
+        return [sanitize_audit_details(item) for item in data]
+    return data
+
+
+def record_security_event(
+    event_type: str,
+    severity: str = "HIGH",
+    description: str = "",
+    task_id: str = "",
+    device_id: str = "",
+    source_ip: str = "",
+    details: Optional[Dict[str, Any]] = None,
+    blocked: bool = True,
+) -> Any:
+    """
+    Creates and records a persistent SecurityAuditEvent in the database with
+    automatic redacting of sensitive secrets, cryptographic ID, and timestamp.
+    """
+    from datasets.models import SecurityAuditEvent
+
+    clean_details = sanitize_audit_details(details or {})
+    event_id = f"SEC-{dj_timezone.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:6].upper()}"
+    event = SecurityAuditEvent.objects.create(
+        event_id=event_id,
+        event_type=event_type,
+        severity=severity.upper(),
+        description=description,
+        task_id=task_id or "",
+        device_id=device_id or "",
+        source_ip=source_ip or "",
+        details_json=json.dumps(clean_details),
+        blocked=blocked,
+        timestamp=dj_timezone.now(),
+    )
+    return event
+
+
+def attempt_dataset_replication(
+    dataset_id: str,
+    target_destination: str,
+    privacy_policy: str = "LOCAL_ONLY",
+    source_ip: str = "",
+    scenario_id: str = "",
+) -> Tuple[bool, str, Optional[Any], Optional[Any]]:
+    """
+    Defensive policy gateway controlling dataset replication across tiers.
+    Enforces strict privacy tier constraints:
+    - LOCAL_ONLY: Strictly blocked from replicating to MEC or Cloud storage.
+    - TRUSTED_EDGE: Permitted on Local and MEC, strictly blocked from Cloud.
+    - CLOUD_ALLOWED: Permitted on all tiers.
+
+    Violations immediately record a critical SecurityAuditEvent and create/update
+    a replica marked BLOCKED_BY_POLICY.
+    """
+    from datasets.models import StorageDestination, DatasetStorageReplica, SecurityAuditEvent
+
+    target_type = target_destination.upper()
+    is_external = any(ext in target_type for ext in ("MEC", "CLOUD"))
+    is_cloud = "CLOUD" in target_type
+
+    violation = False
+    violation_reason = ""
+
+    if privacy_policy == "LOCAL_ONLY" and is_external:
+        violation = True
+        violation_reason = (
+            f"Prohibited: Dataset '{dataset_id}' has privacy policy LOCAL_ONLY "
+            f"and cannot be replicated to external tier '{target_destination}'."
+        )
+    elif privacy_policy == "TRUSTED_EDGE" and is_cloud:
+        violation = True
+        violation_reason = (
+            f"Prohibited: Dataset '{dataset_id}' has privacy policy TRUSTED_EDGE "
+            f"and cannot be replicated to public Cloud storage."
+        )
+
+    # Resolve or create the target StorageDestination
+    dest_type = "CLOUD" if is_cloud else ("MEC" if "MEC" in target_type else "LOCAL")
+    dest, _ = StorageDestination.objects.get_or_create(
+        destination_id=target_destination,
+        defaults={
+            "name": f"Storage Destination {target_destination}",
+            "destination_type": dest_type,
+            "base_path": f"data_storage/{target_destination.lower()}",
+            "privacy_tier_allowed": "CLOUD_ALLOWED" if is_cloud else ("TRUSTED_EDGE" if "MEC" in target_type else "LOCAL_ONLY"),
+        },
+    )
+
+    replica_id = f"REP-{dataset_id}-{target_destination}"
+
+    if violation:
+        audit_event = record_security_event(
+            event_type="PRIVACY_POLICY_VIOLATION",
+            severity="CRITICAL",
+            description=violation_reason,
+            task_id=dataset_id,
+            source_ip=source_ip,
+            details={
+                "dataset_id": dataset_id,
+                "target_destination": target_destination,
+                "privacy_policy": privacy_policy,
+                "scenario_id": scenario_id,
+                "action": "dataset_replication",
+            },
+            blocked=True,
+        )
+        replica, _ = DatasetStorageReplica.objects.update_or_create(
+            replica_id=replica_id,
+            defaults={
+                "dataset_id": dataset_id,
+                "storage_destination": dest,
+                "relative_key": f"{dataset_id}/data.bin",
+                "absolute_path": "",
+                "replication_status": "BLOCKED_BY_POLICY",
+                "last_error": violation_reason,
+                "is_available": False,
+            },
+        )
+        return False, f"BLOCKED_BY_POLICY: {violation_reason}", audit_event, replica
+    else:
+        replica, _ = DatasetStorageReplica.objects.update_or_create(
+            replica_id=replica_id,
+            defaults={
+                "dataset_id": dataset_id,
+                "storage_destination": dest,
+                "relative_key": f"{dataset_id}/data.bin",
+                "absolute_path": f"{dest.base_path}/{dataset_id}/data.bin",
+                "replication_status": "VERIFIED",
+                "last_error": "",
+                "is_available": True,
+                "last_verified_at": dj_timezone.now(),
+            },
+        )
+        return True, "Replication permitted and verified.", None, replica
+
+
+# ---------------------------------------------------------------------------
+# Workload Validation Engine (Controlled Error Cases)
+# ---------------------------------------------------------------------------
+def validate_workload_input(task: Any) -> Tuple[bool, str, str, str, bool]:
+    """
+    Validates workload input format, mandatory fields, and file integrity prior to execution.
+    Distinguishes retryable vs non-retryable errors (deterministic validation errors are never retried).
+
+    Returns:
+        Tuple of (is_valid: bool, error_code: str, error_message: str, failure_stage: str, is_retryable: bool)
+    """
+    scen_id = getattr(task, "scenario_id", "") or ""
+    w_type = getattr(task, "workload_type", "") or ""
+    payload_str = getattr(task, "input_payload", "") or ""
+    img_path = getattr(task, "image_path", "") or ""
+
+    # 1. HOSP-ERROR-01: Malformed / Corrupted Medical Image File
+    if scen_id == "HOSP-ERROR-01" or w_type == "malformed_input":
+        target_path = img_path or str(get_synthetic_corrupted_image_fixture())
+        if not os.path.exists(target_path):
+            return (
+                False,
+                "ERR_MALFORMED_INPUT",
+                f"Medical image file not found or inaccessible: {target_path}",
+                "input_validation",
+                False,
+            )
+        try:
+            with open(target_path, "rb") as fh:
+                head = fh.read(64)
+                if b"CORRUPTED" in head or b"INVALID" in head:
+                    return (
+                        False,
+                        "ERR_MALFORMED_INPUT",
+                        "Corrupt medical image stream header: invalid magic bytes or unreadable payload",
+                        "header_validation",
+                        False,
+                    )
+            with Image.open(target_path) as im:
+                im.verify()
+        except Exception as exc:
+            return (
+                False,
+                "ERR_MALFORMED_INPUT",
+                f"Corrupt medical image stream header: {str(exc)}",
+                "header_validation",
+                False,
+            )
+
+    # 2. HOSP-ERROR-02: Missing Mandatory Clinical Fields
+    if scen_id == "HOSP-ERROR-02" or w_type == "missing_fields":
+        try:
+            data = json.loads(payload_str) if payload_str else {}
+        except Exception:
+            return (
+                False,
+                "ERR_MISSING_MANDATORY_FIELDS",
+                "Missing mandatory clinical fields: invalid or unparseable JSON payload",
+                "schema_validation",
+                False,
+            )
+
+        required_top = ["patient_uuid", "encounter_id", "vitals"]
+        missing = [k for k in required_top if k not in data]
+        if "vitals" in data and isinstance(data["vitals"], dict):
+            req_vitals = ["systolic_bp", "heart_rate", "respiratory_rate", "spo2_percent", "temperature_celsius"]
+            missing.extend([f"vitals.{k}" for k in req_vitals if k not in data["vitals"]])
+
+        if missing:
+            return (
+                False,
+                "ERR_MISSING_MANDATORY_FIELDS",
+                f"Missing mandatory clinical fields: {missing}",
+                "schema_validation",
+                False,
+            )
+
+    # 3. HOSP-ERROR-03: Unsupported Medical Record Format & Schema Mismatch
+    if scen_id == "HOSP-ERROR-03" or w_type == "unsupported_format":
+        stripped = payload_str.strip() if payload_str else ""
+        if stripped.startswith("<") or not (stripped.startswith("{") or stripped.startswith("[")):
+            return (
+                False,
+                "ERR_UNSUPPORTED_FORMAT",
+                "Unsupported medical record format: XML/legacy HL7 text not supported by JSON pipeline",
+                "format_negotiation",
+                False,
+            )
+        try:
+            parsed = json.loads(stripped)
+            if not isinstance(parsed, dict) or ("patient_uuid" not in parsed and "report_id" not in parsed and "batch_id" not in parsed):
+                return (
+                    False,
+                    "ERR_UNSUPPORTED_FORMAT",
+                    "Unsupported medical record format: unrecognized schema specification",
+                    "schema_validation",
+                    False,
+                )
+        except Exception:
+            return (
+                False,
+                "ERR_UNSUPPORTED_FORMAT",
+                "Unsupported medical record format: unparseable schema structure",
+                "format_negotiation",
+                False,
+            )
+
+    # 4. Standard validation for Success and General Workloads
+    if w_type == "medical_image_preprocess" and img_path:
+        if not os.path.exists(img_path):
+            return (
+                False,
+                "ERR_MALFORMED_INPUT",
+                f"Medical image file not found: {img_path}",
+                "input_validation",
+                False,
+            )
+        try:
+            with Image.open(img_path) as im:
+                im.verify()
+        except Exception as exc:
+            return (
+                False,
+                "ERR_MALFORMED_INPUT",
+                f"Invalid or corrupted image: {str(exc)}",
+                "header_validation",
+                False,
+            )
+
+    if w_type == "patient_record_processing" and payload_str:
+        try:
+            p_data = json.loads(payload_str)
+            if "patient_uuid" not in p_data or "vitals" not in p_data:
+                return (
+                    False,
+                    "ERR_MISSING_MANDATORY_FIELDS",
+                    "Patient record must contain 'patient_uuid' and 'vitals'",
+                    "schema_validation",
+                    False,
+                )
+        except Exception:
+            return (
+                False,
+                "ERR_UNSUPPORTED_FORMAT",
+                "Patient record payload is not valid JSON",
+                "format_negotiation",
+                False,
+            )
+
+    return True, "", "", "", False
+
+
+# ---------------------------------------------------------------------------
 # Workload Execution Dispatcher
 # ---------------------------------------------------------------------------
 def execute_hospital_workload(task: Any) -> Tuple[bool, str, Dict[str, Any]]:
     """
     Execute a task based on its workload type using genuine processing functions.
-    Enforces timing, checksums, and updates task execution metadata.
+    Enforces validation, timing, checksums, defensive security logging,
+    and updates task execution metadata.
     """
     start_time = dj_timezone.now()
     task.start_time = start_time
     w_type = getattr(task, "workload_type", "") or "medical_image_preprocess"
+    scen_id = getattr(task, "scenario_id", "") or ""
 
+    # Phase 4 - Defensive Security Workloads Execution
+    if scen_id == "HOSP-SEC-01" or w_type == "unauthorized_submission":
+        event = record_security_event(
+            event_type="UNAUTHORIZED_TASK_SUBMISSION",
+            severity="HIGH",
+            description=f"Unauthorized client attempted task queue submission without valid credentials for task {task.task_id}",
+            task_id=task.task_id,
+            source_ip="192.168.1.105",
+            details={"task_id": task.task_id, "name": task.name, "scenario_id": scen_id},
+            blocked=True,
+        )
+        task.completion_time = dj_timezone.now()
+        task.status = "REJECTED"
+        task.validation_status = "REJECTED"
+        task.error_code = "SEC_UNAUTHORIZED_SUBMISSION"
+        task.error_message = "Task submission rejected: client lacks authentication credentials."
+        task.output_payload = json.dumps({"event_id": event.event_id, "status": "REJECTED", "blocked": True})
+        task.save()
+        task.record_history("VALIDATING", "REJECTED", changed_by="security_firewall")
+        return False, task.error_message, {"event_id": event.event_id, "blocked": True}
+
+    if scen_id == "HOSP-SEC-02" or w_type == "invalid_agent_auth":
+        dev_id = "MEC-ROGUE-01"
+        try:
+            if getattr(task, "input_payload", ""):
+                dev_id = json.loads(task.input_payload).get("device_id", dev_id)
+        except Exception:
+            pass
+        event = record_security_event(
+            event_type="INVALID_MEC_AUTH",
+            severity="CRITICAL",
+            description=f"Rogue MEC agent authentication rejected: invalid or expired credentials for device '{dev_id}'",
+            device_id=dev_id,
+            task_id=task.task_id,
+            source_ip="192.168.1.188",
+            details={"device_id": dev_id, "auth_token": "expired_or_tampered_token", "action": "heartbeat"},
+            blocked=True,
+        )
+        task.completion_time = dj_timezone.now()
+        task.status = "REJECTED"
+        task.validation_status = "REJECTED"
+        task.error_code = "SEC_INVALID_MEC_AUTH"
+        task.error_message = f"MEC device authentication failed for device '{dev_id}'."
+        task.output_payload = json.dumps({"event_id": event.event_id, "status": "REJECTED", "blocked": True})
+        task.save()
+        task.record_history("VALIDATING", "REJECTED", changed_by="mec_authenticator")
+        return False, task.error_message, {"event_id": event.event_id, "blocked": True}
+
+    if scen_id == "HOSP-SEC-03" or w_type == "unauthorized_replication":
+        ok, msg, audit_event, replica = attempt_dataset_replication(
+            dataset_id=task.task_id,
+            target_destination="CLOUD",
+            privacy_policy=getattr(task, "privacy_policy", "LOCAL_ONLY") or "LOCAL_ONLY",
+            source_ip="192.168.1.200",
+            scenario_id=scen_id,
+        )
+        task.completion_time = dj_timezone.now()
+        task.status = "BLOCKED"
+        task.validation_status = "FAILED"
+        task.error_code = "SEC_PRIVACY_POLICY_VIOLATION"
+        task.error_message = msg
+        task.output_payload = json.dumps({
+            "event_id": audit_event.event_id if audit_event else "",
+            "replica_status": replica.replication_status if replica else "",
+            "blocked": True,
+        })
+        task.save()
+        task.record_history("VALIDATING", "BLOCKED", changed_by="privacy_guard")
+        return False, msg, {"event_id": audit_event.event_id if audit_event else "", "blocked": True}
+
+    # Phase 4 - Workload Input Validation (Controlled Error Scenarios)
+    is_valid, err_code, err_msg, fail_stage, is_retryable = validate_workload_input(task)
+    if not is_valid:
+        task.completion_time = dj_timezone.now()
+        if err_code == "ERR_MALFORMED_INPUT" or scen_id == "HOSP-ERROR-01":
+            target_status = "FAILED"
+        else:
+            target_status = "REJECTED"
+        task.status = target_status
+        task.validation_status = target_status
+        task.error_code = err_code
+        task.error_message = err_msg
+        task.output_payload = json.dumps({
+            "error_code": err_code,
+            "error_message": err_msg,
+            "failure_stage": fail_stage,
+            "is_retryable": is_retryable,
+        })
+        # Critical rule: deterministic validation errors must NEVER increment retry_count
+        task.save()
+        task.record_history("VALIDATING", target_status, changed_by="validation_pipeline")
+        return False, err_msg, {
+            "error_code": err_code,
+            "error_message": err_msg,
+            "failure_stage": fail_stage,
+            "is_retryable": is_retryable,
+        }
+
+    # Phase 3 - Genuine Success Workloads Processing
     try:
         if w_type == "medical_image_preprocess":
             img_path = getattr(task, "image_path", "") or str(get_synthetic_medical_image_fixture())

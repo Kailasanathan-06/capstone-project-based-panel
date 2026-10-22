@@ -29,6 +29,23 @@ class TaskViewSet(viewsets.ViewSet):
     authentication_classes = [SessionAuthentication, TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    def permission_denied(self, request, message=None, code=None):
+        from engine.hospital_workloads import record_security_event
+
+        ip = request.META.get("REMOTE_ADDR", "")
+        details = {}
+        if hasattr(request, "data") and isinstance(request.data, dict):
+            details = dict(request.data)
+        record_security_event(
+            event_type="UNAUTHORIZED_TASK_SUBMISSION",
+            severity="HIGH",
+            description=f"Unauthorized client attempted task queue access from {ip}",
+            source_ip=ip,
+            details=details,
+            blocked=True,
+        )
+        super().permission_denied(request, message=message, code=code)
+
     def list(self, request):
         refresh_mec_status()
         requeue_tasks_with_offline_agents()

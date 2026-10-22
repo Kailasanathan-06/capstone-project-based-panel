@@ -18,8 +18,15 @@ import os
 from pathlib import Path
 from django.test import TestCase
 from django.core.management import call_command
+from rest_framework.test import APIClient
 
-from datasets.models import WorkloadScenario, DatasetVersion
+from datasets.models import (
+    WorkloadScenario,
+    DatasetVersion,
+    SecurityAuditEvent,
+    DatasetStorageReplica,
+    StorageDestination,
+)
 from tasks.models import Task
 from engine.hospital_workloads import (
     INITIAL_14_SCENARIOS,
@@ -29,6 +36,9 @@ from engine.hospital_workloads import (
     get_synthetic_lab_report_fixture,
     get_synthetic_medical_document_fixture,
     get_synthetic_appointment_batch_fixture,
+    get_synthetic_corrupted_image_fixture,
+    get_synthetic_incomplete_patient_record_fixture,
+    get_synthetic_unsupported_format_fixture,
     process_medical_image_workload,
     process_patient_record_workload,
     process_lab_report_workload,
@@ -36,6 +46,10 @@ from engine.hospital_workloads import (
     process_appointment_scheduling_workload,
     execute_hospital_workload,
     compute_news2_score,
+    sanitize_audit_details,
+    record_security_event,
+    attempt_dataset_replication,
+    validate_workload_input,
 )
 
 
@@ -207,3 +221,231 @@ class HospitalManagementCommandsTests(TestCase):
         """python manage.py download_hospital_datasets --skip-download initializes scenarios."""
         call_command("download_hospital_datasets", skip_download=True)
         self.assertEqual(WorkloadScenario.objects.count(), 14)
+
+
+class ControlledErrorsExecutionTests(TestCase):
+    """Verify controlled failure routing, failure codes, and retry inhibition for 3 Error Datasets."""
+
+    def setUp(self):
+        ensure_all_14_scenarios_registered()
+
+    def test_hosp_error_01_malformed_input_detected_fails_gracefully(self):
+        """HOSP-ERROR-01: Header corruption detected prior to processing, status FAILED, no infinite retries."""
+        corrupted_file = get_synthetic_corrupted_image_fixture()
+        task = Task.objects.create(
+            task_id="TASK-TEST-ERR-01",
+            name="Malformed Medical Image Scan Test",
+            scenario_id="HOSP-ERROR-01",
+            workload_type="malformed_input",
+            image_path=str(corrupted_file),
+            privacy_policy="TRUSTED_EDGE",
+            retry_count=0,
+            max_retries=3,
+        )
+
+        valid, code, msg, stage, retryable = validate_workload_input(task)
+        self.assertFalse(valid)
+        self.assertEqual(code, "ERR_MALFORMED_INPUT")
+        self.assertFalse(retryable)
+
+        ok, error_msg, res = execute_hospital_workload(task)
+        self.assertFalse(ok)
+        task.refresh_from_db()
+
+        self.assertEqual(task.status, "FAILED")
+        self.assertEqual(task.validation_status, "FAILED")
+        self.assertEqual(task.error_code, "ERR_MALFORMED_INPUT")
+        self.assertIn("Corrupt medical image stream header", task.error_message)
+        self.assertEqual(task.retry_count, 0)
+
+        history = list(task.queue_history.values_list("to_status", flat=True))
+        self.assertIn("FAILED", history)
+
+    def test_hosp_error_02_missing_mandatory_patient_fields_rejected(self):
+        """HOSP-ERROR-02: Missing patient_uuid/vitals rejected with ERR_MISSING_MANDATORY_FIELDS."""
+        incomplete_fixture = get_synthetic_incomplete_patient_record_fixture()
+        task = Task.objects.create(
+            task_id="TASK-TEST-ERR-02",
+            name="Incomplete Patient Record Test",
+            scenario_id="HOSP-ERROR-02",
+            workload_type="missing_fields",
+            input_payload=json.dumps(incomplete_fixture),
+            privacy_policy="LOCAL_ONLY",
+            retry_count=0,
+            max_retries=3,
+        )
+
+        valid, code, msg, stage, retryable = validate_workload_input(task)
+        self.assertFalse(valid)
+        self.assertEqual(code, "ERR_MISSING_MANDATORY_FIELDS")
+        self.assertFalse(retryable)
+
+        ok, error_msg, res = execute_hospital_workload(task)
+        self.assertFalse(ok)
+        task.refresh_from_db()
+
+        self.assertEqual(task.status, "REJECTED")
+        self.assertEqual(task.validation_status, "REJECTED")
+        self.assertEqual(task.error_code, "ERR_MISSING_MANDATORY_FIELDS")
+        self.assertIn("Missing mandatory clinical fields", task.error_message)
+        self.assertEqual(task.retry_count, 0)
+
+    def test_hosp_error_03_unsupported_format_schema_mismatch_rejected(self):
+        """HOSP-ERROR-03: Unsupported XML/non-JSON schema rejected with ERR_UNSUPPORTED_FORMAT."""
+        unsupported_fixture = get_synthetic_unsupported_format_fixture()
+        task = Task.objects.create(
+            task_id="TASK-TEST-ERR-03",
+            name="Unsupported Format Schema Mismatch Test",
+            scenario_id="HOSP-ERROR-03",
+            workload_type="unsupported_format",
+            input_payload=unsupported_fixture,
+            privacy_policy="TRUSTED_EDGE",
+            retry_count=0,
+            max_retries=3,
+        )
+
+        valid, code, msg, stage, retryable = validate_workload_input(task)
+        self.assertFalse(valid)
+        self.assertEqual(code, "ERR_UNSUPPORTED_FORMAT")
+        self.assertFalse(retryable)
+
+        ok, error_msg, res = execute_hospital_workload(task)
+        self.assertFalse(ok)
+        task.refresh_from_db()
+
+        self.assertEqual(task.status, "REJECTED")
+        self.assertEqual(task.validation_status, "REJECTED")
+        self.assertEqual(task.error_code, "ERR_UNSUPPORTED_FORMAT")
+        self.assertIn("Unsupported medical record format", task.error_message)
+        self.assertEqual(task.retry_count, 0)
+
+
+class DefensiveSecurityScenariosTests(TestCase):
+    """Verify denial, defensive security logging, and privacy policy preservation for 3 Security Scenarios."""
+
+    def setUp(self):
+        ensure_all_14_scenarios_registered()
+
+    def test_sanitize_audit_details_redacts_sensitive_keys(self):
+        """Sensitive keywords (token, auth, secret, password, key) must be redacted."""
+        raw_data = {
+            "device_id": "MEC-01",
+            "auth_token": "super_secret_jwt_token_999",
+            "password_hash": "pbkdf2_sha256$260000$xyz",
+            "client_secret": "my_app_secret",
+            "nested_config": {
+                "api_key": "prod_key_live_45678",
+                "normal_field": "public_hospital_name",
+            },
+            "public_metric": 42.5,
+        }
+        sanitized = sanitize_audit_details(raw_data)
+        self.assertEqual(sanitized["device_id"], "MEC-01")
+        self.assertEqual(sanitized["auth_token"], "[REDACTED]")
+        self.assertEqual(sanitized["password_hash"], "[REDACTED]")
+        self.assertEqual(sanitized["client_secret"], "[REDACTED]")
+        self.assertEqual(sanitized["nested_config"]["api_key"], "[REDACTED]")
+        self.assertEqual(sanitized["nested_config"]["normal_field"], "public_hospital_name")
+        self.assertEqual(sanitized["public_metric"], 42.5)
+
+    def test_hosp_sec_01_unauthorized_task_submission_blocked_and_audited(self):
+        """HOSP-SEC-01: Unauthenticated task submission triggers 401/403 and records UNAUTHORIZED_TASK_SUBMISSION."""
+        task = Task.objects.create(
+            task_id="TASK-TEST-SEC-01",
+            name="Unauthorized Injection Workload Test",
+            scenario_id="HOSP-SEC-01",
+            workload_type="unauthorized_submission",
+            privacy_policy="LOCAL_ONLY",
+        )
+        ok, msg, res = execute_hospital_workload(task)
+        self.assertFalse(ok)
+        task.refresh_from_db()
+        self.assertEqual(task.status, "REJECTED")
+        self.assertEqual(task.error_code, "SEC_UNAUTHORIZED_SUBMISSION")
+
+        audit_ev = SecurityAuditEvent.objects.filter(event_type="UNAUTHORIZED_TASK_SUBMISSION", task_id="TASK-TEST-SEC-01").first()
+        self.assertIsNotNone(audit_ev)
+        self.assertTrue(audit_ev.blocked)
+        self.assertEqual(audit_ev.severity, "HIGH")
+
+        anon_client = APIClient()
+        response = anon_client.post(
+            "/api/tasks/",
+            {"name": "Hacked Task Injection", "priority": 1, "cpu_cycles_giga": 2.0},
+            format="json",
+        )
+        self.assertIn(response.status_code, (401, 403))
+
+        api_audit = SecurityAuditEvent.objects.filter(event_type="UNAUTHORIZED_TASK_SUBMISSION").first()
+        self.assertIsNotNone(api_audit)
+        self.assertTrue(api_audit.blocked)
+
+    def test_hosp_sec_02_invalid_mec_credentials_heartbeat_blocked_and_audited(self):
+        """HOSP-SEC-02: Rogue MEC heartbeat rejected with HTTP 401 and records INVALID_MEC_AUTH."""
+        task = Task.objects.create(
+            task_id="TASK-TEST-SEC-02",
+            name="Rogue MEC Credentials Test",
+            scenario_id="HOSP-SEC-02",
+            workload_type="invalid_agent_auth",
+            input_payload=json.dumps({"device_id": "MEC-ROGUE-99"}),
+            privacy_policy="TRUSTED_EDGE",
+        )
+        ok, msg, res = execute_hospital_workload(task)
+        self.assertFalse(ok)
+        task.refresh_from_db()
+        self.assertEqual(task.status, "REJECTED")
+        self.assertEqual(task.error_code, "SEC_INVALID_MEC_AUTH")
+
+        audit_ev = SecurityAuditEvent.objects.filter(event_type="INVALID_MEC_AUTH", device_id="MEC-ROGUE-99").first()
+        self.assertIsNotNone(audit_ev)
+        self.assertEqual(audit_ev.severity, "CRITICAL")
+        self.assertTrue(audit_ev.blocked)
+
+        client = APIClient()
+        response = client.post(
+            "/api/mec/heartbeat/",
+            {"mec_id": "MEC-ROGUE-99", "auth_token": "fraudulent_token_secret_12345"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 401)
+
+        api_audit = SecurityAuditEvent.objects.filter(event_type="INVALID_MEC_AUTH", device_id="MEC-ROGUE-99").latest("timestamp")
+        self.assertIsNotNone(api_audit)
+        self.assertIn("[REDACTED]", api_audit.details_json)
+        self.assertNotIn("fraudulent_token_secret_12345", api_audit.details_json)
+
+    def test_hosp_sec_03_privacy_policy_violation_replication_blocked_and_audited(self):
+        """HOSP-SEC-03: Attempt to replicate LOCAL_ONLY data to Cloud tier is BLOCKED_BY_POLICY with CRITICAL audit."""
+        permitted, reason, audit_ev, replica = attempt_dataset_replication(
+            dataset_id="LOCAL-PATIENT-VITAL-DB",
+            target_destination="CLOUD",
+            privacy_policy="LOCAL_ONLY",
+            source_ip="192.168.1.50",
+            scenario_id="HOSP-SEC-03",
+        )
+        self.assertFalse(permitted)
+        self.assertIn("BLOCKED_BY_POLICY", reason)
+        self.assertIsNotNone(audit_ev)
+        self.assertEqual(audit_ev.event_type, "PRIVACY_POLICY_VIOLATION")
+        self.assertEqual(audit_ev.severity, "CRITICAL")
+        self.assertTrue(audit_ev.blocked)
+
+        self.assertIsNotNone(replica)
+        self.assertEqual(replica.replication_status, "BLOCKED_BY_POLICY")
+        self.assertFalse(replica.is_available)
+        self.assertIn("LOCAL_ONLY", replica.last_error)
+
+        task = Task.objects.create(
+            task_id="TASK-TEST-SEC-03",
+            name="Prohibited Cloud Replication Attempt",
+            scenario_id="HOSP-SEC-03",
+            workload_type="unauthorized_replication",
+            privacy_policy="LOCAL_ONLY",
+        )
+        ok, msg, res = execute_hospital_workload(task)
+        self.assertFalse(ok)
+        task.refresh_from_db()
+        self.assertEqual(task.status, "BLOCKED")
+        self.assertEqual(task.validation_status, "FAILED")
+        self.assertEqual(task.error_code, "SEC_PRIVACY_POLICY_VIOLATION")
+        self.assertTrue(res.get("blocked", False))

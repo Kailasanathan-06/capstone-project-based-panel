@@ -127,6 +127,19 @@ class MECAgentViewSet(viewsets.ViewSet):
             request_ip=request.META.get("REMOTE_ADDR", ""),
         )
         if not agent:
+            from engine.hospital_workloads import record_security_event
+
+            dev_id = request.data.get("mec_id", "")
+            ip = request.META.get("REMOTE_ADDR", "")
+            record_security_event(
+                event_type="INVALID_MEC_AUTH",
+                severity="CRITICAL",
+                description=f"MEC device heartbeat rejected: invalid or expired credentials for device '{dev_id}'",
+                device_id=dev_id,
+                source_ip=ip,
+                details=dict(request.data) if hasattr(request, "data") and isinstance(request.data, dict) else {},
+                blocked=True,
+            )
             return Response(
                 {"error": "Authentication failed - invalid device or token"},
                 status=status.HTTP_401_UNAUTHORIZED,
@@ -198,6 +211,24 @@ class MECTaskEndpoint(viewsets.ViewSet):
 
     authentication_classes = [MECAuthentication]
     permission_classes = [IsAuthenticated]
+
+    def permission_denied(self, request, message=None, code=None):
+        from engine.hospital_workloads import record_security_event
+
+        dev_id = request.META.get("HTTP_X_MEC_ID", "") or (
+            request.data.get("mec_id", "") if hasattr(request, "data") and isinstance(request.data, dict) else ""
+        )
+        ip = request.META.get("REMOTE_ADDR", "")
+        record_security_event(
+            event_type="INVALID_MEC_AUTH",
+            severity="CRITICAL",
+            description=f"Unauthorized MEC task access attempt: invalid or missing credentials for device '{dev_id}'",
+            device_id=dev_id,
+            source_ip=ip,
+            details={"device_id": dev_id},
+            blocked=True,
+        )
+        super().permission_denied(request, message=message, code=code)
 
     def next_task(self, request, pk=None):
         """Return the task currently assigned to this MEC (if any)."""

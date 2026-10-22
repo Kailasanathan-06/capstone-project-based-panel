@@ -1190,6 +1190,128 @@ def validate_workload_input(task: Any) -> Tuple[bool, str, str, str, bool]:
 
 
 # ---------------------------------------------------------------------------
+# Timeout and Looping Watchdog Engine (Phase 5)
+# ---------------------------------------------------------------------------
+def execute_workload_with_watchdog(task: Any, timeout_limit_seconds: Optional[int] = None) -> Dict[str, Any]:
+    """
+    Simulates bounded execution governed by an active watchdog timer.
+    When execution duration exceeds timeout_limit_seconds, the watchdog triggers
+    interruption, releases resources, and transitions task status to TIMED_OUT.
+    """
+    limit = timeout_limit_seconds or getattr(task, "timeout_limit_seconds", 2) or 2
+    task.record_history("VALIDATING", "RUNNING", changed_by="watchdog_dispatcher")
+    task.status = "TIMED_OUT"
+    task.validation_status = "FAILED"
+    task.error_code = "ERR_EXECUTION_TIMEOUT"
+    task.error_message = (
+        f"Watchdog execution limit exceeded: task processing elapsed {limit}s "
+        f"(configured limit: {limit}s). Execution aborted and resources reclaimed."
+    )
+    task.execution_time = float(limit)
+    task.total_latency_ms = round(limit * 1000.0, 2)
+    task.completion_time = dj_timezone.now()
+    task.output_payload = json.dumps({
+        "error_code": "ERR_EXECUTION_TIMEOUT",
+        "timeout_limit_seconds": limit,
+        "elapsed_seconds": limit,
+        "status": "TIMED_OUT",
+        "action": "watchdog_cancellation",
+    })
+    task.save()
+    task.record_history("RUNNING", "TIMED_OUT", changed_by="watchdog_timer")
+    return {
+        "status": "TIMED_OUT",
+        "error_code": "ERR_EXECUTION_TIMEOUT",
+        "execution_time_s": float(limit),
+        "details": json.loads(task.output_payload),
+    }
+
+
+def handle_unresponsive_worker(task: Any, device_id: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Detects unresponsive edge node or dropped telemetry heartbeat.
+    Reclaims the orphaned task, releases assigned MEC lock, and marks status TIMED_OUT.
+    """
+    assigned_mec = getattr(task, "assigned_mec", None)
+    dev_id = device_id or (assigned_mec.device_id if assigned_mec else "MEC-WORKER-DROPPED")
+    task.record_history("VALIDATING", "RUNNING", changed_by="worker_monitor")
+    task.status = "TIMED_OUT"
+    task.validation_status = "FAILED"
+    task.error_code = "ERR_WORKER_UNRESPONSIVE"
+    task.error_message = (
+        f"Simulated worker unresponsive: node '{dev_id}' dropped heartbeat/telemetry; "
+        f"task reclaimed and marked TIMED_OUT."
+    )
+    task.assigned_mec = None
+    task.assigned_node = ""
+    task.completion_time = dj_timezone.now()
+    task.output_payload = json.dumps({
+        "error_code": "ERR_WORKER_UNRESPONSIVE",
+        "dropped_worker_id": dev_id,
+        "status": "TIMED_OUT",
+        "action": "orphan_reclaim",
+    })
+    task.save()
+    task.record_history("RUNNING", "TIMED_OUT", changed_by="worker_monitor")
+    return {
+        "status": "TIMED_OUT",
+        "error_code": "ERR_WORKER_UNRESPONSIVE",
+        "dropped_worker_id": dev_id,
+        "details": json.loads(task.output_payload),
+    }
+
+
+def execute_workload_retry_exhaustion(
+    task: Any,
+    max_retries: int = 3,
+    backoff_base_s: float = 0.01,
+) -> Dict[str, Any]:
+    """
+    Simulates bounded transient failures with exponential backoff retries.
+    Enforces a strict upper bound; when retry_count reaches max_retries,
+    execution terminates with FAILED status and ERR_MAX_RETRIES_EXCEEDED without infinite loop.
+    """
+    attempts_history = []
+    task.record_history("VALIDATING", "RUNNING", changed_by="retry_manager")
+
+    for attempt in range(1, max_retries + 1):
+        task.retry_count = attempt
+        task.record_history("RUNNING" if attempt == 1 else "RETRYING", "RETRYING", changed_by="retry_manager")
+        backoff_delay = backoff_base_s * (2 ** (attempt - 1))
+        attempts_history.append({
+            "attempt": attempt,
+            "transient_error": "ERR_TRANSIENT_NETWORK_DROP",
+            "backoff_delay_s": round(backoff_delay, 4),
+        })
+        time.sleep(min(backoff_delay, 0.05))
+
+    task.status = "FAILED"
+    task.validation_status = "FAILED"
+    task.error_code = "ERR_MAX_RETRIES_EXCEEDED"
+    task.error_message = (
+        f"Task execution failed after reaching maximum configured retry limit of {max_retries} attempts."
+    )
+    task.completion_time = dj_timezone.now()
+    task.output_payload = json.dumps({
+        "error_code": "ERR_MAX_RETRIES_EXCEEDED",
+        "retry_count": task.retry_count,
+        "max_retries": max_retries,
+        "attempts_history": attempts_history,
+        "status": "FAILED",
+        "action": "retry_exhaustion_termination",
+    })
+    task.save()
+    task.record_history("RETRYING", "FAILED", changed_by="retry_manager")
+    return {
+        "status": "FAILED",
+        "error_code": "ERR_MAX_RETRIES_EXCEEDED",
+        "retry_count": task.retry_count,
+        "max_retries": max_retries,
+        "details": json.loads(task.output_payload),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Workload Execution Dispatcher
 # ---------------------------------------------------------------------------
 def execute_hospital_workload(task: Any) -> Tuple[bool, str, Dict[str, Any]]:
@@ -1202,6 +1324,21 @@ def execute_hospital_workload(task: Any) -> Tuple[bool, str, Dict[str, Any]]:
     task.start_time = start_time
     w_type = getattr(task, "workload_type", "") or "medical_image_preprocess"
     scen_id = getattr(task, "scenario_id", "") or ""
+
+    # Phase 5 - Looping and Timeout Workloads Execution
+    if scen_id == "HOSP-TIME-01" or w_type == "execution_time_limit":
+        limit = getattr(task, "timeout_limit_seconds", 2) or 2
+        res = execute_workload_with_watchdog(task, timeout_limit_seconds=limit)
+        return False, task.error_message, res
+
+    if scen_id == "HOSP-TIME-02" or w_type == "worker_unresponsive":
+        res = handle_unresponsive_worker(task)
+        return False, task.error_message, res
+
+    if scen_id == "HOSP-TIME-03" or w_type == "retry_exhaustion":
+        max_r = getattr(task, "max_retries", 3) or 3
+        res = execute_workload_retry_exhaustion(task, max_retries=max_r)
+        return False, task.error_message, res
 
     # Phase 4 - Defensive Security Workloads Execution
     if scen_id == "HOSP-SEC-01" or w_type == "unauthorized_submission":

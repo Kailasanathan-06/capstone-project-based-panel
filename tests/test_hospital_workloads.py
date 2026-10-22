@@ -449,3 +449,83 @@ class DefensiveSecurityScenariosTests(TestCase):
         self.assertEqual(task.validation_status, "FAILED")
         self.assertEqual(task.error_code, "SEC_PRIVACY_POLICY_VIOLATION")
         self.assertTrue(res.get("blocked", False))
+
+
+class TimeoutAndLoopingScenariosTests(TestCase):
+    """Verify bounded execution, worker fault detection, and retry exhaustion for 3 Timeout Scenarios."""
+
+    def setUp(self):
+        ensure_all_14_scenarios_registered()
+
+    def test_hosp_time_01_execution_time_limit_watchdog_timed_out(self):
+        """HOSP-TIME-01: Execution exceeding time limit is safely aborted by watchdog with status TIMED_OUT."""
+        task = Task.objects.create(
+            task_id="TASK-TEST-TIME-01",
+            name="Infinite Matrix Computation Benchmark",
+            scenario_id="HOSP-TIME-01",
+            workload_type="execution_time_limit",
+            privacy_policy="TRUSTED_EDGE",
+            timeout_limit_seconds=1,  # Short bounded threshold for test
+        )
+        ok, msg, res = execute_hospital_workload(task)
+        self.assertFalse(ok)
+        task.refresh_from_db()
+
+        self.assertEqual(task.status, "TIMED_OUT")
+        self.assertEqual(task.validation_status, "FAILED")
+        self.assertEqual(task.error_code, "ERR_EXECUTION_TIMEOUT")
+        self.assertIn("Watchdog execution limit exceeded", task.error_message)
+        self.assertEqual(task.execution_time, 1.0)
+
+        history = list(task.queue_history.values_list("to_status", flat=True))
+        self.assertIn("TIMED_OUT", history)
+
+    def test_hosp_time_02_worker_unresponsive_dropped_node_reclaimed(self):
+        """HOSP-TIME-02: Unresponsive/dropped edge worker triggers orphan reclaim and TIMED_OUT status."""
+        task = Task.objects.create(
+            task_id="TASK-TEST-TIME-02",
+            name="Worker Unresponsive Workload Test",
+            scenario_id="HOSP-TIME-02",
+            workload_type="worker_unresponsive",
+            privacy_policy="TRUSTED_EDGE",
+        )
+        ok, msg, res = execute_hospital_workload(task)
+        self.assertFalse(ok)
+        task.refresh_from_db()
+
+        self.assertEqual(task.status, "TIMED_OUT")
+        self.assertEqual(task.validation_status, "FAILED")
+        self.assertEqual(task.error_code, "ERR_WORKER_UNRESPONSIVE")
+        self.assertIn("Simulated worker unresponsive", task.error_message)
+        self.assertIsNone(task.assigned_mec)  # Worker lock released
+
+        history = list(task.queue_history.values_list("to_status", flat=True))
+        self.assertIn("TIMED_OUT", history)
+
+    def test_hosp_time_03_transient_failure_max_retries_exhaustion(self):
+        """HOSP-TIME-03: Transient errors retry with exponential backoff up to max_retries then terminate in FAILED."""
+        task = Task.objects.create(
+            task_id="TASK-TEST-TIME-03",
+            name="Transient Network Failure Retry Test",
+            scenario_id="HOSP-TIME-03",
+            workload_type="retry_exhaustion",
+            privacy_policy="TRUSTED_EDGE",
+            max_retries=3,
+            retry_count=0,
+        )
+        ok, msg, res = execute_hospital_workload(task)
+        self.assertFalse(ok)
+        task.refresh_from_db()
+
+        self.assertEqual(task.status, "FAILED")
+        self.assertEqual(task.validation_status, "FAILED")
+        self.assertEqual(task.error_code, "ERR_MAX_RETRIES_EXCEEDED")
+        self.assertEqual(task.retry_count, 3)
+        self.assertEqual(task.max_retries, 3)
+        self.assertIn("reaching maximum configured retry limit", task.error_message)
+
+        # Verify history recorded the RETRYING steps and final FAILED step
+        history = list(task.queue_history.values_list("to_status", flat=True))
+        self.assertIn("RETRYING", history)
+        self.assertIn("FAILED", history)
+

@@ -152,3 +152,186 @@ class MedicalDatasetSample(models.Model):
 
     def __str__(self):
         return f"{self.sample_id} ({self.split} - {self.label_name})"
+
+
+class WorkloadScenario(models.Model):
+    """Definition and test fixture metadata for the 14 hospital workload scenarios."""
+
+    CATEGORY_CHOICES = [
+        ("SUCCESS", "Success Datasets"),
+        ("ERROR", "Error Datasets"),
+        ("SECURITY", "Hacked / Security Event Datasets"),
+        ("TIMEOUT", "Looping / Timeout Datasets"),
+    ]
+
+    scenario_id = models.CharField("Scenario ID", max_length=60, unique=True)
+    name = models.CharField("Name", max_length=200)
+    category = models.CharField("Category", max_length=30, choices=CATEGORY_CHOICES)
+    workload_type = models.CharField("Workload Type", max_length=60)
+    description = models.TextField("Description", blank=True)
+    input_format = models.CharField("Input Format", max_length=30, default="JSON")
+    input_size_bytes = models.BigIntegerField("Input Size (bytes)", default=0)
+    input_file_path = models.CharField("Input File Path", max_length=500, blank=True)
+    input_payload = models.TextField("Structured Input Payload", blank=True)
+    processing_requirements = models.TextField("Processing Requirements", blank=True)
+    expected_status = models.CharField("Expected Status", max_length=30, default="COMPLETED")
+    expected_result_description = models.TextField("Expected Result", blank=True)
+    validation_rules = models.TextField("Validation Rules", blank=True)
+    privacy_policy = models.CharField("Privacy Policy", max_length=30, default="TRUSTED_EDGE")
+    cpu_cycles_giga = models.FloatField("CPU Cycles (Giga)", default=0.5)
+    memory_mb = models.IntegerField("Memory (MB)", default=512)
+    deadline_ms = models.IntegerField("Deadline (ms)", default=500)
+    privacy_sensitivity = models.FloatField("Privacy Sensitivity", default=0.5)
+    security_sensitivity = models.FloatField("Security Sensitivity", default=0.1)
+    timeout_seconds = models.IntegerField("Timeout Seconds", default=60)
+    max_retries = models.IntegerField("Max Retries", default=3)
+    is_active = models.BooleanField("Active", default=True)
+    created_at = models.DateTimeField("Created At", default=timezone.now)
+
+    class Meta:
+        verbose_name = "Workload Scenario"
+        verbose_name_plural = "Workload Scenarios"
+        ordering = ["category", "scenario_id"]
+
+    def __str__(self):
+        return f"{self.scenario_id}: {self.name} [{self.category}]"
+
+    def to_dict(self):
+        return {
+            "scenario_id": self.scenario_id,
+            "name": self.name,
+            "category": self.category,
+            "workload_type": self.workload_type,
+            "description": self.description,
+            "input_format": self.input_format,
+            "input_size_bytes": self.input_size_bytes,
+            "input_file_path": self.input_file_path,
+            "expected_status": self.expected_status,
+            "privacy_policy": self.privacy_policy,
+            "cpu_cycles_giga": self.cpu_cycles_giga,
+            "memory_mb": self.memory_mb,
+            "deadline_ms": self.deadline_ms,
+            "timeout_seconds": self.timeout_seconds,
+            "max_retries": self.max_retries,
+        }
+
+
+class DatasetVersion(models.Model):
+    """Version metadata for registered public or synthetic datasets."""
+
+    version_tag = models.CharField("Version Tag", max_length=50)
+    dataset_name = models.CharField("Dataset Name", max_length=200)
+    dataset_flag = models.CharField("Dataset Flag", max_length=50, blank=True)
+    sha256_checksum = models.CharField("SHA-256 Checksum", max_length=64, blank=True)
+    total_samples = models.IntegerField("Total Samples", default=0)
+    train_samples = models.IntegerField("Train Samples", default=0)
+    val_samples = models.IntegerField("Validation Samples", default=0)
+    test_samples = models.IntegerField("Test Samples", default=0)
+    license = models.CharField("License", max_length=100, default="CC BY 4.0")
+    source_url = models.CharField("Source URL", max_length=500, blank=True)
+    storage_path = models.CharField("Storage Path", max_length=500, blank=True)
+    is_verified = models.BooleanField("Verified", default=False)
+    created_at = models.DateTimeField("Created At", default=timezone.now)
+
+    class Meta:
+        verbose_name = "Dataset Version"
+        verbose_name_plural = "Dataset Versions"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.dataset_name} ({self.version_tag})"
+
+
+class StorageDestination(models.Model):
+    """Configured edge-cloud storage destination (Local, MEC, Cloud)."""
+
+    DESTINATION_TYPES = [
+        ("LOCAL", "Hospital / Local Storage"),
+        ("MEC", "Authorized Edge Node Storage"),
+        ("CLOUD", "Cloud Storage / Emulator"),
+    ]
+
+    destination_id = models.CharField("Destination ID", max_length=50, unique=True)
+    name = models.CharField("Name", max_length=100)
+    destination_type = models.CharField("Destination Type", max_length=30, choices=DESTINATION_TYPES)
+    base_path = models.CharField("Base Filesystem Path", max_length=500)
+    is_active = models.BooleanField("Active", default=True)
+    is_emulator = models.BooleanField("Is Emulator / Local Cloud Stub", default=False)
+    capacity_bytes = models.BigIntegerField("Capacity (Bytes)", default=107374182400)
+    used_bytes = models.BigIntegerField("Used (Bytes)", default=0)
+    privacy_tier_allowed = models.CharField("Max Allowed Privacy Policy", max_length=30, default="CLOUD_ALLOWED")
+    created_at = models.DateTimeField("Created At", default=timezone.now)
+
+    class Meta:
+        verbose_name = "Storage Destination"
+        verbose_name_plural = "Storage Destinations"
+        ordering = ["destination_id"]
+
+    def __str__(self):
+        return f"{self.destination_id} ({self.destination_type})"
+
+
+class DatasetStorageReplica(models.Model):
+    """Tracks physical file/object replica in a storage destination with verification."""
+
+    REPLICATION_STATUS_CHOICES = [
+        ("PENDING", "Pending"),
+        ("COPYING", "Copying"),
+        ("VERIFIED", "Verified"),
+        ("FAILED", "Failed"),
+        ("BLOCKED_BY_POLICY", "Blocked by Policy"),
+        ("UNAVAILABLE", "Unavailable"),
+    ]
+
+    replica_id = models.CharField("Replica ID", max_length=60, unique=True)
+    dataset_id = models.CharField("Dataset ID", max_length=100)
+    scenario = models.ForeignKey(WorkloadScenario, null=True, blank=True, on_delete=models.SET_NULL, related_name="replicas")
+    storage_destination = models.ForeignKey(StorageDestination, on_delete=models.CASCADE, related_name="replicas")
+    relative_key = models.CharField("Relative Object Key", max_length=500)
+    absolute_path = models.CharField("Absolute Path", max_length=500)
+    file_size_bytes = models.BigIntegerField("File Size (bytes)", default=0)
+    sha256_checksum = models.CharField("SHA-256 Checksum", max_length=64, blank=True)
+    replication_status = models.CharField("Replication Status", max_length=30, default="PENDING", choices=REPLICATION_STATUS_CHOICES)
+    replication_job_id = models.CharField("Replication Job ID", max_length=60, blank=True)
+    last_error = models.TextField("Last Error", blank=True)
+    is_available = models.BooleanField("Available", default=True)
+    created_at = models.DateTimeField("Created At", default=timezone.now)
+    last_verified_at = models.DateTimeField("Last Verified At", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Dataset Storage Replica"
+        verbose_name_plural = "Dataset Storage Replicas"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.dataset_id} @ {self.storage_destination.destination_id} [{self.replication_status}]"
+
+
+class SecurityAuditEvent(models.Model):
+    """Persistent audit log of defensive security and policy enforcement events."""
+
+    SEVERITY_CHOICES = [
+        ("LOW", "Low"),
+        ("MEDIUM", "Medium"),
+        ("HIGH", "High"),
+        ("CRITICAL", "Critical"),
+    ]
+
+    event_id = models.CharField("Event ID", max_length=50, unique=True)
+    event_type = models.CharField("Event Type", max_length=60)
+    severity = models.CharField("Severity", max_length=20, default="HIGH", choices=SEVERITY_CHOICES)
+    task_id = models.CharField("Task ID", max_length=50, blank=True)
+    device_id = models.CharField("Device ID", max_length=50, blank=True)
+    source_ip = models.CharField("Source IP", max_length=50, blank=True)
+    description = models.TextField("Description")
+    details_json = models.TextField("Details JSON (No plaintext secrets)", blank=True)
+    blocked = models.BooleanField("Blocked / Defended", default=True)
+    timestamp = models.DateTimeField("Timestamp", default=timezone.now)
+
+    class Meta:
+        verbose_name = "Security Audit Event"
+        verbose_name_plural = "Security Audit Events"
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"[{self.severity}] {self.event_type} - {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"

@@ -94,6 +94,19 @@ class Task(models.Model):
     # Google Drive file id of the generated result
     result_location = models.CharField("Result Location (Google Drive ID)", max_length=200, blank=True)
     error_message = models.TextField("Error Message", blank=True)
+    # Hospital Workload Scenario and Execution Tracking
+    scenario_id = models.CharField("Scenario ID", max_length=60, blank=True, default="")
+    workload_category = models.CharField("Workload Category", max_length=30, blank=True, default="SUCCESS")
+    workload_type = models.CharField("Workload Type", max_length=60, blank=True, default="medical_image_preprocess")
+    error_code = models.CharField("Error Code", max_length=50, blank=True, default="")
+    timeout_limit_seconds = models.IntegerField("Timeout Limit (s)", default=60)
+    retry_count = models.IntegerField("Retry Count", default=0)
+    max_retries = models.IntegerField("Max Retries", default=3)
+    start_time = models.DateTimeField("Start Time", null=True, blank=True)
+    completion_time = models.DateTimeField("Completion Time", null=True, blank=True)
+    validation_status = models.CharField("Validation Status", max_length=30, default="PENDING")
+    input_payload = models.TextField("Structured Input Payload", blank=True, default="")
+    output_payload = models.TextField("Structured Output Payload", blank=True, default="")
     created_at = models.DateTimeField("Created At", default=timezone.now)
     updated_at = models.DateTimeField("Updated At", auto_now=True)
 
@@ -168,3 +181,45 @@ class TaskQueueHistory(models.Model):
 
     def __str__(self):
         return f"{self.task.task_id}: {self.from_status} -> {self.to_status}"
+
+
+class SchedulingDecision(models.Model):
+    """Detailed record of scheduler decision and resource evaluation rationale."""
+
+    decision_id = models.CharField("Decision ID", max_length=60, unique=True)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="decisions")
+    algorithm = models.CharField("Algorithm", max_length=50)
+    selected_resource = models.CharField("Selected Resource", max_length=50)
+    selected_tier = models.CharField("Selected Tier", max_length=30)
+    objective_scores = models.TextField("Objective Scores JSON", blank=True)
+    rejected_candidates = models.TextField("Rejected Candidates JSON", blank=True)
+    decision_rationale = models.TextField("Decision Rationale", blank=True)
+    timestamp = models.DateTimeField("Timestamp", default=timezone.now)
+
+    class Meta:
+        verbose_name = "Scheduling Decision"
+        verbose_name_plural = "Scheduling Decisions"
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"{self.task.task_id} -> {self.selected_resource} ({self.algorithm})"
+
+
+class ExperimentRun(models.Model):
+    """Recorded benchmark experiment comparing GA against baselines."""
+
+    experiment_id = models.CharField("Experiment ID", max_length=60, unique=True)
+    name = models.CharField("Experiment Name", max_length=200)
+    seed = models.IntegerField("Random Seed", default=42)
+    tasks_count = models.IntegerField("Tasks Count", default=0)
+    configuration_json = models.TextField("Configuration JSON", blank=True)
+    results_json = models.TextField("Results JSON", blank=True)
+    created_at = models.DateTimeField("Created At", default=timezone.now)
+
+    class Meta:
+        verbose_name = "Experiment Run"
+        verbose_name_plural = "Experiment Runs"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.experiment_id}: {self.name} ({self.tasks_count} tasks)"

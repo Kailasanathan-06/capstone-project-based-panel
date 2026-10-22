@@ -32,6 +32,8 @@ def build_task_dict(task):
         "operation": getattr(task, "operation", "normalize_clahe"),
         "image_path": getattr(task, "image_path", ""),
         "target_resolution": getattr(task, "target_resolution", 224),
+        "scenario_id": getattr(task, "scenario_id", ""),
+        "workload_type": getattr(task, "workload_type", "medical_image_preprocess"),
     }
 
 
@@ -65,7 +67,7 @@ def eligible_mec_resources():
 def execute_task_locally(task):
     """
     Execute task locally on hospital workstation with high-resolution timing and verification.
-    Uses MedicalImageProcessor for genuine medical image operations.
+    Uses MedicalImageProcessor or specific Hospital Workload engine.
     """
     from engine.image_processor import MedicalImageProcessor
 
@@ -87,6 +89,12 @@ def execute_task_locally(task):
     image_path = getattr(task, "image_path", "")
 
     try:
+        w_type = getattr(task, "workload_type", "")
+        if w_type and w_type != "medical_image_preprocess":
+            from engine.hospital_workloads import execute_hospital_workload
+            ok, msg, res = execute_hospital_workload(task)
+            return ok, msg
+
         if image_path and os.path.exists(image_path):
             processor = MedicalImageProcessor()
             op = getattr(task, "operation", "normalize_clahe") or "normalize_clahe"

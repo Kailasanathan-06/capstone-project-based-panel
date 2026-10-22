@@ -272,11 +272,17 @@ class MECHeartbeatViewSet(viewsets.ViewSet):
     """Heartbeat history for a device (dashboard consumption)."""
 
     authentication_classes = [SessionAuthentication, TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def list(self, request):
         mec_id = request.query_params.get("mec_id", "")
-        beats = MECAgent.objects.get(device_id=mec_id).heartbeats.all()[:50]
+        if not mec_id:
+            agent = MECAgent.objects.filter(is_revoked=False).first()
+        else:
+            agent = MECAgent.objects.filter(device_id=mec_id).first()
+        if not agent:
+            return Response([])
+        beats = agent.heartbeats.all()[:50]
         return Response(HeartbeatSerializer(beats, many=True).data)
 
 

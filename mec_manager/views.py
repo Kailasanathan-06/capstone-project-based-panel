@@ -226,6 +226,16 @@ class MECTaskEndpoint(viewsets.ViewSet):
         task.network_latency = request.data.get("network_latency")
         task.estimated_energy = request.data.get("estimated_energy", 0.0)
         task.result_location = request.data.get("result_location", "")
+        if request.data.get("output_path"):
+            task.output_path = request.data.get("output_path")
+        if request.data.get("output_checksum"):
+            task.output_checksum = request.data.get("output_checksum")
+        if request.data.get("input_checksum"):
+            task.input_checksum = request.data.get("input_checksum")
+        if request.data.get("image_processing_time"):
+            task.image_processing_time = float(request.data.get("image_processing_time", 0.0))
+        task.total_latency_ms = (task.execution_time * 1000.0) if task.execution_time else 0.0
+        task.is_simulated_execution = False
 
         if request.data.get("success") or request.data.get("status") == "COMPLETED":
             task.status = "COMPLETED"

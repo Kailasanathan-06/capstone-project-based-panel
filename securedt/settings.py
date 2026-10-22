@@ -90,20 +90,34 @@ WSGI_APPLICATION = "securedt.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": os.environ.get("MYSQL_DATABASE", "securetdb"),
-        "USER": os.environ.get("MYSQL_USER", "root"),
-        "PASSWORD": os.environ.get("MYSQL_PASSWORD", ""),
-        "HOST": os.environ.get("MYSQL_HOST", "127.0.0.1"),
-        "PORT": os.environ.get("MYSQL_PORT", "3306"),
-        "OPTIONS": {
-            "charset": "utf8mb4",
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+# Supports MySQL (when USE_MYSQL=1) and SQLite (default development/testing)
+_use_mysql = os.environ.get("USE_MYSQL", os.environ.get("MYSQL_ENABLED", "0")).strip().lower() in ("1", "true", "yes")
+_mysql_host = os.environ.get("MYSQL_HOST", "127.0.0.1")
+_mysql_port = os.environ.get("MYSQL_PORT", "3306")
+
+if _use_mysql:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": os.environ.get("MYSQL_DATABASE", "securetdb"),
+            "USER": os.environ.get("MYSQL_USER", "root"),
+            "PASSWORD": os.environ.get("MYSQL_PASSWORD", ""),
+            "HOST": _mysql_host,
+            "PORT": _mysql_port,
+            "OPTIONS": {
+                "charset": "utf8mb4",
+                "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+
 
 
 # Password validation
@@ -143,6 +157,10 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Medical datasets and processed images (stored outside public web root)
+MEDICAL_DATASET_DIR = Path(os.environ.get("MEDICAL_DATASET_DIR", str(BASE_DIR / "data_storage" / "medical_datasets")))
+PROCESSED_IMAGE_DIR = Path(os.environ.get("PROCESSED_IMAGE_DIR", str(BASE_DIR / "data_storage" / "processed_medical_images")))
 
 
 # Default primary key field type

@@ -28,9 +28,12 @@ urlpatterns = [
     path('api/digital-twin/', include('digital_twin.urls')),
     path('api/analytics/', include('analytics.urls')),
     path('datasets/app/', include('datasets.urls')),
+    path('api/datasets/', include('datasets.urls')),
+    path('medical-datasets/', include('datasets.urls')),
     
     # Frontend pages
     path('', TemplateView.as_view(template_name='dashboard.html'), name='dashboard'),
+    path('medical-dataset/', TemplateView.as_view(template_name='medical_dataset_explorer.html'), name='medical_dataset_explorer'),
     path('task-routing/', TemplateView.as_view(template_name='task_routing.html'), name='task_routing'),
     path('mec-infrastructure/', TemplateView.as_view(template_name='mec_infrastructure.html'), name='mec_infrastructure'),
     path('digital-twin/', TemplateView.as_view(template_name='digital_twin.html'), name='digital_twin'),

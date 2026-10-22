@@ -6,7 +6,8 @@ from django.urls import path
 from .views import DigitalTwinViewSet
 
 urlpatterns = [
-    path("compare/", DigitalTwinViewSet.as_view({"get": "compare"}), name="digital_twin_compare"),
+    path("compare/", DigitalTwinViewSet.as_view({"get": "compare", "post": "compare"}), name="digital_twin_compare"),
+    path("experiments/export-csv/", DigitalTwinViewSet.as_view({"get": "export_experiments_csv", "post": "export_experiments_csv"}), name="digital_twin_export_csv"),
     path("resources/", DigitalTwinViewSet.as_view({"get": "resources"}), name="digital_twin_resources"),
     path("attack/", DigitalTwinViewSet.as_view({"post": "attack"}), name="digital_twin_attack"),
     path("mitigate/", DigitalTwinViewSet.as_view({"post": "mitigate"}), name="digital_twin_mitigate"),

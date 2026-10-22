@@ -1,79 +1,217 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Genetic Algorithm - SecureDT{% endblock %}
+{% block title %}Genetic Algorithm & Schedulers Benchmark - SecureDT{% endblock %}
 
 {% block content %}
 <div class="page-header" style="margin-bottom: var(--space-6);">
-  <h1 class="page-title">Genetic Algorithm Scheduler</h1>
-  <p class="page-subtitle">Multi-objective optimization for secure task scheduling</p>
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--space-4);">
+    <div>
+      <h1 class="page-title">Scheduler Benchmark &amp; Multi-Objective GA</h1>
+      <p class="page-subtitle">
+        Comparative evaluation of Proposed Security-Aware GA vs Round Robin, First Fit, Random, Greedy, and Privacy-Aware baselines on MedMNIST pneumonia workloads.
+      </p>
+    </div>
+    <div style="display: flex; gap: var(--space-3); align-items: center;">
+      <button id="btn-export-csv" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: var(--space-2);">
+        <svg class="icon" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export Benchmark (CSV)
+      </button>
+      <button id="btn-run-all" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: var(--space-2);">
+        <svg class="icon" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Run Full Benchmark
+      </button>
+    </div>
+  </div>
 </div>
 
+<!-- Configuration & Tuner Card -->
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-6);">
-  <section class="card" aria-labelledby="ga-config-heading">
-    <header class="card-header">
-      <h2 class="card-title" id="ga-config-heading">Configuration</h2>
+  <section class="card" aria-labelledby="bench-config-heading">
+    <header class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+      <h2 class="card-title" id="bench-config-heading">Experiment Parameters &amp; Workload</h2>
+      <span class="badge badge-info" id="badge-workload-info">MedMNIST Testbed</span>
     </header>
     <div class="card-content">
-      <form id="ga-config-form" style="display: flex; flex-direction: column; gap: var(--space-4);">
+      <form id="benchmark-form" style="display: flex; flex-direction: column; gap: var(--space-4);">
         <div class="form-grid">
           <div class="form-group">
-            <label for="ga-population">Population Size</label>
-            <input type="number" id="ga-population" name="population" value="40" min="10" max="200" class="form-input">
+            <label for="bench-tasks-count">Workload Task Count</label>
+            <select id="bench-tasks-count" class="form-select">
+              <option value="6">6 Medical Tasks</option>
+              <option value="12" selected>12 Medical Tasks (Standard)</option>
+              <option value="24">24 Medical Tasks (Heavy)</option>
+              <option value="48">48 Medical Tasks (Stress Test)</option>
+            </select>
           </div>
           <div class="form-group">
-            <label for="ga-generations">Generations</label>
-            <input type="number" id="ga-generations" name="generations" value="50" min="10" max="200" class="form-input">
+            <label for="bench-seed">Reproducible Random Seed</label>
+            <input type="number" id="bench-seed" value="42" class="form-input" min="1" max="999999">
           </div>
         </div>
+
         <div class="form-grid">
           <div class="form-group">
-            <label for="ga-mutation">Mutation Rate</label>
-            <input type="range" id="ga-mutation" name="mutation_rate" min="0.01" max="0.5" step="0.01" value="0.12" class="form-range">
-            <span id="ga-mutation-value">0.12</span>
+            <label for="bench-pop-size">GA Population Size</label>
+            <input type="number" id="bench-pop-size" value="40" class="form-input" min="10" max="200">
           </div>
           <div class="form-group">
-            <label for="ga-crossover">Crossover Rate</label>
-            <input type="range" id="ga-crossover" name="crossover_rate" min="0.1" max="1.0" step="0.05" value="0.85" class="form-range">
-            <span id="ga-crossover-value">0.85</span>
+            <label for="bench-generations">GA Generations</label>
+            <input type="number" id="bench-generations" value="30" class="form-input" min="5" max="150">
           </div>
         </div>
+
         <div class="form-group">
-          <label>Fitness Weights</label>
-          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-3);">
-            <div class="form-group"><label>Latency</label><input type="range" name="w_latency" min="0" max="1" step="0.05" value="0.25" class="form-range"><span class="weight-value">0.25</span></div>
-            <div class="form-group"><label>Energy</label><input type="range" name="w_energy" min="0" max="1" step="0.05" value="0.15" class="form-range"><span class="weight-value">0.15</span></div>
-            <div class="form-group"><label>Privacy</label><input type="range" name="w_privacy" min="0" max="1" step="0.05" value="0.20" class="form-range"><span class="weight-value">0.20</span></div>
-            <div class="form-group"><label>Security</label><input type="range" name="w_security" min="0" max="1" step="0.05" value="0.30" class="form-range"><span class="weight-value">0.30</span></div>
-            <div class="form-group"><label>Deadline</label><input type="range" name="w_deadline" min="0" max="1" step="0.05" value="0.10" class="form-range"><span class="weight-value">0.10</span></div>
+          <label style="display: flex; justify-content: space-between;">
+            <span>Multi-Objective Fitness Function Weights</span>
+            <span style="font-size: var(--text-xs); color: var(--text-muted);">&Sigma; &approx; 1.0</span>
+          </label>
+          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-2); font-size: var(--text-xs);">
+            <div style="background: var(--surface-2); padding: var(--space-2); border-radius: var(--radius-sm); text-align: center;">
+              <div>Latency</div><strong>0.35</strong>
+            </div>
+            <div style="background: var(--surface-2); padding: var(--space-2); border-radius: var(--radius-sm); text-align: center;">
+              <div>Energy</div><strong>0.25</strong>
+            </div>
+            <div style="background: var(--surface-2); padding: var(--space-2); border-radius: var(--radius-sm); text-align: center;">
+              <div>Privacy</div><strong>0.20</strong>
+            </div>
+            <div style="background: var(--surface-2); padding: var(--space-2); border-radius: var(--radius-sm); text-align: center;">
+              <div>Security</div><strong>0.20</strong>
+            </div>
+            <div style="background: var(--surface-2); padding: var(--space-2); border-radius: var(--radius-sm); text-align: center;">
+              <div>Penalty</div><strong>5.0x</strong>
+            </div>
           </div>
         </div>
-        <button type="submit" class="btn btn-primary">Run Optimization</button>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; font-size: var(--text-xs); color: var(--text-muted);">
+          <span>Privacy Policies Enforced: <code>LOCAL_ONLY</code>, <code>TRUSTED_EDGE</code>, <code>CLOUD_ALLOWED</code></span>
+          <span id="bench-status-indicator" style="color: var(--success);">Ready</span>
+        </div>
       </form>
     </div>
   </section>
 
-  <section class="card" aria-labelledby="ga-results-heading">
+  <!-- Top Level Comparison KPI Cards -->
+  <section class="card" aria-labelledby="bench-summary-heading">
     <header class="card-header">
-      <h2 class="card-title" id="ga-results-heading">Optimization Results</h2>
+      <h2 class="card-title" id="bench-summary-heading">Multi-Objective Optimization Scorecard</h2>
     </header>
     <div class="card-content">
       <div class="kpi-grid" style="margin-bottom: var(--space-4);">
-        <article class="kpi-card"><span class="kpi-label">Best Fitness</span><span class="kpi-value primary" id="ga-best-fitness">—</span></article>
-        <article class="kpi-card"><span class="kpi-label">Generations Run</span><span class="kpi-value info" id="ga-generations-run">—</span></article>
-        <article class="kpi-card"><span class="kpi-label">Avg Latency</span><span class="kpi-value warning" id="ga-avg-latency">—</span></article>
-        <article class="kpi-card"><span class="kpi-label">Security Score</span><span class="kpi-value success" id="ga-security-score">—</span></article>
+        <article class="kpi-card">
+          <span class="kpi-label">Proposed GA Avg Latency</span>
+          <span class="kpi-value primary" id="kpi-ga-latency">—</span>
+          <span class="kpi-subtext" id="kpi-ga-latency-diff">vs Baselines</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">GA Deadline Miss Rate</span>
+          <span class="kpi-value success" id="kpi-ga-deadline">—</span>
+          <span class="kpi-subtext" id="kpi-ga-deadline-sub">Hard Constraint</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Policy Compliance Rate</span>
+          <span class="kpi-value info" id="kpi-ga-compliance">100.0%</span>
+          <span class="kpi-subtext">Zero Privacy Leaks</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Total Energy Proxy (J)</span>
+          <span class="kpi-value warning" id="kpi-ga-energy">—</span>
+          <span class="kpi-subtext">Edge-Optimized</span>
+        </article>
       </div>
-      <div class="chart-container" style="height: 300px;">
-        <canvas id="ga-convergence-chart" aria-label="GA convergence over generations"></canvas>
+
+      <div style="padding: var(--space-3); background: rgba(59, 130, 246, 0.08); border-left: 3px solid var(--primary); border-radius: var(--radius-sm); font-size: var(--text-xs); line-height: 1.5;">
+        <strong>Research Testbed Placement Rules:</strong>
+        <code>LOCAL_ONLY</code> tasks execute exclusively on the local workstation hardware.
+        <code>TRUSTED_EDGE</code> tasks are scheduled across local or online, non-stale MEC nodes.
+        <code>CLOUD_ALLOWED</code> tasks are eligible for all tiers including simulated Cloud execution.
       </div>
     </div>
   </section>
 </div>
 
-<section class="card" aria-labelledby="ga-assignment-heading">
-  <header class="card-header">
-    <h2 class="card-title" id="ga-assignment-heading">Task Assignments</h2>
+<!-- Visual Charts Section -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-6);">
+  <section class="card" aria-labelledby="chart-comparison-heading">
+    <header class="card-header">
+      <h2 class="card-title" id="chart-comparison-heading">Latency &amp; Deadline Comparison (All Schedulers)</h2>
+    </header>
+    <div class="card-content">
+      <div style="height: 280px; position: relative;">
+        <canvas id="chart-baselines-latency"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="chart-ga-convergence-heading">
+    <header class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+      <h2 class="card-title" id="chart-ga-convergence-heading">GA Multi-Objective Convergence History</h2>
+      <span class="badge badge-success" id="badge-ga-generations">—</span>
+    </header>
+    <div class="card-content">
+      <div style="height: 280px; position: relative;">
+        <canvas id="chart-ga-convergence"></canvas>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Detailed Comparative Metrics Table -->
+<section class="card" aria-labelledby="table-metrics-heading" style="margin-bottom: var(--space-6);">
+  <header class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <h2 class="card-title" id="table-metrics-heading">Algorithm Performance Benchmarks Matrix</h2>
+      <p class="card-subtitle" style="margin: 0; font-size: var(--text-xs); color: var(--text-muted);">
+        Exact measured/evaluated metrics on identical workload.
+      </p>
+    </div>
+  </header>
+  <div class="card-content">
+    <div class="table-container">
+      <table class="table" id="table-benchmarks">
+        <thead>
+          <tr>
+            <th>Scheduling Algorithm</th>
+            <th>Avg Latency</th>
+            <th>P95 Latency</th>
+            <th>Deadline Miss Rate</th>
+            <th>Total Energy (J)</th>
+            <th>Privacy Score</th>
+            <th>Security Score</th>
+            <th>Policy Violations</th>
+            <th>Compliance Rate</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-benchmarks">
+          <tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: var(--space-4);">Click &ldquo;Run Full Benchmark&rdquo; to execute comparative scheduling suite.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Per-Task Schedule Assignment Table -->
+<section class="card" aria-labelledby="table-assignments-heading">
+  <header class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <h2 class="card-title" id="table-assignments-heading">Task Allocation &amp; Privacy Verification Details</h2>
+      <p class="card-subtitle" style="margin: 0; font-size: var(--text-xs); color: var(--text-muted);">
+        Verification of per-task placement against explicit privacy placement policies.
+      </p>
+    </div>
+    <div style="display: flex; gap: var(--space-2); align-items: center;">
+      <label for="select-algo-view" style="font-size: var(--text-xs); color: var(--text-muted);">View Schedule:</label>
+      <select id="select-algo-view" class="form-select" style="padding: var(--space-1) var(--space-2); font-size: var(--text-xs);">
+        <option value="proposed_ga" selected>Proposed Genetic Algorithm</option>
+        <option value="round_robin">Round Robin</option>
+        <option value="first_fit">First Fit</option>
+        <option value="random">Random</option>
+        <option value="greedy">Greedy</option>
+        <option value="privacy_aware">Privacy Aware</option>
+      </select>
+    </div>
   </header>
   <div class="card-content">
     <div class="table-container">
@@ -81,16 +219,17 @@
         <thead>
           <tr>
             <th>Task ID</th>
-            <th>Name</th>
-            <th>Assigned Resource</th>
-            <th>Est. Latency</th>
-            <th>Est. Energy</th>
-            <th>Privacy Loss</th>
-            <th>Security Risk</th>
+            <th>Workload Name</th>
+            <th>Privacy Policy</th>
+            <th>Assigned Node</th>
+            <th>Assigned Tier</th>
+            <th>Operation</th>
+            <th>Deadline</th>
+            <th>Verification Status</th>
           </tr>
         </thead>
-        <tbody id="ga-assignments-body">
-          <!-- Populated by JS -->
+        <tbody id="tbody-tasks-details">
+          <tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: var(--space-4);">No active benchmark tasks loaded.</td></tr>
         </tbody>
       </table>
     </div>
@@ -101,13 +240,342 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  document.body.dataset.page = 'genetic_algorithm';
-  $('#ga-mutation')?.addEventListener('input', e => $('#ga-mutation-value').textContent = e.target.value);
-  $('#ga-crossover')?.addEventListener('input', e => $('#ga-crossover-value').textContent = e.target.value);
-  $$('.weight-value').forEach((el, i) => {
-    const input = el.previousElementSibling;
-    input?.addEventListener('input', e => el.textContent = parseFloat(e.target.value).toFixed(2));
+  let benchmarkData = null;
+  let latencyChart = null;
+  let convergenceChart = null;
+
+  const btnRun = document.getElementById('btn-run-all');
+  const btnExport = document.getElementById('btn-export-csv');
+  const selectTasks = document.getElementById('bench-tasks-count');
+  const inputSeed = document.getElementById('bench-seed');
+  const inputPop = document.getElementById('bench-pop-size');
+  const inputGen = document.getElementById('bench-generations');
+  const selectAlgoView = document.getElementById('select-algo-view');
+  const statusIndicator = document.getElementById('bench-status-indicator');
+
+  function renderKPIs(gaMetrics) {
+    if (!gaMetrics) return;
+    document.getElementById('kpi-ga-latency').textContent = `${gaMetrics.avg_latency_ms} ms`;
+    const missRate = (gaMetrics.deadline_miss_rate * 100).toFixed(1);
+    document.getElementById('kpi-ga-deadline').textContent = `${missRate}%`;
+    document.getElementById('kpi-ga-compliance').textContent = `${(gaMetrics.policy_compliance_rate * 100).toFixed(1)}%`;
+    document.getElementById('kpi-ga-energy').textContent = `${gaMetrics.total_energy_j} J`;
+  }
+
+  function renderLatencyChart(algorithms) {
+    const ctx = document.getElementById('chart-baselines-latency');
+    if (!ctx) return;
+
+    const labels = [
+      'Proposed GA',
+      'Round Robin',
+      'First Fit',
+      'Random',
+      'Greedy',
+      'Privacy Aware'
+    ];
+
+    const keys = ['proposed_ga', 'round_robin', 'first_fit', 'random', 'greedy', 'privacy_aware'];
+    const avgLatencies = keys.map(k => algorithms[k]?.metrics?.avg_latency_ms || 0);
+    const p95Latencies = keys.map(k => algorithms[k]?.metrics?.p95_latency_ms || 0);
+
+    if (latencyChart) latencyChart.destroy();
+
+    latencyChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Avg Latency (ms)',
+            data: avgLatencies,
+            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+            borderColor: 'rgb(59, 130, 246)',
+            borderWidth: 1,
+            borderRadius: 4,
+          },
+          {
+            label: 'P95 Latency (ms)',
+            data: p95Latencies,
+            backgroundColor: 'rgba(168, 85, 247, 0.6)',
+            borderColor: 'rgb(168, 85, 247)',
+            borderWidth: 1,
+            borderRadius: 4,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Latency (ms)', font: { size: 11 } },
+            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { font: { size: 10 } }
+          }
+        }
+      }
+    });
+  }
+
+  function renderConvergenceChart(history) {
+    const ctx = document.getElementById('chart-ga-convergence');
+    if (!ctx) return;
+
+    if (!history || history.length === 0) {
+      if (convergenceChart) convergenceChart.destroy();
+      return;
+    }
+
+    const labels = history.map(h => `Gen ${h[0]}`);
+    const bestFit = history.map(h => h[1]);
+    const avgFit = history.map(h => h[2]);
+
+    if (convergenceChart) convergenceChart.destroy();
+
+    convergenceChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Best Fitness (Min)',
+            data: bestFit,
+            borderColor: 'rgb(16, 185, 129)',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            fill: true,
+            tension: 0.25,
+            borderWidth: 2,
+            pointRadius: 2,
+          },
+          {
+            label: 'Avg Fitness',
+            data: avgFit,
+            borderColor: 'rgba(148, 163, 184, 0.7)',
+            borderDash: [4, 4],
+            fill: false,
+            tension: 0.25,
+            borderWidth: 1.5,
+            pointRadius: 0,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }
+        },
+        scales: {
+          y: {
+            beginAtZero: false,
+            title: { display: true, text: 'Fitness Cost (Minimised)', font: { size: 11 } },
+            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { maxTicksLimit: 10, font: { size: 10 } }
+          }
+        }
+      }
+    });
+  }
+
+  function renderBenchmarkTable(algorithms) {
+    const tbody = document.getElementById('tbody-benchmarks');
+    tbody.innerHTML = '';
+
+    const algoDisplayNames = {
+      'proposed_ga': 'Proposed Multi-Objective GA',
+      'round_robin': 'Round Robin',
+      'first_fit': 'First Fit',
+      'random': 'Random Scheduler',
+      'greedy': 'Greedy (Latency-First)',
+      'privacy_aware': 'Privacy-Aware Baseline'
+    };
+
+    const keys = ['proposed_ga', 'round_robin', 'first_fit', 'random', 'greedy', 'privacy_aware'];
+    keys.forEach(k => {
+      const item = algorithms[k];
+      if (!item) return;
+      const m = item.metrics;
+      const tr = document.createElement('tr');
+      if (k === 'proposed_ga') {
+        tr.style.backgroundColor = 'rgba(59, 130, 246, 0.08)';
+        tr.style.fontWeight = '500';
+      }
+
+      const missRatePct = (m.deadline_miss_rate * 100).toFixed(1);
+      const compliancePct = (m.policy_compliance_rate * 100).toFixed(1);
+      const violationsBadge = m.policy_violations > 0
+        ? `<span class="badge badge-danger">${m.policy_violations} Violated</span>`
+        : `<span class="badge badge-success">0 Violations</span>`;
+
+      tr.innerHTML = `
+        <td>
+          <div style="display: flex; align-items: center; gap: var(--space-2);">
+            ${k === 'proposed_ga' ? '<span class="status-dot online"></span>' : ''}
+            <span>${algoDisplayNames[k] || k}</span>
+            ${k === 'proposed_ga' ? '<span class="badge badge-primary">Proposed</span>' : ''}
+          </div>
+        </td>
+        <td><strong>${m.avg_latency_ms} ms</strong></td>
+        <td>${m.p95_latency_ms} ms</td>
+        <td>
+          <span style="color: ${m.deadline_miss_rate === 0 ? 'var(--success)' : 'var(--danger)'};">
+            ${missRatePct}%
+          </span>
+        </td>
+        <td>${m.total_energy_j} J</td>
+        <td>${(m.privacy_score * 100).toFixed(1)}%</td>
+        <td>${(m.security_score * 100).toFixed(1)}%</td>
+        <td>${violationsBadge}</td>
+        <td><strong>${compliancePct}%</strong></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderTasksTable() {
+    if (!benchmarkData) return;
+    const tbody = document.getElementById('tbody-tasks-details');
+    tbody.innerHTML = '';
+
+    const selectedAlgo = selectAlgoView.value;
+    const algoData = benchmarkData.algorithms[selectedAlgo];
+    if (!algoData) return;
+
+    const tasks = benchmarkData.tasks;
+    const assignments = algoData.assignments;
+
+    tasks.forEach((t, i) => {
+      const assignedNode = assignments[i] || 'UNASSIGNED';
+      let tier = 'UNKNOWN';
+      if (assignedNode === 'LOCAL') tier = 'LOCAL';
+      else if (assignedNode.startsWith('MEC-')) tier = 'MEC';
+      else if (assignedNode === 'CLOUD') tier = 'CLOUD';
+
+      const policy = t.privacy_policy;
+      let isCompliant = true;
+      if (policy === 'LOCAL_ONLY' && assignedNode !== 'LOCAL') isCompliant = false;
+      if (policy === 'TRUSTED_EDGE' && assignedNode === 'CLOUD') isCompliant = false;
+
+      const policyBadge = policy === 'LOCAL_ONLY'
+        ? '<span class="badge badge-danger">LOCAL_ONLY</span>'
+        : (policy === 'TRUSTED_EDGE'
+          ? '<span class="badge badge-warning">TRUSTED_EDGE</span>'
+          : '<span class="badge badge-info">CLOUD_ALLOWED</span>');
+
+      const tierBadge = tier === 'LOCAL'
+        ? '<span class="badge badge-success">LOCAL</span>'
+        : (tier === 'MEC'
+          ? '<span class="badge badge-primary">' + assignedNode + '</span>'
+          : '<span class="badge badge-neutral">CLOUD (Sim)</span>');
+
+      const verificationBadge = isCompliant
+        ? '<span class="badge badge-success" style="font-size: 10px;">&check; COMPLIANT</span>'
+        : '<span class="badge badge-danger" style="font-size: 10px;">&cross; VIOLATION</span>';
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><code>${t.task_id}</code></td>
+        <td>${t.name}</td>
+        <td>${policyBadge}</td>
+        <td><strong>${assignedNode}</strong></td>
+        <td>${tierBadge}</td>
+        <td><code>${t.operation}</code></td>
+        <td>${t.deadline_ms} ms</td>
+        <td>${verificationBadge}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  selectAlgoView.addEventListener('change', renderTasksTable);
+
+  async function runBenchmark() {
+    btnRun.disabled = true;
+    statusIndicator.textContent = 'Running benchmark...';
+    statusIndicator.style.color = 'var(--primary)';
+
+    const tasksCount = parseInt(selectTasks.value, 10) || 12;
+    const seed = parseInt(inputSeed.value, 10) || 42;
+    const pop = parseInt(inputPop.value, 10) || 40;
+    const gen = parseInt(inputGen.value, 10) || 30;
+
+    try {
+      const res = await fetch('/api/digital-twin/compare/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken') || ''
+        },
+        body: JSON.stringify({
+          tasks_count: tasksCount,
+          seed: seed,
+          population: pop,
+          generations: gen,
+        })
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      benchmarkData = await res.json();
+
+      const gaMetrics = benchmarkData.algorithms?.proposed_ga?.metrics;
+      renderKPIs(gaMetrics);
+      renderLatencyChart(benchmarkData.algorithms);
+      renderConvergenceChart(benchmarkData.algorithms?.proposed_ga?.history);
+      renderBenchmarkTable(benchmarkData.algorithms);
+      renderTasksTable();
+
+      document.getElementById('badge-ga-generations').textContent = `${gen} Generations Complete`;
+      statusIndicator.textContent = `Completed (${benchmarkData.metadata.tasks_count} tasks, seed ${seed})`;
+      statusIndicator.style.color = 'var(--success)';
+    } catch (err) {
+      console.error('Benchmark execution error:', err);
+      statusIndicator.textContent = 'Error running benchmark';
+      statusIndicator.style.color = 'var(--danger)';
+    } finally {
+      btnRun.disabled = false;
+    }
+  }
+
+  btnRun.addEventListener('click', runBenchmark);
+
+  btnExport.addEventListener('click', () => {
+    const tasksCount = parseInt(selectTasks.value, 10) || 12;
+    const seed = parseInt(inputSeed.value, 10) || 42;
+    const pop = parseInt(inputPop.value, 10) || 40;
+    const gen = parseInt(inputGen.value, 10) || 30;
+
+    const url = `/api/digital-twin/experiments/export-csv/?tasks_count=${tasksCount}&seed=${seed}&population=${pop}&generations=${gen}`;
+    window.location.href = url;
   });
+
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  // Auto-run standard benchmark on first page load
+  runBenchmark();
 });
 </script>
 {% endblock %}

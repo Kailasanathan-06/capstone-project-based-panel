@@ -26,8 +26,14 @@ class TaskSerializer(serializers.ModelSerializer):
         fields = [
             "task_id", "name", "priority", "data_size_mb", "cpu_cycles_giga",
             "memory_mb", "deadline_ms", "privacy_sensitivity", "security_sensitivity",
-            "status", "assigned_mec", "assigned_mec_detail", "execute_in_cloud",
-            "execution_time", "error_message", "result_location", "estimated_energy",
+            "privacy_policy", "status", "assigned_mec", "assigned_mec_detail",
+            "assigned_node", "assigned_tier", "execute_in_cloud",
+            "image_path", "operation", "target_resolution", "input_checksum",
+            "output_checksum", "output_path", "dataset_sample_id",
+            "scheduler_algorithm", "scheduler_runtime_ms", "image_processing_time",
+            "total_latency_ms", "is_simulated_execution",
+            "execution_time", "actual_cpu", "actual_ram", "network_latency",
+            "estimated_energy", "result_location", "error_message",
             "created_at", "updated_at"
         ]
 

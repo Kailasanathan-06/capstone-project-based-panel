@@ -41,6 +41,18 @@ class Task(models.Model):
     privacy_sensitivity = models.FloatField("Privacy Sensitivity", default=0.0)
     # Security sensitivity 0..1
     security_sensitivity = models.FloatField("Security Sensitivity", default=0.0)
+    # Explicit task placement policy
+    PRIVACY_POLICY_CHOICES = [
+        ("LOCAL_ONLY", "LOCAL_ONLY"),
+        ("TRUSTED_EDGE", "TRUSTED_EDGE"),
+        ("CLOUD_ALLOWED", "CLOUD_ALLOWED"),
+    ]
+    privacy_policy = models.CharField(
+        "Privacy Policy",
+        max_length=20,
+        default="TRUSTED_EDGE",
+        choices=PRIVACY_POLICY_CHOICES,
+    )
     status = models.CharField("Status", max_length=20, default="PENDING", choices=STATUS_CHOICES)
     assigned_mec = models.ForeignKey(
         "mec_manager.MECAgent",
@@ -49,7 +61,23 @@ class Task(models.Model):
         blank=True,
         related_name="assigned_tasks",
     )
+    # Selected resource ID (LOCAL, MEC-XXX, CLOUD) and Tier
+    assigned_node = models.CharField("Assigned Node", max_length=50, blank=True, default="")
+    assigned_tier = models.CharField("Assigned Tier", max_length=20, blank=True, default="")
     execute_in_cloud = models.BooleanField("Execute in Cloud", default=False)
+    # Medical Image Preprocessing Workload fields
+    image_path = models.CharField("Image Path", max_length=500, blank=True, default="")
+    operation = models.CharField("Operation", max_length=50, default="normalize_clahe")
+    target_resolution = models.IntegerField("Target Resolution", default=224)
+    input_checksum = models.CharField("Input Checksum (SHA-256)", max_length=64, blank=True, default="")
+    output_checksum = models.CharField("Output Checksum (SHA-256)", max_length=64, blank=True, default="")
+    output_path = models.CharField("Output Path", max_length=500, blank=True, default="")
+    dataset_sample_id = models.CharField("Dataset Sample ID", max_length=100, blank=True, default="")
+    scheduler_algorithm = models.CharField("Scheduler Algorithm", max_length=50, blank=True, default="proposed_ga")
+    scheduler_runtime_ms = models.FloatField("Scheduler Runtime (ms)", default=0.0)
+    image_processing_time = models.FloatField("Image Processing Time (s)", default=0.0)
+    total_latency_ms = models.FloatField("Total Latency (ms)", default=0.0)
+    is_simulated_execution = models.BooleanField("Is Simulated Execution", default=False)
     # Execution results (real measurements / estimated energy)
     execution_time = models.FloatField("Execution Time (s)", null=True, blank=True)
     actual_cpu = models.FloatField("Actual CPU (%)", null=True, blank=True)

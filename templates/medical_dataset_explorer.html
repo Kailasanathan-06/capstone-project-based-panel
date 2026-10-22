@@ -1,0 +1,684 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Medical Dataset Explorer - Smart Hospital Testbed{% endblock %}
+{% block page_crumb %}Medical Dataset Explorer{% endblock %}
+{% block body_page %}medical_dataset_explorer{% endblock %}
+
+{% block extra_css %}
+<style>
+.explorer-banner {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-xl, 16px);
+  padding: 1.5rem 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.provenance-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(14, 165, 233, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(14, 165, 233, 0.3);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.stat-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-lg, 12px);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-box .label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.stat-box .val {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-lg, 12px);
+  padding: 1rem 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.filter-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.filter-select {
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.sample-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.sample-card {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg, 12px);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.sample-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.4);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+
+.img-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: #020617;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.img-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.card-body {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  flex-grow: 1;
+}
+
+.sample-ref {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.badge-row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.badge-split {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(100, 116, 139, 0.25);
+  color: #cbd5e1;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.badge-label {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.badge-normal {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.badge-pneumonia {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.hash-preview {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-dispatch {
+  margin-top: auto;
+  width: 100%;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-dispatch:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.85);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-xl, 16px);
+  width: 100%;
+  max-width: 580px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.form-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.form-input, .form-select {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #f8fafc;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.policy-info-box {
+  background: rgba(30, 41, 59, 0.6);
+  border-left: 3px solid #38bdf8;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+
+.modal-footer {
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.disclaimer-box {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-lg, 12px);
+  padding: 1rem 1.25rem;
+  margin-top: 2rem;
+  font-size: 0.82rem;
+  color: #fbbf24;
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="explorer-banner">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
+    <div>
+      <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.5rem;">
+        <h1 style="font-size:1.6rem; font-weight:800; color:#f8fafc; margin:0;">Medical Dataset Explorer</h1>
+        <span class="provenance-tag">Official MedMNIST v3.0.2</span>
+      </div>
+      <p style="color:#94a3b8; font-size:0.92rem; margin:0; max-width:750px;">
+        Genuine pediatric chest X-ray image testbed (PneumoniaMNIST). Supports real-time image preprocessing,
+        synthetic patient-reference task generation, and privacy-aware scheduling across Local Workstation, MEC Edge, and Cloud.
+      </p>
+    </div>
+    <div style="text-align:right;">
+      <a href="{% url 'task_routing' %}" class="btn btn-primary btn-sm" style="display:inline-flex; align-items:center; gap:0.4rem;">
+        View Task Queue
+      </a>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-box">
+      <span class="label">Native Dimensions</span>
+      <span class="val" id="meta-dims">1x28x28</span>
+    </div>
+    <div class="stat-box">
+      <span class="label">Total Archive Samples</span>
+      <span class="val" id="meta-total">5,856</span>
+    </div>
+    <div class="stat-box">
+      <span class="label">Train / Val / Test Splits</span>
+      <span class="val" style="font-size:1.1rem; padding-top:0.35rem;" id="meta-splits">4,708 / 524 / 624</span>
+    </div>
+    <div class="stat-box">
+      <span class="label">License &amp; Terms</span>
+      <span class="val" style="font-size:1.1rem; padding-top:0.35rem; color:#38bdf8;">CC BY 4.0</span>
+    </div>
+    <div class="stat-box">
+      <span class="label">Storage Location</span>
+      <span class="val" style="font-size:0.75rem; font-family:'JetBrains Mono', monospace; word-break:break-all; padding-top:0.4rem;" id="meta-storage">
+        data_storage/medical_datasets
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- Filter controls -->
+<div class="filter-bar">
+  <div class="filter-group">
+    <span class="filter-label">Split:</span>
+    <select class="filter-select" id="filter-split" onchange="loadSamples(1)">
+      <option value="">All Splits</option>
+      <option value="test">Test Set (624)</option>
+      <option value="train">Train Set (4,708)</option>
+      <option value="val">Validation Set (524)</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <span class="filter-label">Diagnosis Class:</span>
+    <select class="filter-select" id="filter-label" onchange="loadSamples(1)">
+      <option value="">All Classes</option>
+      <option value="normal">Normal</option>
+      <option value="pneumonia">Pneumonia</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <span class="filter-label">Samples Per Page:</span>
+    <select class="filter-select" id="filter-page-size" onchange="loadSamples(1)">
+      <option value="12">12</option>
+      <option value="24" selected>24</option>
+      <option value="48">48</option>
+    </select>
+  </div>
+
+  <div id="sample-count-indicator" style="font-size:0.85rem; color:#94a3b8; font-weight:600;">
+    Loading samples...
+  </div>
+</div>
+
+<!-- Medical Image Samples Grid -->
+<div class="sample-grid" id="sample-grid">
+  <!-- Filled dynamically via JS -->
+</div>
+
+<!-- Pagination Controls -->
+<div style="display:flex; justify-content:center; align-items:center; gap:0.5rem; margin-bottom:2rem;" id="pagination-controls">
+  <!-- Pagination buttons -->
+</div>
+
+<!-- Research Disclaimer Notice -->
+<div class="disclaimer-box">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;">
+    <circle cx="12" cy="12" r="10"></circle>
+    <line x1="12" y1="8" x2="12" y2="12"></line>
+    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+  </svg>
+  <div>
+    <strong>Research Prototype Notice:</strong>
+    This system is an academic research testbed for digital twin-enabled edge-cloud scheduling.
+    Images are preprocessed using calibrated contrast enhancement (CLAHE), grayscale conversion, and target resolution normalization.
+    Preprocessing prepares chest X-rays for pipeline workflows and does not diagnose disease or replace certified clinical instruments.
+  </div>
+</div>
+
+<!-- Task Submission Modal -->
+<div class="modal-overlay" id="task-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 class="modal-title">Create Hospital Processing Task</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeTaskModal()" style="font-size:1.2rem; cursor:pointer;">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex; gap:1rem; align-items:center; background:rgba(255,255,255,0.03); padding:0.75rem; border-radius:8px;">
+        <img id="modal-sample-img" src="" style="width:64px; height:64px; object-fit:contain; background:#000; border-radius:4px;">
+        <div>
+          <div style="font-family:'JetBrains Mono', monospace; font-weight:700; color:#38bdf8;" id="modal-sample-id">MED-PN-0000</div>
+          <div style="font-size:0.8rem; color:#94a3b8;" id="modal-sample-desc">Normal - Native 28x28</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Preprocessing Operation</label>
+        <select class="form-select" id="task-operation">
+          <option value="normalize_clahe">Intensity Normalization + CLAHE (Contrast Enhancement)</option>
+          <option value="grayscale_resize">Grayscale &amp; Resolution Resizing</option>
+          <option value="normalize_only">Pixel Intensity Normalization [0.0, 1.0]</option>
+          <option value="clahe_only">CLAHE Contrast Enhancement (Native Resolution)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Target Resolution</label>
+        <select class="form-select" id="task-resolution">
+          <option value="224" selected>224 x 224 px (Preferred Research Standard)</option>
+          <option value="128">128 x 128 px</option>
+          <option value="64">64 x 64 px</option>
+          <option value="28">28 x 28 px (Native MedMNIST)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Privacy &amp; Security Placement Policy</label>
+        <select class="form-select" id="task-policy" onchange="updatePolicyNotice()">
+          <option value="LOCAL_ONLY">LOCAL_ONLY (Medical data strictly remains on workstation)</option>
+          <option value="TRUSTED_EDGE" selected>TRUSTED_EDGE (Allow Local Workstation or Online MEC Edge Node)</option>
+          <option value="CLOUD_ALLOWED">CLOUD_ALLOWED (Any eligible tier: Local, MEC, or Cloud)</option>
+        </select>
+      </div>
+
+      <div class="policy-info-box" id="policy-notice">
+        <strong>TRUSTED_EDGE Policy:</strong> Task can be executed on the local hospital workstation or dispatched to an authenticated, online MEC edge computing node.
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+        <div class="form-group">
+          <label class="form-label">Priority (1 = Highest)</label>
+          <input type="number" class="form-input" id="task-priority" value="1" min="1" max="5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Deadline (ms)</label>
+          <input type="number" class="form-input" id="task-deadline" value="500" min="50" step="50">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeTaskModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="btn-submit-task" onclick="submitHospitalTask()">
+        Dispatch to Digital Twin Scheduler
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentSelectedSample = null;
+
+async function loadDatasetSummary() {
+  try {
+    const res = await fetch('/api/datasets/medical/summary/');
+    const data = await res.json();
+    if (data.downloaded) {
+      document.getElementById('meta-dims').innerText = data.image_dimensions;
+      document.getElementById('meta-total').innerText = data.sample_count.toLocaleString();
+      document.getElementById('meta-splits').innerText = `${data.train_count} / ${data.val_count} / ${data.test_count}`;
+      document.getElementById('meta-storage').innerText = data.storage_path;
+    }
+  } catch (err) {
+    console.error("Failed to load dataset summary:", err);
+  }
+}
+
+async function loadSamples(page = 1) {
+  const split = document.getElementById('filter-split').value;
+  const label = document.getElementById('filter-label').value;
+  const pageSize = document.getElementById('filter-page-size').value;
+  const grid = document.getElementById('sample-grid');
+  const countIndicator = document.getElementById('sample-count-indicator');
+
+  grid.innerHTML = '<div style="color:#94a3b8; padding:2rem; grid-column:1/-1; text-align:center;">Loading medical images...</div>';
+
+  try {
+    const url = `/api/datasets/medical/samples/?page=${page}&page_size=${pageSize}&split=${encodeURIComponent(split)}&label=${encodeURIComponent(label)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    countIndicator.innerText = `Showing ${data.samples.length} of ${data.total} samples (Page ${data.current_page}/${data.num_pages || 1})`;
+
+    if (!data.samples || data.samples.length === 0) {
+      grid.innerHTML = '<div style="color:#94a3b8; padding:2rem; grid-column:1/-1; text-align:center;">No matching samples found.</div>';
+      return;
+    }
+
+    grid.innerHTML = data.samples.map(s => `
+      <div class="sample-card">
+        <div class="img-container">
+          <img src="${s.image_url}" alt="${s.sample_id}" loading="lazy">
+        </div>
+        <div class="card-body">
+          <div class="sample-ref">${s.sample_id}</div>
+          <div class="badge-row">
+            <span class="badge-split">${s.split}</span>
+            <span class="badge-label ${s.label_name === 'normal' ? 'badge-normal' : 'badge-pneumonia'}">
+              ${s.label_name}
+            </span>
+            <span class="badge-split">${s.dimensions}</span>
+          </div>
+          <div class="hash-preview" title="SHA-256: ${s.sha256}">
+            SHA: ${s.sha256.substring(0, 16)}...
+          </div>
+          <button class="btn-dispatch" onclick="openTaskModal('${s.sample_id}', '${s.image_url}', '${s.split}', '${s.label_name}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            Create Task
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    renderPagination(data.current_page, data.num_pages);
+  } catch (err) {
+    grid.innerHTML = `<div style="color:#ef4444; padding:2rem; grid-column:1/-1; text-align:center;">Error loading samples: ${err.message}</div>`;
+  }
+}
+
+function renderPagination(current, total) {
+  const container = document.getElementById('pagination-controls');
+  if (total <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let html = '';
+  if (current > 1) {
+    html += `<button class="btn btn-ghost btn-sm" onclick="loadSamples(${current - 1})">&laquo; Prev</button>`;
+  }
+
+  for (let p = Math.max(1, current - 2); p <= Math.min(total, current + 2); p++) {
+    const active = p === current ? 'btn-primary' : 'btn-ghost';
+    html += `<button class="btn ${active} btn-sm" onclick="loadSamples(${p})">${p}</button>`;
+  }
+
+  if (current < total) {
+    html += `<button class="btn btn-ghost btn-sm" onclick="loadSamples(${current + 1})">Next &raquo;</button>`;
+  }
+
+  container.innerHTML = html;
+}
+
+function openTaskModal(sampleId, imgUrl, split, labelName) {
+  currentSelectedSample = sampleId;
+  document.getElementById('modal-sample-id').innerText = sampleId;
+  document.getElementById('modal-sample-desc').innerText = `${labelName.toUpperCase()} - Split: ${split}`;
+  document.getElementById('modal-sample-img').src = imgUrl;
+  document.getElementById('task-modal').style.display = 'flex';
+}
+
+function closeTaskModal() {
+  document.getElementById('task-modal').style.display = 'none';
+  currentSelectedSample = null;
+}
+
+function updatePolicyNotice() {
+  const policy = document.getElementById('task-policy').value;
+  const box = document.getElementById('policy-notice');
+  if (policy === 'LOCAL_ONLY') {
+    box.style.borderLeftColor = '#ef4444';
+    box.innerHTML = '<strong>LOCAL_ONLY Policy:</strong> Task data is strictly prohibited from leaving the hospital workstation. Dispatches strictly to Local executor.';
+  } else if (policy === 'TRUSTED_EDGE') {
+    box.style.borderLeftColor = '#38bdf8';
+    box.innerHTML = '<strong>TRUSTED_EDGE Policy:</strong> May execute on the local workstation or on an authenticated, online MEC edge node.';
+  } else {
+    box.style.borderLeftColor = '#a855f7';
+    box.innerHTML = '<strong>CLOUD_ALLOWED Policy:</strong> Can be scheduled to any eligible Local, MEC, or Cloud computing resource.';
+  }
+}
+
+async function submitHospitalTask() {
+  if (!currentSelectedSample) return;
+
+  const btn = document.getElementById('btn-submit-task');
+  btn.disabled = true;
+  btn.innerText = 'Submitting...';
+
+  const payload = {
+    sample_id: currentSelectedSample,
+    operation: document.getElementById('task-operation').value,
+    target_resolution: parseInt(document.getElementById('task-resolution').value),
+    privacy_policy: document.getElementById('task-policy').value,
+    priority: parseInt(document.getElementById('task-priority').value),
+    deadline_ms: parseInt(document.getElementById('task-deadline').value),
+  };
+
+  try {
+    const res = await fetch('/api/datasets/medical/create-task/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken') || '',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert(`Hospital task created successfully!\nTask ID: ${data.task_id}\nPolicy: ${data.privacy_policy}\nStatus: ${data.status}`);
+      closeTaskModal();
+      window.location.href = '/task-routing/';
+    } else {
+      alert(`Submission error: ${data.error || 'Unknown failure'}`);
+    }
+  } catch (err) {
+    alert(`Failed to submit task: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.innerText = 'Dispatch to Digital Twin Scheduler';
+  }
+}
+
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadDatasetSummary();
+  loadSamples(1);
+});
+</script>
+{% endblock %}

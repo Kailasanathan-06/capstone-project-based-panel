@@ -103,6 +103,14 @@ class ResourceState:
             "trust_score": round(self._trust, 3),
             "security_risk": self._risk,
             "availability": self.available,
+            "is_online": self.available and not getattr(self, "is_stale", False),
+            "is_stale": getattr(self, "is_stale", False),
+            "is_simulated": getattr(self, "is_simulated", False),
+            "telemetry_mode": getattr(self, "telemetry_mode", "MEASURED"),
+            "freshness_seconds": round(getattr(self, "freshness_seconds", 0.0), 1),
+            "supported_workloads": getattr(
+                self, "supported_workloads", ["normalize_clahe", "grayscale_resize"]
+            ),
             "active_tasks": self.active_tasks,
             "status": self._status,
             "privacy_loss_factor": self.privacy_loss_factor,
@@ -111,9 +119,20 @@ class ResourceState:
         }
 
     def tick(self):
-        """Light natural drift that simulates a living system."""
+        """Light natural drift for simulation tiers."""
         if not self.available:
             return
+        if getattr(self, "telemetry_mode", "") == "MEASURED_HARDWARE" and self.resource_id == "LOCAL":
+            try:
+                import psutil
+                cpu_p = psutil.cpu_percent(interval=None) / 100.0
+                mem_p = psutil.virtual_memory().percent / 100.0
+                self.cpu_utilization = max(0.02, min(0.99, cpu_p if cpu_p > 0 else self.cpu_utilization))
+                self.memory_utilization = max(0.02, min(0.99, mem_p))
+                return
+            except Exception:
+                pass
+
         self.cpu_utilization = max(
             0.05, min(0.99, self.cpu_utilization + random.uniform(-0.02, 0.02))
         )
@@ -130,7 +149,7 @@ class ResourceState:
 
 
 class DigitalTwin:
-    """Virtual replica of the whole edge-cloud environment."""
+    """Virtual replica of the whole edge-cloud environment with real & simulated tier tracking."""
 
     def __init__(self, risk_engine=None):
         self.risk_engine = risk_engine or RiskEngine()
@@ -139,26 +158,28 @@ class DigitalTwin:
         self.tick_count = 0
 
     def _load_mec_agents(self):
-        """Load every registered MEC agent from the database.
+        """Load registered MEC agents, Local workstation hardware, and Cloud tier.
 
-        The digital twin is a virtual mirror of the REAL devices: all registered
-        agents appear, and `availability` reflects their true ONLINE/OFFLINE
-        state from the latest heartbeat. No synthetic devices are fabricated.
+        - LOCAL: uses live hardware telemetry via psutil (MEASURED_HARDWARE).
+        - MEC: uses live heartbeat telemetry with stale-state detection (MEASURED_HEARTBEAT).
+        - CLOUD: explicitly labeled as simulated execution tier (SIMULATED_CLOUD).
         """
-        # All registered agents (OFFLINE ones are mirrored as unavailable)
-        agents = MECAgent.objects.all().select_related()
+        try:
+            from mec_manager.models import MECAgent
+            agents = list(MECAgent.objects.all().select_related())
+        except Exception:
+            agents = []
 
-        # Always include LOCAL and CLOUD as baseline
         default_resources = {
             "LOCAL": {
-                "type": "edge",
+                "type": "local",
                 "max_cpu": 8,
                 "max_memory": 4096,
-                "base_latency_ms": 180,
-                "energy_rate": 4.1,
-                "trust": 0.98,
-                "security_risk": 0.05,
-                "privacy_loss_factor": 0.08,
+                "base_latency_ms": 15,
+                "energy_rate": 3.8,
+                "trust": 0.99,
+                "security_risk": 0.02,
+                "privacy_loss_factor": 0.01,
             },
             "CLOUD": {
                 "type": "cloud",
@@ -172,41 +193,111 @@ class DigitalTwin:
             },
         }
 
-        # Always mirror LOCAL and CLOUD even before any MEC registers
         for rid, params in default_resources.items():
             self.resources[rid] = ResourceState(rid, params)
 
-        # Add registered MEC agents
+        # Configure LOCAL workstation with live psutil measurements
+        local_res = self.resources.get("LOCAL")
+        if local_res:
+            local_res.resource_type = "local"
+            local_res.is_simulated = False
+            local_res.telemetry_mode = "MEASURED_HARDWARE"
+            local_res.is_stale = False
+            local_res.freshness_seconds = 0.0
+            local_res.supported_workloads = [
+                "normalize_clahe",
+                "grayscale_resize",
+                "normalize_only",
+                "clahe_only",
+            ]
+            try:
+                import psutil
+                cpu_p = psutil.cpu_percent(interval=None) / 100.0
+                mem_p = psutil.virtual_memory().percent / 100.0
+                local_res.cpu_utilization = max(0.02, min(0.99, cpu_p if cpu_p > 0 else 0.15))
+                local_res.memory_utilization = max(0.02, min(0.99, mem_p))
+                local_res.max_cpu = psutil.cpu_count() or 8
+                local_res.max_memory = int(psutil.virtual_memory().total / (1024 * 1024))
+            except Exception:
+                pass
+
+        # Configure CLOUD tier explicitly as simulated
+        cloud_res = self.resources.get("CLOUD")
+        if cloud_res:
+            cloud_res.resource_type = "cloud"
+            cloud_res.is_simulated = True
+            cloud_res.telemetry_mode = "SIMULATED_CLOUD"
+            cloud_res.is_stale = False
+            cloud_res.freshness_seconds = 0.0
+            cloud_res.supported_workloads = [
+                "normalize_clahe",
+                "grayscale_resize",
+                "normalize_only",
+                "clahe_only",
+            ]
+
+        # Configure registered MEC agents with heartbeat telemetry and stale detection
+        try:
+            from django.utils import timezone
+            now = timezone.now()
+        except Exception:
+            from datetime import datetime, timezone as dt_tz
+            now = datetime.now(dt_tz.utc)
+
+        heartbeat_timeout = 35.0  # seconds
+
         for agent in agents:
             resource_id = agent.device_id.upper()
-            # Build resource params from agent info or defaults
-            max_cpu = 16  # Default MEC capacity
-            max_memory = 8192
-            base_latency_ms = 100  # Typical MEC latency
-            energy_rate = 2.5
-            trust = 0.93
-            security_risk = 0.10
-            privacy_loss_factor = 0.20
+            freshness = (now - agent.last_seen).total_seconds() if agent.last_seen else 999999.0
+            is_stale = freshness > heartbeat_timeout
+            is_eligible = bool(agent.is_online and not agent.is_revoked and not is_stale)
 
-            self.resources[resource_id] = ResourceState(
+            try:
+                latest_beat = agent.heartbeats.order_by("-timestamp").first()
+            except Exception:
+                latest_beat = None
+
+            cpu_util = (latest_beat.cpu_usage / 100.0) if latest_beat else 0.35
+            mem_util = (latest_beat.ram_usage / 100.0) if latest_beat else 0.40
+            net_latency = latest_beat.network_latency if latest_beat and latest_beat.network_latency > 0 else 45.0
+
+            mec_res = ResourceState(
                 resource_id,
                 {
                     "type": "mec",
-                    "max_cpu": max_cpu,
-                    "max_memory": max_memory,
-                    "base_latency_ms": base_latency_ms,
-                    "energy_rate": energy_rate,
-                    "trust": trust,
-                    "security_risk": security_risk,
-                    "privacy_loss_factor": privacy_loss_factor,
+                    "max_cpu": 16,
+                    "max_memory": 8192,
+                    "base_latency_ms": net_latency,
+                    "energy_rate": 2.5,
+                    "trust": 0.93,
+                    "security_risk": 0.10,
+                    "privacy_loss_factor": 0.20,
                 },
             )
-            # Store agent reference for tracking
-            self.resources[resource_id].owner = agent.device_id
-            # Mirror the real ONLINE/OFFLINE state (OFFLINE devices are unavailable)
-            if not agent.is_online:
-                self.resources[resource_id].available = False
-                self.resources[resource_id]._status = "OFFLINE"
+            mec_res.cpu_utilization = max(0.01, min(0.99, cpu_util))
+            mec_res.memory_utilization = max(0.01, min(0.99, mem_util))
+            mec_res.network_latency_ms = net_latency
+            mec_res.owner = agent.device_id
+            mec_res.is_simulated = False
+            mec_res.telemetry_mode = "MEASURED_HEARTBEAT"
+            mec_res.freshness_seconds = freshness
+            mec_res.is_stale = is_stale
+            mec_res.available = is_eligible
+            mec_res.supported_workloads = [
+                "normalize_clahe",
+                "grayscale_resize",
+                "normalize_only",
+                "clahe_only",
+            ]
+
+            if not agent.is_online or agent.is_revoked:
+                mec_res._status = "REVOKED" if agent.is_revoked else "OFFLINE"
+            elif is_stale:
+                mec_res._status = "STALE_OFFLINE"
+            else:
+                mec_res._status = "SAFE"
+
+            self.resources[resource_id] = mec_res
 
         # Do NOT fabricate MEC devices here - the twin mirrors only registered agents.
 

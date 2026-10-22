@@ -33,191 +33,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 
 
-class Scheduler:
-    """Scheduler that filters offline MECs before GA optimization."""
-
-    def __init__(self, digital_twin, seed=None):
-        self.dt = digital_twin
-        self.rng = random.Random(seed or config.DATASET_SEED)
-        self.last_assignments = {}
-        self.history = {}  # algorithm -> analytics dict
-
-    def reset(self):
-        self.last_assignments = {}
-        self.history = {}
-
-    # ------------------------------------------------------------------
-    # Cost model helpers (shared with GA for consistency)
-    # ------------------------------------------------------------------
-    def _cost(self, task, res):
-        size_mb = task["data_size_mb"]
-        cpu_giga = task["cpu_cycles_giga"]
-        mem_mb = task["memory_mb"]
-        deadline_ms = task["deadline_ms"]
-        privacy = task["privacy_sensitivity"]  # 0..1
-        security = task["security_sensitivity"]  # 0..1
-
-        latency = res["network_latency_ms"] + cpu_giga * 12.0 / max(
-            res["cpu_utilization"], 0.05
-        )
-        energy = res["energy_rate"] * (cpu_giga / 1.0 + size_mb / 10.0)
-        privacy_loss = res["privacy_loss_factor"] * (privacy + 0.1)
-        risk = res["security_risk"]
-
-        w = self.weights
-        penalty = 0.0
-        if deadline_ms and deadline_ms > 0 and latency > deadline_ms:
-            penalty = w["deadline"] * 5.0 * (latency / deadline_ms - 1.0)
-
-        fitness = (
-            w["latency"] * latency / 1000.0
-            + w["energy"] * energy / 20.0
-            + w["privacy"] * privacy_loss
-            + w["security"] * risk
-            + penalty
-        )
-        return fitness, latency, energy
-
-    # ------------------------------------------------------------------
-    # Algorithms
-    # ------------------------------------------------------------------
-    def random_schedule(self, tasks):
-        """Pick random online resources only."""
-        resources = self.dt.states()
-        # Filter: only include online resources (available=True)
-        online_resources = [r for r in resources if r.get("availability", True)]
-        ids = [r["resource_id"] for r in online_resources]
-        if not ids:
-            # Fallback to all resources if none online
-            ids = [r["resource_id"] for r in resources]
-        assignments = [self.rng.choice(ids) for _ in tasks]
-        metrics = self._evaluate_solution(assignments, tasks, online_resources)
-        metrics["algorithm"] = "random"
-        self.history["random"] = metrics
-        return assignments, metrics
-
-    def greedy_schedule(self, tasks):
-        """Pick, per task, the online resource with lowest combined latency."""
-        resources = self.dt.states()
-        # Filter: only include online resources
-        online_resources = [r for r in resources if r.get("availability", True)]
-        ids = [r["resource_id"] for r in online_resources]
-        assignments = []
-        for task in tasks:
-            best, best_score = ids[0] if ids else None, float("inf")
-            for res in online_resources:
-                latency = res["network_latency_ms"] + task[
-                    "cpu_cycles_giga"
-                ] * 12.0 / max(res["cpu_utilization"], 0.05)
-                if latency < best_score:
-                    best, best_score = res["resource_id"], latency
-            if best:
-                assignments.append(best)
-            else:
-                assignments.append("LOCAL")  # fallback
-        metrics = self._evaluate_solution(assignments, tasks, online_resources)
-        metrics["algorithm"] = "greedy"
-        self.history["greedy"] = metrics
-        return assignments, metrics
-
-    def privacy_aware_schedule(self, tasks):
-        """Minimise privacy loss first, then latency (online only)."""
-        resources = self.dt.states()
-        # Filter: only include online resources
-        online_resources = [r for r in resources if r.get("availability", True)]
-        ids = [r["resource_id"] for r in online_resources]
-        assignments = []
-        for task in tasks:
-            best, best_score = ids[0] if ids else None, float("inf")
-            for res in online_resources:
-                ploss = res["privacy_loss_factor"] * (task["privacy_sensitivity"] + 0.1)
-                if ploss < best_score:
-                    best, best_score = res["resource_id"], ploss
-                if ploss == best_score:
-                    latency = res["network_latency_ms"]
-                else:
-                    latency = float("inf")
-                if latency < best_score:
-                    best, best_score = res["resource_id"], latency
-            if best:
-                assignments.append(best)
-            else:
-                assignments.append("LOCAL")
-        metrics = self._evaluate_solution(assignments, tasks, online_resources)
-        metrics["algorithm"] = "privacy_aware"
-        self.history["privacy_aware"] = metrics
-        return assignments, metrics
-
-    def proposed_ga_schedule(self, tasks, population=None, generations=None, seed=None):
-        """Proposed security-aware Genetic Algorithm scheduler.
-
-        Critical: Only online MECs are included in the resource list.
-        OFFLINE MECs are automatically excluded.
-        """
-        resources = self.dt.states()
-        # Filter: only include online + available resources
-        # This is the key: OFFLINE MECs MUST NEVER be eligible
-        online_resources = [
-            r for r in resources 
-            if r.get("availability", True) and r.get("is_online", True)
-        ]
-        ids = [r["resource_id"] for r in online_resources]
-        
-        if not ids:
-            # Fallback: use all resources but mark as degraded
-            online_resources = resources
-            ids = [r["resource_id"] for r in resources]
-
-        ga = GeneticAlgorithm(
-            online_resources, population=population, generations=generations, seed=seed
-        )
-        assignments, _, history, best_fitness = ga.optimize(tasks)
-        self.last_assignments = {
-            tasks[i]["task_id"]: assignments[i] for i in range(len(tasks))
-        }
-        metrics = self._evaluate_solution(assignments, tasks, online_resources)
-        metrics["algorithm"] = "proposed_ga"
-        metrics["clash_history"] = history
-        metrics["best_fitness"] = round(best_fitness, 4)
-        metrics["generations"] = ga.generations_ran
-        self.history["proposed_ga"] = metrics
-        return assignments, metrics, history
-
-    def _evaluate_solution(self, assignments, tasks, resources):
-        """Compute aggregate metrics for a set of assignments."""
-        total_latency = 0.0
-        total_energy = 0.0
-        total_privacy = 0.0
-        total_risk = 0.0
-        deadline_ok = 0
-        util = {r["resource_id"]: 0.0 for r in resources}
-
-        for i, task in enumerate(tasks):
-            rid = assignments[i] if i < len(assignments) else "LOCAL"
-            res = next((r for r in resources if r["resource_id"] == rid), None)
-            if not res:
-                # Skip this task if resource not found
-                continue
-            latent, energy, ploss, risk = self._cost(task, res)
-            total_latency += latent
-            total_energy += energy
-            total_privacy += ploss
-            total_risk += risk
-            util[rid] += 1
-            if latent <= task["deadline_ms"]:
-                deadline_ok += 1
-
-        n = max(len(tasks), 1)
-        return {
-            "avg_latency_ms": round(total_latency / n, 2),
-            "energy_j": round(total_energy / n, 3),
-            "privacy_loss": round(total_privacy / n, 4),
-            "security_risk": round(total_risk / n, 4),
-            "privacy_score": round(1.0 - total_privacy / n, 4),
-            "security_score": round(1.0 - total_risk / n, 4),
-            "deadline_success": round(deadline_ok / n, 4),
-            "resource_utilization": util,
-        }
+from engine.policy_engine import PolicyEngine
 
 
 def _resource_ids(resources):
@@ -247,22 +63,41 @@ class GeneticAlgorithm:
         self.crossover_rate = crossover_rate or config.GA_CROSSOVER_RATE
         self.elitism = elitism or config.GA_ELITISM
         self.tournament_size = tournament_size or config.GA_TOURNAMENT_SIZE
-        self.rng = random.Random(seed or config.DATASET_SEED)
+        self.seed = seed or config.DATASET_SEED
+        self.rng = random.Random(self.seed)
 
         self.best_chromosome = None
         self.best_fitness = float("inf")
         self.history = []  # [(generation, best_fitness, avg_fitness)]
         self.generations_ran = 0
 
+    def _get_task_eligible_indices(self, task):
+        """Determine resource indices that strictly satisfy task privacy policy and availability."""
+        eligible_res = PolicyEngine.get_eligible_resources(task, self.resources)
+        eligible_ids = {r["resource_id"] for r in eligible_res}
+        indices = [i for i, r in enumerate(self.resources) if r["resource_id"] in eligible_ids]
+        if not indices:
+            # Fallback to local if available, or first available online node
+            local_idx = [i for i, r in enumerate(self.resources) if r["resource_id"] == "LOCAL"]
+            indices = local_idx if local_idx else [0]
+        return indices
+
     # -- core cost model ------------------------------------------------
     def _resource_cost(self, task, resource_index):
         res = self.resources[resource_index]
-        size_mb = task["data_size_mb"]
-        cpu_giga = task["cpu_cycles_giga"]
-        mem_mb = task["memory_mb"]
-        deadline_ms = task["deadline_ms"]
-        privacy = task["privacy_sensitivity"]  # 0..1
-        security = task["security_sensitivity"]  # 0..1
+        rid = res["resource_id"]
+
+        # Hard constraint feasibility check via PolicyEngine
+        is_valid, _ = PolicyEngine.validate_dispatch(task, rid, self.resources)
+        if not is_valid:
+            # Severe penalty for hard constraint violation
+            return 10000.0, 9999.0, 9999.0
+
+        size_mb = task.get("data_size_mb", 1.0)
+        cpu_giga = task.get("cpu_cycles_giga", 0.5)
+        deadline_ms = task.get("deadline_ms", 500)
+        privacy = task.get("privacy_sensitivity", 0.5)
+        security = task.get("security_sensitivity", 0.1)
 
         latency = res["network_latency_ms"] + cpu_giga * 12.0 / max(
             res["cpu_utilization"], 0.05
@@ -274,13 +109,13 @@ class GeneticAlgorithm:
         w = self.weights
         penalty = 0.0
         if deadline_ms and deadline_ms > 0 and latency > deadline_ms:
-            penalty = w["deadline"] * 5.0 * (latency / deadline_ms - 1.0)
+            penalty = w.get("deadline", 5.0) * 5.0 * (latency / deadline_ms - 1.0)
 
         fitness = (
-            w["latency"] * latency / 1000.0
-            + w["energy"] * energy / 20.0
-            + w["privacy"] * privacy_loss
-            + w["security"] * risk
+            w.get("latency", 0.35) * latency / 1000.0
+            + w.get("energy", 0.25) * energy / 20.0
+            + w.get("privacy", 0.20) * privacy_loss
+            + w.get("security", 0.20) * risk
             + penalty
         )
         return fitness, latency, energy
@@ -293,13 +128,18 @@ class GeneticAlgorithm:
         return total / max(len(tasks), 1)
 
     # -- GA operators -----------------------------------------------------
-    def _init_population(self, n_tasks):
+    def _init_population(self, tasks):
         population = []
+        n_tasks = len(tasks)
+        task_candidates = [self._get_task_eligible_indices(t) for t in tasks]
+
         for _ in range(self.pop_size):
-            population.append(
-                [self.rng.randrange(self.n_resources) for _ in range(n_tasks)]
-            )
-        return population
+            chromo = []
+            for i in range(n_tasks):
+                candidates = task_candidates[i]
+                chromo.append(self.rng.choice(candidates))
+            population.append(chromo)
+        return population, task_candidates
 
     def _tournament_select(self, population, fitnesses):
         best = None
@@ -317,11 +157,12 @@ class GeneticAlgorithm:
         c2 = p2[:point] + p1[point:]
         return c1, c2
 
-    def _mutate(self, chromo):
+    def _mutate(self, chromo, task_candidates):
         out = chromo[:]
         for i in range(len(out)):
             if self.rng.random() < self.mutation_rate:
-                out[i] = self.rng.randrange(self.n_resources)
+                candidates = task_candidates[i]
+                out[i] = self.rng.choice(candidates)
         return out
 
     # -- main loop ---------------------------------------------------------
@@ -330,13 +171,12 @@ class GeneticAlgorithm:
         if n_tasks == 0:
             return [], [], self.history, self.best_fitness
 
-        population = self._init_population(n_tasks)
+        population, task_candidates = self._init_population(tasks)
         self.history = []
         self.best_chromosome = None
         self.best_fitness = float("inf")
         self.generations_ran = 0
 
-        # sort tasks once - genes map 1:1 to task order
         for gen in range(1, self.generations + 1):
             fitnesses = [self._chromosome_fitness(c, tasks) for c in population]
             idx = sorted(range(len(population)), key=lambda i: fitnesses[i])
@@ -356,9 +196,9 @@ class GeneticAlgorithm:
                 p1 = self._tournament_select(population, fitnesses)
                 p2 = self._tournament_select(population, fitnesses)
                 c1, c2 = self._crossover(p1, p2)
-                new_pop.append(self._mutate(c1))
+                new_pop.append(self._mutate(c1, task_candidates))
                 if len(new_pop) < self.pop_size:
-                    new_pop.append(self._mutate(c2))
+                    new_pop.append(self._mutate(c2, task_candidates))
 
             population = new_pop
 
@@ -375,6 +215,7 @@ class GeneticAlgorithm:
             tasks[i].get("task_id", i): self.resource_ids[g]
             for i, g in enumerate(self.best_chromosome)
         }
+
 
 
 if __name__ == "__main__":
@@ -395,9 +236,9 @@ if __name__ == "__main__":
                 "security_sensitivity": 0.1 + (i % 4) * 0.1,
             }
         )
-    # Use the scheduler which filters online resources
+    from engine.scheduler import Scheduler
     sched = Scheduler(twin)
-    assignments, metrics, history, best = sched.proposed_ga_schedule(sample_tasks)
+    assignments, metrics, history = sched.proposed_ga_schedule(sample_tasks)
     print("best fitness:", best)
     print("history (last 5):", history[-5:])
     print("assignments:", assignments)

@@ -1,10 +1,7 @@
-"""
-Digital Twin API - Views.
-
-The digital twin is a live virtual mirror of the real registered MEC devices.
-It reflects actual database state (online/offline, telemetry) and drives the
-security-aware GA scheduler.
-"""
+import csv
+import io
+from datetime import datetime, timezone
+from django.http import HttpResponse
 
 from rest_framework import viewsets, status
 from rest_framework.response import Response
@@ -16,7 +13,9 @@ from engine.scheduler import Scheduler
 from engine.storage_simulator import StorageSimulator
 from engine.security_monitor import SecurityMonitor
 from mec_manager.services import refresh_mec_status
-from tasks.services import run_ga_dispatch
+from tasks.services import run_ga_dispatch, build_task_dict
+from datasets.models import MedicalDatasetSample
+from tasks.models import Task
 
 
 class DigitalTwinViewSet(viewsets.ViewSet):
@@ -127,50 +126,211 @@ class DigitalTwinViewSet(viewsets.ViewSet):
             }
         )
 
-    def compare(self, request):
-        """Compare GA vs baseline schedulers on the current twin state."""
-        twin = DigitalTwin()
-        scheduler = Scheduler(twin)
-        states = [s for s in twin.states() if s["resource_id"].startswith("MEC-")]
+    def _generate_benchmark_tasks(self, count=12, seed=42):
+        """Generate deterministic medical-image benchmark workload using MedMNIST PneumoniaMNIST samples."""
+        import random
+        rng = random.Random(seed)
+        samples = list(MedicalDatasetSample.objects.all()[:count])
 
-        sample_tasks = [
-            {
-                "task_id": "SMP-1",
-                "name": "sample-latency",
-                "data_size_mb": 120,
-                "cpu_cycles_giga": 2.4,
-                "memory_mb": 512,
-                "deadline_ms": 4200,
-                "privacy_sensitivity": 0.4,
-                "security_sensitivity": 0.3,
-            },
-            {
-                "task_id": "SMP-2",
-                "name": "sample-privacy",
-                "data_size_mb": 60,
-                "cpu_cycles_giga": 1.2,
+        policies = ["LOCAL_ONLY", "TRUSTED_EDGE", "CLOUD_ALLOWED"]
+        tasks = []
+        for i in range(count):
+            sample = samples[i % len(samples)] if samples else None
+            policy = policies[i % 3]
+
+            if policy == "LOCAL_ONLY":
+                privacy_sens = 0.90
+                sec_sens = 0.70
+                data_size = 1.2
+                cpu_giga = 0.8
+                deadline = 350
+                op = "normalize_clahe"
+            elif policy == "TRUSTED_EDGE":
+                privacy_sens = 0.50
+                sec_sens = 0.40
+                data_size = 0.8
+                cpu_giga = 0.5
+                deadline = 280
+                op = "normalize_clahe"
+            else:  # CLOUD_ALLOWED
+                privacy_sens = 0.15
+                sec_sens = 0.20
+                data_size = 0.5
+                cpu_giga = 0.3
+                deadline = 420
+                op = "grayscale_resize"
+
+            task_id = f"EXP-{1001 + i}"
+            sample_id = sample.sample_id if sample else f"SYN-MED-{1000 + i}"
+            image_path = sample.image_file_path if sample else ""
+
+            tasks.append({
+                "task_id": task_id,
+                "name": f"PneumoniaMNIST-{policy}-{i+1}",
+                "dataset_sample_id": sample_id,
+                "image_path": image_path,
+                "operation": op,
+                "target_resolution": 224,
+                "data_size_mb": data_size,
+                "cpu_cycles_giga": cpu_giga,
                 "memory_mb": 256,
-                "deadline_ms": 3000,
-                "privacy_sensitivity": 0.9,
-                "security_sensitivity": 0.7,
+                "deadline_ms": deadline,
+                "privacy_policy": policy,
+                "privacy_sensitivity": privacy_sens,
+                "security_sensitivity": sec_sens,
+            })
+        return tasks
+
+    def compare(self, request):
+        """
+        Compare Proposed Genetic Algorithm vs Baselines (Round Robin, First Fit, Random, Greedy, Privacy Aware).
+        Evaluates on identical workload respecting privacy policies and online resource constraints.
+        """
+        refresh_mec_status()
+        twin = DigitalTwin()
+
+        # Handle parameters from query params or POST json body
+        data = request.data if request.method == "POST" else request.query_params
+        try:
+            tasks_count = max(3, min(100, int(data.get("tasks_count", 12))))
+        except (ValueError, TypeError):
+            tasks_count = 12
+
+        try:
+            population = max(10, min(200, int(data.get("population", 40))))
+        except (ValueError, TypeError):
+            population = 40
+
+        try:
+            generations = max(5, min(150, int(data.get("generations", 30))))
+        except (ValueError, TypeError):
+            generations = 30
+
+        try:
+            seed = int(data.get("seed", 42))
+        except (ValueError, TypeError):
+            seed = 42
+
+        use_queued = str(data.get("use_queued", "false")).lower() in ("true", "1")
+
+        if use_queued:
+            queued_tasks = list(Task.objects.filter(status__in=["PENDING", "QUEUED"]).order_by("priority", "created_at"))
+            if queued_tasks:
+                tasks = [build_task_dict(t) for t in queued_tasks[:tasks_count]]
+            else:
+                tasks = self._generate_benchmark_tasks(count=tasks_count, seed=seed)
+        else:
+            tasks = self._generate_benchmark_tasks(count=tasks_count, seed=seed)
+
+        scheduler = Scheduler(twin, seed=seed)
+        all_results = scheduler.run_all_baselines(
+            tasks,
+            ga_population=population,
+            ga_generations=generations,
+            seed=seed,
+        )
+
+        # Build clean summary
+        summary = {
+            "metadata": {
+                "tasks_count": len(tasks),
+                "population": population,
+                "generations": generations,
+                "seed": seed,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "available_resources": [r["resource_id"] for r in twin.states() if r.get("availability", True)],
             },
-            {
-                "task_id": "SMP-3",
-                "name": "sample-burst",
-                "data_size_mb": 400,
-                "cpu_cycles_giga": 6.0,
-                "memory_mb": 2048,
-                "deadline_ms": 9000,
-                "privacy_sensitivity": 0.2,
-                "security_sensitivity": 0.5,
-            },
-        ]
-        if twin:
-            # Keep the comparison honest: use whichever MEC resources exist.
-            pass
-        history = scheduler.run_all_baselines(sample_tasks, ga_population=40, ga_generations=25)
-        simplified = {
-            algo: {"algorithm": v["metrics"]["algorithm"], "metrics": v["metrics"]}
-            for algo, v in history.items()
+            "algorithms": all_results,
+            "tasks": tasks,
         }
-        return Response(simplified)
+        return Response(summary)
+
+    def export_experiments_csv(self, request):
+        """Export comprehensive scheduler comparison metrics as downloadable CSV."""
+        refresh_mec_status()
+        twin = DigitalTwin()
+
+        data = request.data if request.method == "POST" else request.query_params
+        try:
+            tasks_count = max(3, min(100, int(data.get("tasks_count", 12))))
+        except (ValueError, TypeError):
+            tasks_count = 12
+        try:
+            population = max(10, min(200, int(data.get("population", 40))))
+        except (ValueError, TypeError):
+            population = 40
+        try:
+            generations = max(5, min(150, int(data.get("generations", 30))))
+        except (ValueError, TypeError):
+            generations = 30
+        try:
+            seed = int(data.get("seed", 42))
+        except (ValueError, TypeError):
+            seed = 42
+
+        tasks = self._generate_benchmark_tasks(count=tasks_count, seed=seed)
+        scheduler = Scheduler(twin, seed=seed)
+        all_results = scheduler.run_all_baselines(
+            tasks,
+            ga_population=population,
+            ga_generations=generations,
+            seed=seed,
+        )
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Header for algorithm-level benchmark comparison
+        writer.writerow([
+            "Algorithm",
+            "Avg_Latency_ms",
+            "Median_Latency_ms",
+            "P95_Latency_ms",
+            "Deadline_Success_Rate",
+            "Deadline_Miss_Rate",
+            "Total_Energy_J",
+            "Avg_Energy_J",
+            "Privacy_Score",
+            "Security_Score",
+            "Policy_Violations",
+            "Policy_Compliance_Rate",
+            "Tasks_Count",
+            "Random_Seed",
+            "Timestamp"
+        ])
+
+        now_ts = datetime.now(timezone.utc).isoformat()
+        for algo_name, data_item in all_results.items():
+            m = data_item["metrics"]
+            writer.writerow([
+                algo_name,
+                m.get("avg_latency_ms", 0.0),
+                m.get("median_latency_ms", 0.0),
+                m.get("p95_latency_ms", 0.0),
+                m.get("deadline_success", 0.0),
+                m.get("deadline_miss_rate", 0.0),
+                m.get("total_energy_j", 0.0),
+                m.get("avg_energy_j", 0.0),
+                m.get("privacy_score", 0.0),
+                m.get("security_score", 0.0),
+                m.get("policy_violations", 0),
+                m.get("policy_compliance_rate", 1.0),
+                len(tasks),
+                seed,
+                now_ts
+            ])
+
+        # Blank line and second table: per-task assignment breakdown
+        writer.writerow([])
+        writer.writerow(["Task_ID", "Privacy_Policy", "Algorithm", "Assigned_Resource", "Operation"])
+        for i, t in enumerate(tasks):
+            tid = t.get("task_id", f"T-{i}")
+            pol = t.get("privacy_policy", "TRUSTED_EDGE")
+            op = t.get("operation", "normalize_clahe")
+            for algo_name, data_item in all_results.items():
+                assigned_rid = data_item["assignments"][i] if i < len(data_item["assignments"]) else "N/A"
+                writer.writerow([tid, pol, algo_name, assigned_rid, op])
+
+        response = HttpResponse(output.getvalue(), content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="secure_dt_scheduling_benchmarks_seed_{seed}.csv"'
+        return response

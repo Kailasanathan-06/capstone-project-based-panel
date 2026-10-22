@@ -76,14 +76,15 @@ class GeneticAlgorithm:
         eligible_res = PolicyEngine.get_eligible_resources(task, self.resources)
         eligible_ids = {r["resource_id"] for r in eligible_res}
         indices = [i for i, r in enumerate(self.resources) if r["resource_id"] in eligible_ids]
-        if not indices:
-            # Fallback to local if available, or first available online node
-            local_idx = [i for i, r in enumerate(self.resources) if r["resource_id"] == "LOCAL"]
-            indices = local_idx if local_idx else [0]
+        # Return strict eligible indices only without fallback to avoid policy violations
         return indices
 
     # -- core cost model ------------------------------------------------
     def _resource_cost(self, task, resource_index):
+        if resource_index == -1 or resource_index >= len(self.resources):
+            # Task cannot be scheduled on any eligible resource; severe blocked penalty
+            return 50000.0, 99999.0, 99999.0
+
         res = self.resources[resource_index]
         rid = res["resource_id"]
 
@@ -137,7 +138,10 @@ class GeneticAlgorithm:
             chromo = []
             for i in range(n_tasks):
                 candidates = task_candidates[i]
-                chromo.append(self.rng.choice(candidates))
+                if candidates:
+                    chromo.append(self.rng.choice(candidates))
+                else:
+                    chromo.append(-1)
             population.append(chromo)
         return population, task_candidates
 
@@ -162,7 +166,10 @@ class GeneticAlgorithm:
         for i in range(len(out)):
             if self.rng.random() < self.mutation_rate:
                 candidates = task_candidates[i]
-                out[i] = self.rng.choice(candidates)
+                if candidates:
+                    out[i] = self.rng.choice(candidates)
+                else:
+                    out[i] = -1
         return out
 
     # -- main loop ---------------------------------------------------------
@@ -204,7 +211,10 @@ class GeneticAlgorithm:
 
         assignments = []
         for i, gene in enumerate(self.best_chromosome):
-            assignments.append(self.resource_ids[gene])
+            if gene == -1 or gene >= len(self.resource_ids):
+                assignments.append("BLOCKED")
+            else:
+                assignments.append(self.resource_ids[gene])
         return assignments, self.best_chromosome, self.history, self.best_fitness
 
     def resource_assignment_map(self, tasks):
@@ -212,7 +222,9 @@ class GeneticAlgorithm:
         if self.best_chromosome is None:
             return {}
         return {
-            tasks[i].get("task_id", i): self.resource_ids[g]
+            tasks[i].get("task_id", i): (
+                self.resource_ids[g] if 0 <= g < len(self.resource_ids) else "BLOCKED"
+            )
             for i, g in enumerate(self.best_chromosome)
         }
 

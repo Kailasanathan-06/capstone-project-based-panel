@@ -260,10 +260,23 @@ def run_ga_dispatch(population=40, generations=30, algorithm="proposed_ga", seed
     results = []
 
     for task, task_dict, target_rid in zip(tasks, task_dicts, assignments):
+        if target_rid == "BLOCKED" or not target_rid:
+            task.status = "BLOCKED"
+            task.error_message = "No eligible resource satisfies privacy or capacity policy."
+            task.save(update_fields=["status", "error_message", "updated_at"])
+            task.record_history("QUEUED", "BLOCKED", changed_by=f"{algorithm}_scheduler")
+            results.append({"task_id": task.task_id, "node_id": "NONE", "tier": "NONE", "status": "BLOCKED"})
+            continue
+
         # Enforce hard dispatch constraint validation
         is_valid, reason = PolicyEngine.validate_dispatch(task_dict, target_rid, all_states)
         if not is_valid:
             logger.warning(f"Task {task.task_id} rejected dispatch to {target_rid}: {reason}")
+            task.status = "REJECTED"
+            task.error_message = reason
+            task.save(update_fields=["status", "error_message", "updated_at"])
+            task.record_history("QUEUED", "REJECTED", changed_by=f"{algorithm}_scheduler")
+            results.append({"task_id": task.task_id, "node_id": target_rid, "tier": "NONE", "status": "REJECTED"})
             continue
 
         rid_upper = target_rid.upper()

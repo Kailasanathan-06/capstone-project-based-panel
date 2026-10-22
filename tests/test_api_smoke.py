@@ -9,7 +9,7 @@ import os
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "securedt.settings")
 
 from django.contrib.auth.models import User  # noqa: E402
-from django.test import Client, TestCase  # noqa: E402
+from django.test import Client, TestCase, override_settings  # noqa: E402
 from rest_framework.authtoken.models import Token  # noqa: E402
 from rest_framework.test import APIClient  # noqa: E402
 
@@ -254,6 +254,7 @@ class SecureDTExtendedTests(TestCase):
         self.assertEqual(overview["total_mecs"], 3)
         self.assertEqual(overview["online_mecs"], 3)
 
+    @override_settings(GOOGLE_SERVICE_ACCOUNT_FILE="")
     def test_cloud_upload_list_and_download_failure(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
 

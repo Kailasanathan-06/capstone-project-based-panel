@@ -388,3 +388,97 @@ class APIExperimentBenchmarksTests(TestCase):
         # Should have data rows for the algorithms
         algo_rows = [r for r in rows if r and r[0] in ["proposed_ga", "round_robin", "first_fit", "random", "greedy", "privacy_aware"]]
         self.assertEqual(len(algo_rows), 6)
+
+
+class SchedulerStrictEligibilityTests(TestCase):
+    """Rigorous tests for offline-node rejection, strict policy enforcement, and blocked-task handling."""
+
+    def setUp(self):
+        self.twin = DigitalTwin()
+
+    def test_strict_rejection_of_offline_and_stale_nodes(self):
+        """Offline, stale, or quarantined nodes must be strictly rejected from eligible candidates."""
+        res_list = [
+            {"resource_id": "LOCAL", "resource_type": "local", "availability": True, "is_online": True, "is_stale": False, "max_memory": 4096},
+            {"resource_id": "MEC-01", "resource_type": "mec", "availability": False, "is_online": False, "is_stale": False, "max_memory": 8192},
+            {"resource_id": "MEC-02", "resource_type": "mec", "availability": True, "is_online": False, "is_stale": True, "max_memory": 8192},
+            {"resource_id": "CLOUD", "resource_type": "cloud", "availability": True, "is_online": True, "is_stale": False, "max_memory": 65536},
+        ]
+        task = {
+            "task_id": "T_TEST_1",
+            "privacy_policy": "TRUSTED_EDGE",
+            "memory_mb": 1024,
+            "operation": "normalize_clahe",
+        }
+        candidates = PolicyEngine.get_eligible_resources(task, res_list)
+        candidate_ids = [c["resource_id"] for c in candidates]
+
+        # Only LOCAL should be eligible (MEC-01 is offline, MEC-02 is stale, CLOUD is barred by TRUSTED_EDGE)
+        self.assertEqual(candidate_ids, ["LOCAL"])
+        self.assertNotIn("MEC-01", candidate_ids)
+        self.assertNotIn("MEC-02", candidate_ids)
+        self.assertNotIn("CLOUD", candidate_ids)
+
+        # validate_dispatch must also fail for offline/stale nodes
+        valid, reason = PolicyEngine.validate_dispatch(task, "MEC-01", res_list)
+        self.assertFalse(valid)
+        self.assertIn("offline", reason.lower())
+
+        valid_stale, reason_stale = PolicyEngine.validate_dispatch(task, "MEC-02", res_list)
+        self.assertFalse(valid_stale)
+
+    def test_no_eligible_resource_returns_blocked_with_zero_violations(self):
+        """When no resource meets task requirements, task is BLOCKED and policy violations remain 0."""
+        # Simulated resources where LOCAL is offline and CLOUD is available
+        res_list = [
+            {"resource_id": "LOCAL", "resource_type": "local", "availability": False, "is_online": False, "is_stale": False, "max_memory": 4096},
+            {"resource_id": "CLOUD", "resource_type": "cloud", "availability": True, "is_online": True, "is_stale": False, "max_memory": 65536,
+             "network_latency_ms": 150.0, "cpu_utilization": 0.4, "energy_rate": 5.0, "privacy_loss_factor": 0.4, "security_risk": 0.2},
+        ]
+        # LOCAL_ONLY task - cannot go to cloud
+        task = {
+            "task_id": "T_UNASSIGNABLE",
+            "privacy_policy": "LOCAL_ONLY",
+            "memory_mb": 512,
+            "data_size_mb": 2.0,
+            "cpu_cycles_giga": 0.5,
+            "deadline_ms": 500,
+            "privacy_sensitivity": 0.9,
+            "security_sensitivity": 0.5,
+        }
+
+        sched = Scheduler(self.twin)
+        candidates = sched._get_eligible_candidates(task, res_list)
+        self.assertEqual(candidates, [])
+
+        # Schedulers must safely assign BLOCKED
+        for schedule_func in [sched.round_robin_schedule, sched.first_fit_schedule, sched.greedy_schedule, sched.privacy_aware_schedule]:
+            # Temporarily stub states
+            orig_states = sched.dt.states
+            sched.dt.states = lambda: res_list
+            try:
+                assigns, metrics = schedule_func([task])
+                self.assertEqual(assigns, ["BLOCKED"])
+                self.assertEqual(metrics["blocked_tasks"], 1)
+                self.assertEqual(metrics["policy_violations"], 0)
+            finally:
+                sched.dt.states = orig_states
+
+    def test_ga_strict_blocked_chromosome_when_no_eligible_nodes(self):
+        """Genetic algorithm assigns BLOCKED when no resources meet privacy criteria."""
+        res_list = [
+            {"resource_id": "CLOUD", "resource_type": "cloud", "availability": True, "is_online": True, "is_stale": False, "max_memory": 65536,
+             "network_latency_ms": 150.0, "cpu_utilization": 0.4, "energy_rate": 5.0, "privacy_loss_factor": 0.4, "security_risk": 0.2},
+        ]
+        ga = GeneticAlgorithm(res_list, population=10, generations=5, seed=42)
+        task = {
+            "task_id": "T_LOCAL_ONLY",
+            "privacy_policy": "LOCAL_ONLY",
+            "memory_mb": 512,
+            "data_size_mb": 1.0,
+            "cpu_cycles_giga": 0.5,
+            "deadline_ms": 500,
+        }
+        assignments, _, _, _ = ga.optimize([task])
+        self.assertEqual(assignments, ["BLOCKED"])
+

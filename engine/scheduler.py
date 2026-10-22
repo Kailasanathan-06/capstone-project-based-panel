@@ -50,12 +50,8 @@ class Scheduler:
         return latency, energy, privacy_loss, risk
 
     def _get_eligible_candidates(self, task, resources):
-        """Retrieve eligible resources satisfying task privacy policy and availability."""
-        eligible = PolicyEngine.get_eligible_resources(task, resources)
-        if not eligible:
-            local = [r for r in resources if r.get("resource_id") == "LOCAL" and r.get("availability", True)]
-            return local if local else [resources[0]] if resources else []
-        return eligible
+        """Retrieve eligible resources strictly satisfying task privacy policy, capacity, and availability."""
+        return PolicyEngine.get_eligible_resources(task, resources)
 
     def _evaluate_solution(self, assignments, tasks, resources):
         """Compute aggregate metrics for a set of assignments."""
@@ -65,12 +61,22 @@ class Scheduler:
         total_risk = 0.0
         deadline_ok = 0
         policy_violations = 0
+        blocked_count = 0
         latencies = []
         util = {r["resource_id"]: 0 for r in resources}
 
         for i, task in enumerate(tasks):
-            rid = assignments[i]
-            res = next((r for r in resources if r["resource_id"] == rid), resources[0])
+            rid = assignments[i] if i < len(assignments) else "BLOCKED"
+            if rid == "BLOCKED" or not rid:
+                blocked_count += 1
+                # Blocked tasks were safely held back rather than violating policy; deadline is not met
+                continue
+
+            res = next((r for r in resources if r["resource_id"] == rid), None)
+            if not res:
+                policy_violations += 1
+                continue
+
             latent, energy, ploss, risk = self._cost(task, res)
             total_latency += latent
             total_energy += energy
@@ -83,30 +89,32 @@ class Scheduler:
             if latent <= deadline:
                 deadline_ok += 1
 
-            # Validate dispatch against privacy policy
+            # Validate dispatch against privacy policy and status
             is_valid, _ = PolicyEngine.validate_dispatch(task, rid, resources)
             if not is_valid:
                 policy_violations += 1
 
         n = max(len(tasks), 1)
+        scheduled_count = max(len(tasks) - blocked_count, 1)
         latencies_sorted = sorted(latencies)
         p50 = latencies_sorted[int(len(latencies_sorted) * 0.50)] if latencies_sorted else 0.0
         p95 = latencies_sorted[int(len(latencies_sorted) * 0.95)] if latencies_sorted else 0.0
 
         return {
-            "avg_latency_ms": round(total_latency / n, 2),
+            "avg_latency_ms": round(total_latency / scheduled_count, 2) if latencies else 0.0,
             "median_latency_ms": round(p50, 2),
             "p95_latency_ms": round(p95, 2),
             "total_energy_j": round(total_energy, 3),
-            "avg_energy_j": round(total_energy / n, 3),
-            "privacy_loss": round(total_privacy / n, 4),
-            "security_risk": round(total_risk / n, 4),
-            "privacy_score": round(max(0.0, 1.0 - total_privacy / n), 4),
-            "security_score": round(max(0.0, 1.0 - total_risk / n), 4),
+            "avg_energy_j": round(total_energy / scheduled_count, 3) if latencies else 0.0,
+            "privacy_loss": round(total_privacy / scheduled_count, 4) if latencies else 0.0,
+            "security_risk": round(total_risk / scheduled_count, 4) if latencies else 0.0,
+            "privacy_score": round(max(0.0, 1.0 - total_privacy / scheduled_count), 4) if latencies else 0.0,
+            "security_score": round(max(0.0, 1.0 - total_risk / scheduled_count), 4) if latencies else 0.0,
             "deadline_success": round(deadline_ok / n, 4),
             "deadline_miss_rate": round(1.0 - (deadline_ok / n), 4),
             "policy_violations": policy_violations,
             "policy_compliance_rate": round((n - policy_violations) / n, 4),
+            "blocked_tasks": blocked_count,
             "resource_utilization": util,
         }
 
@@ -114,15 +122,18 @@ class Scheduler:
     # Schedulers
     # ------------------------------------------------------------------
     def round_robin_schedule(self, tasks):
-        """Round Robin assignment across eligible resources."""
+        """Round Robin assignment across strictly eligible resources."""
         resources = self.dt.states()
         assignments = []
         rr_index = 0
         for task in tasks:
             candidates = self._get_eligible_candidates(task, resources)
-            choice = candidates[rr_index % len(candidates)]["resource_id"]
-            rr_index += 1
-            assignments.append(choice)
+            if not candidates:
+                assignments.append("BLOCKED")
+            else:
+                choice = candidates[rr_index % len(candidates)]["resource_id"]
+                rr_index += 1
+                assignments.append(choice)
 
         metrics = self._evaluate_solution(assignments, tasks, resources)
         metrics["algorithm"] = "round_robin"
@@ -135,7 +146,10 @@ class Scheduler:
         assignments = []
         for task in tasks:
             candidates = self._get_eligible_candidates(task, resources)
-            assignments.append(candidates[0]["resource_id"])
+            if not candidates:
+                assignments.append("BLOCKED")
+            else:
+                assignments.append(candidates[0]["resource_id"])
 
         metrics = self._evaluate_solution(assignments, tasks, resources)
         metrics["algorithm"] = "first_fit"
@@ -143,13 +157,16 @@ class Scheduler:
         return assignments, metrics
 
     def random_schedule(self, tasks, seed=None):
-        """Random assignment among eligible resources."""
+        """Random assignment among strictly eligible resources."""
         rng = random.Random(seed) if seed is not None else self.rng
         resources = self.dt.states()
         assignments = []
         for task in tasks:
             candidates = self._get_eligible_candidates(task, resources)
-            assignments.append(rng.choice(candidates)["resource_id"])
+            if not candidates:
+                assignments.append("BLOCKED")
+            else:
+                assignments.append(rng.choice(candidates)["resource_id"])
 
         metrics = self._evaluate_solution(assignments, tasks, resources)
         metrics["algorithm"] = "random"
@@ -162,13 +179,16 @@ class Scheduler:
         assignments = []
         for task in tasks:
             candidates = self._get_eligible_candidates(task, resources)
-            best_id, best_score = candidates[0]["resource_id"], float("inf")
-            for res in candidates:
-                cpu = task.get("cpu_cycles_giga", 0.5)
-                latency = res["network_latency_ms"] + cpu * 12.0 / max(res["cpu_utilization"], 0.05)
-                if latency < best_score:
-                    best_id, best_score = res["resource_id"], latency
-            assignments.append(best_id)
+            if not candidates:
+                assignments.append("BLOCKED")
+            else:
+                best_id, best_score = candidates[0]["resource_id"], float("inf")
+                for res in candidates:
+                    cpu = task.get("cpu_cycles_giga", 0.5)
+                    latency = res["network_latency_ms"] + cpu * 12.0 / max(res["cpu_utilization"], 0.05)
+                    if latency < best_score:
+                        best_id, best_score = res["resource_id"], latency
+                assignments.append(best_id)
 
         metrics = self._evaluate_solution(assignments, tasks, resources)
         metrics["algorithm"] = "greedy"
@@ -176,19 +196,22 @@ class Scheduler:
         return assignments, metrics
 
     def privacy_aware_schedule(self, tasks):
-        """Minimise privacy loss first among eligible candidates, then latency."""
+        """Minimise privacy loss first among strictly eligible candidates, then latency."""
         resources = self.dt.states()
         assignments = []
         for task in tasks:
             candidates = self._get_eligible_candidates(task, resources)
-            best_id, best_score, best_lat = candidates[0]["resource_id"], float("inf"), float("inf")
-            for res in candidates:
-                ploss = res["privacy_loss_factor"] * (task.get("privacy_sensitivity", 0.5) + 0.1)
-                cpu = task.get("cpu_cycles_giga", 0.5)
-                latency = res["network_latency_ms"] + cpu * 12.0 / max(res["cpu_utilization"], 0.05)
-                if ploss < best_score or (ploss == best_score and latency < best_lat):
-                    best_id, best_score, best_lat = res["resource_id"], ploss, latency
-            assignments.append(best_id)
+            if not candidates:
+                assignments.append("BLOCKED")
+            else:
+                best_id, best_score, best_lat = candidates[0]["resource_id"], float("inf"), float("inf")
+                for res in candidates:
+                    ploss = res["privacy_loss_factor"] * (task.get("privacy_sensitivity", 0.5) + 0.1)
+                    cpu = task.get("cpu_cycles_giga", 0.5)
+                    latency = res["network_latency_ms"] + cpu * 12.0 / max(res["cpu_utilization"], 0.05)
+                    if ploss < best_score or (ploss == best_score and latency < best_lat):
+                        best_id, best_score, best_lat = res["resource_id"], ploss, latency
+                assignments.append(best_id)
 
         metrics = self._evaluate_solution(assignments, tasks, resources)
         metrics["algorithm"] = "privacy_aware"

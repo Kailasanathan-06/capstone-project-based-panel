@@ -18,13 +18,20 @@ class Task(models.Model):
     """A unit of work that must be executed by an ONLINE MEC or the cloud."""
 
     STATUS_CHOICES = [
+        ("CREATED", "CREATED"),
+        ("VALIDATING", "VALIDATING"),
         ("PENDING", "PENDING"),
         ("QUEUED", "QUEUED"),
+        ("SCHEDULED", "SCHEDULED"),
         ("ASSIGNED", "ASSIGNED"),
         ("RUNNING", "RUNNING"),
+        ("SUCCEEDED", "SUCCEEDED"),
         ("COMPLETED", "COMPLETED"),
         ("FAILED", "FAILED"),
+        ("TIMED_OUT", "TIMED_OUT"),
         ("CANCELLED", "CANCELLED"),
+        ("REJECTED", "REJECTED"),
+        ("BLOCKED", "BLOCKED"),
         ("RETRYING", "RETRYING"),
     ]
 

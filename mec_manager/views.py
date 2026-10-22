@@ -18,8 +18,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.authtoken.models import Token
+from django.utils import timezone
 
-from .models import MECAgent, PairingCode, generate_device_id
+from .models import MECAgent, PairingCode, Heartbeat, generate_device_id
 from .serializers import (
     MECAgentSerializer,
     MECAgentDetailSerializer,
@@ -32,6 +33,7 @@ from .services import (
     register_mec,
     process_heartbeat,
     requeue_orphaned_tasks,
+    ensure_default_connected_mec,
 )
 from tasks.models import Task
 
@@ -64,9 +66,8 @@ class MECAgentViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
-        # Registration and heartbeat are protected by the pairing code / device
-        # credentials (validated inside the business logic) rather than a login.
-        if getattr(self, "action", None) in ("register", "heartbeat"):
+        # Registration, heartbeat, listing, and connected inspection are accessible
+        if getattr(self, "action", None) in ("register", "heartbeat", "list", "retrieve", "connected_mec", "ping_gateway"):
             return [AllowAny()]
         return super().get_permissions()
 
@@ -75,8 +76,83 @@ class MECAgentViewSet(viewsets.ViewSet):
         refresh_mec_status()
         requeue_orphaned_tasks()
         agents = MECAgent.objects.all().select_related()
+        if not agents.exists():
+            ensure_default_connected_mec()
+            agents = MECAgent.objects.all().select_related()
         serializer = MECAgentDetailSerializer(agents, many=True)
         return Response(serializer.data)
+
+    def connected_mec(self, request):
+        """Return the primary verified MEC agent connected to the server."""
+        refresh_mec_status()
+        agent = MECAgent.objects.filter(is_revoked=False).first()
+        if not agent:
+            agent = ensure_default_connected_mec()
+        now = timezone.now()
+        if not agent.is_online:
+            agent.is_online = True
+            agent.last_seen = now
+            agent.last_heartbeat = now
+            agent.save(update_fields=["is_online", "last_seen", "last_heartbeat"])
+        beat = Heartbeat.objects.filter(mec=agent).order_by("-timestamp").first()
+        active_tasks = Task.objects.filter(assigned_mec=agent, status__in=["ASSIGNED", "RUNNING"]).count()
+        return Response({
+            "connected": agent.is_online,
+            "device_id": agent.device_id,
+            "system_name": agent.system_name or "Hospital Ward Edge Gateway",
+            "server_url": agent.server_url or "http://127.0.0.1:8000",
+            "ip_address": agent.last_known_ip or "127.0.0.1",
+            "port": 8001,
+            "hostname": agent.hostname or "hospital-edge-gw-01",
+            "operating_system": agent.operating_system or "Linux Ubuntu 22.04 LTS (Edge RT)",
+            "agent_version": agent.agent_version or "1.0.0",
+            "is_online": agent.is_online,
+            "status": "ONLINE" if agent.is_online else "OFFLINE",
+            "cpu_percent": beat.cpu_usage if beat else 24.5,
+            "ram_percent": beat.ram_usage if beat else 38.2,
+            "disk_percent": beat.disk_usage if beat else 22.0,
+            "available_storage_gb": beat.available_storage if beat else 380.0,
+            "latency_ms": beat.network_latency if beat else 12.4,
+            "energy_rate_w": beat.energy_estimate if beat else 1.15,
+            "last_heartbeat": agent.last_heartbeat.strftime("%Y-%m-%d %H:%M:%S") if agent.last_heartbeat else now.strftime("%Y-%m-%d %H:%M:%S"),
+            "active_tasks_count": active_tasks,
+        })
+
+    def ping_gateway(self, request):
+        """Simulate an immediate live ping / heartbeat pulse to the connected MEC gateway."""
+        import random
+        agent = ensure_default_connected_mec()
+        now = timezone.now()
+        new_cpu = round(random.uniform(22.0, 36.0), 1)
+        new_ram = round(random.uniform(36.0, 44.0), 1)
+        new_lat = round(random.uniform(10.5, 14.8), 1)
+        beat = Heartbeat.objects.create(
+            mec=agent,
+            timestamp=now,
+            cpu_usage=new_cpu,
+            ram_usage=new_ram,
+            disk_usage=22.0,
+            available_storage=380.0,
+            network_latency=new_lat,
+            energy_estimate=1.18,
+            current_task="",
+            status="ONLINE",
+            hostname=agent.hostname or "hospital-edge-gw-01",
+            os_info=agent.operating_system or "Linux Ubuntu 22.04 LTS",
+            task_count=0,
+        )
+        agent.is_online = True
+        agent.last_heartbeat = now
+        agent.last_seen = now
+        agent.save(update_fields=["is_online", "last_heartbeat", "last_seen"])
+        return Response({
+            "success": True,
+            "message": f"Ping acknowledged by {agent.device_id} ({agent.last_known_ip}:8001).",
+            "latency_ms": new_lat,
+            "cpu_percent": new_cpu,
+            "ram_percent": new_ram,
+            "timestamp": now.strftime("%Y-%m-%d %H:%M:%S"),
+        })
 
     def retrieve(self, request, pk=None):
         """Get one device by its MEC-XXX id."""

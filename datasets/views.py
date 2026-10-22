@@ -11,6 +11,7 @@ import os
 import json
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
+from django.utils import timezone
 
 from data_pipeline.dataset_manager import DatasetManager
 from data_pipeline.statistics import compute_all_statistics
@@ -557,13 +558,15 @@ def verify_replicas_api(request):
 @permission_classes([AllowAny])
 def workload_scenarios_list_api(request):
     """List all 14 registered hospital workload scenarios across 4 categories."""
-    from engine.hospital_workloads import ensure_all_14_scenarios_registered
+    from engine.hospital_workloads import ensure_all_14_scenarios_registered, INITIAL_14_SCENARIOS
     from datasets.models import WorkloadScenario
 
     ensure_all_14_scenarios_registered()
+    scenario_meta = {sc["scenario_id"]: sc for sc in INITIAL_14_SCENARIOS}
     scenarios = WorkloadScenario.objects.all().order_by("category", "scenario_id")
     data = []
     for s in scenarios:
+        meta = scenario_meta.get(s.scenario_id, {})
         data.append({
             "scenario_id": s.scenario_id,
             "name": s.name,
@@ -571,11 +574,11 @@ def workload_scenarios_list_api(request):
             "workload_type": s.workload_type,
             "privacy_policy": s.privacy_policy,
             "expected_status": s.expected_status,
-            "expected_error_code": s.expected_error_code,
-            "timeout_limit_seconds": s.timeout_limit_seconds,
+            "expected_error_code": meta.get("expected_error_code", getattr(s, "expected_error_code", "")),
+            "timeout_limit_seconds": getattr(s, "timeout_seconds", 60),
             "max_retries": s.max_retries,
             "description": s.description,
-            "sample_input_path": s.sample_input_path,
+            "sample_input_path": getattr(s, "input_file_path", ""),
         })
     return JsonResponse({"scenarios": data, "count": len(data)})
 
@@ -635,7 +638,7 @@ def run_workload_scenario_api(request, scenario_id):
         workload_type=scenario.workload_type,
         privacy_policy=scenario.privacy_policy,
         image_path=path,
-        timeout_limit_seconds=scenario.timeout_limit_seconds,
+        timeout_limit_seconds=getattr(scenario, "timeout_seconds", 60),
         max_retries=scenario.max_retries,
     )
 
@@ -659,3 +662,162 @@ def run_workload_scenario_api(request, scenario_id):
         "privacy_policy": task.privacy_policy,
         "result_preview": res if isinstance(res, dict) else {},
     })
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def manual_dataset_upload_api(request):
+    """
+    Manual dataset upload endpoint.
+    Uploads a dataset file manually without automatic insertion,
+    enforcing placement policy checks and computing cryptographic SHA-256 hash.
+    """
+    import hashlib
+    import time
+    from pathlib import Path
+    from datasets.models import Dataset, StorageDestination, DatasetStorageReplica
+    from engine.storage_manager import ensure_storage_destinations_initialized
+
+    name = request.POST.get("name", "").strip()
+    policy = request.POST.get("privacy_policy", "TRUSTED_EDGE").strip()
+    destination_id = request.POST.get("target_destination", "MEC_STORAGE").strip()
+    modality = request.POST.get("modality", "IMAGES").strip()
+    uploaded_file = request.FILES.get("file")
+
+    if not name:
+        return JsonResponse({"error": "Dataset Name is required."}, status=400)
+    if not uploaded_file:
+        return JsonResponse({"error": "A dataset file must be selected for upload."}, status=400)
+
+    # Enforce strict policy constraints on storage destination
+    if policy == "LOCAL_ONLY" and destination_id in ("MEC_STORAGE", "CLOUD_STORAGE"):
+        return JsonResponse({
+            "error": "Policy Violation: Datasets with LOCAL_ONLY policy cannot be stored in MEC or Cloud tiers."
+        }, status=403)
+    if policy == "TRUSTED_EDGE" and destination_id == "CLOUD_STORAGE":
+        return JsonResponse({
+            "error": "Policy Violation: Datasets with TRUSTED_EDGE policy cannot be stored in Cloud tier."
+        }, status=403)
+
+    ensure_storage_destinations_initialized()
+    try:
+        dest_obj = StorageDestination.objects.get(destination_id=destination_id)
+    except StorageDestination.DoesNotExist:
+        return JsonResponse({"error": f"Invalid destination tier: {destination_id}"}, status=400)
+
+    target_dir = Path(dest_obj.base_path) / "manual_uploads"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    clean_filename = f"{int(time.time())}_{uploaded_file.name.replace(' ', '_')}"
+    target_path = target_dir / clean_filename
+
+    hasher = hashlib.sha256()
+    file_size = 0
+    with open(target_path, "wb") as fh:
+        for chunk in uploaded_file.chunks():
+            fh.write(chunk)
+            hasher.update(chunk)
+            file_size += len(chunk)
+
+    checksum = hasher.hexdigest()
+    ds_id = f"MANUAL-{int(time.time())}-{checksum[:6].upper()}"
+
+    dataset = Dataset.objects.create(
+        dataset_id=ds_id,
+        name=name,
+        dataset_type="benign",
+        source="Manual Upload by User",
+        file_name=uploaded_file.name,
+        file_size=file_size,
+        format=uploaded_file.name.split(".")[-1].upper() if "." in uploaded_file.name else modality,
+        storage_location=str(target_path),
+        processing_status="VERIFIED",
+        validation_status="VALID",
+    )
+
+    replica_id = f"REPL-{ds_id}-{destination_id}"
+    replica, _ = DatasetStorageReplica.objects.update_or_create(
+        replica_id=replica_id,
+        defaults={
+            "dataset_id": ds_id,
+            "storage_destination": dest_obj,
+            "relative_key": f"manual_uploads/{clean_filename}",
+            "absolute_path": str(target_path),
+            "file_size_bytes": file_size,
+            "sha256_checksum": checksum,
+            "replication_status": "VERIFIED",
+            "is_available": True,
+            "last_verified_at": timezone.now(),
+        }
+    )
+
+    dest_obj.used_bytes += file_size
+    dest_obj.save(update_fields=["used_bytes"])
+
+    return JsonResponse({
+        "success": True,
+        "message": f"Dataset '{name}' uploaded and verified successfully.",
+        "dataset": {
+            "dataset_id": dataset.dataset_id,
+            "name": dataset.name,
+            "file_name": dataset.file_name,
+            "file_size": dataset.file_size,
+            "destination": dest_obj.name,
+            "destination_id": dest_obj.destination_id,
+            "privacy_policy": policy,
+            "sha256": checksum,
+            "path": str(target_path),
+        }
+    }, status=201)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def manual_datasets_list_api(request):
+    """List all manually uploaded datasets."""
+    from datasets.models import Dataset, DatasetStorageReplica
+
+    datasets = Dataset.objects.filter(source="Manual Upload by User").order_by("-created_at")
+    results = []
+    for d in datasets:
+        rep = DatasetStorageReplica.objects.filter(dataset_id=d.dataset_id).select_related("storage_destination").first()
+        dest_name = rep.storage_destination.name if rep and rep.storage_destination else "Local Workstation"
+        dest_id = rep.storage_destination.destination_id if rep and rep.storage_destination else "LOCAL_STORAGE"
+        dest_policy = rep.storage_destination.privacy_tier_allowed if rep and rep.storage_destination else "LOCAL_ONLY"
+        results.append({
+            "dataset_id": d.dataset_id,
+            "name": d.name,
+            "file_name": d.file_name,
+            "file_size": d.file_size,
+            "format": d.format,
+            "destination": dest_name,
+            "destination_id": dest_id,
+            "privacy_policy": dest_policy,
+            "sha256": rep.sha256_checksum if rep else "N/A",
+            "is_available": rep.is_available if rep else False,
+            "created_at": d.created_at.strftime("%Y-%m-%d %H:%M:%S") if d.created_at else "",
+        })
+    return JsonResponse({"datasets": results, "count": len(results)})
+
+
+@api_view(["DELETE", "POST"])
+@permission_classes([AllowAny])
+def manual_dataset_delete_api(request, dataset_id):
+    """Delete a manually uploaded dataset and its on-disk replica."""
+    import os
+    from datasets.models import Dataset, DatasetStorageReplica
+
+    dataset = Dataset.objects.filter(dataset_id=dataset_id, source="Manual Upload by User").first()
+    if not dataset:
+        return JsonResponse({"error": "Dataset not found or cannot be deleted."}, status=404)
+
+    replicas = DatasetStorageReplica.objects.filter(dataset_id=dataset_id)
+    for rep in replicas:
+        if rep.absolute_path and os.path.exists(rep.absolute_path):
+            try:
+                os.remove(rep.absolute_path)
+            except OSError:
+                pass
+        rep.delete()
+
+    dataset.delete()
+    return JsonResponse({"success": True, "message": f"Dataset {dataset_id} deleted."})

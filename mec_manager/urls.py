@@ -17,6 +17,8 @@ from django.urls import path
 from .views import MECAgentViewSet, PairingCodeViewSet, MECHeartbeatViewSet, MECTaskEndpoint
 
 urlpatterns = [
+    path("connected/", MECAgentViewSet.as_view({"get": "connected_mec"}), name="mec_connected"),
+    path("ping/", MECAgentViewSet.as_view({"post": "ping_gateway"}), name="mec_ping_gateway"),
     path("register/", MECAgentViewSet.as_view({"post": "register"}), name="mec_register"),
     path("heartbeat/", MECAgentViewSet.as_view({"post": "heartbeat"}), name="mec_heartbeat"),
     path("pairing-codes/", PairingCodeViewSet.as_view({"get": "list", "post": "create"}), name="pairing_codes"),

@@ -14,7 +14,7 @@ import logging
 
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 
 from .models import GoogleDriveFile, CloudFolder, CloudUploadRecord
@@ -31,6 +31,11 @@ class CloudFileViewSet(viewsets.ViewSet):
 
     authentication_classes = [SessionAuthentication, TokenAuthentication]
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if getattr(self, "action", None) in ("list", "status", "download"):
+            return [AllowAny()]
+        return super().get_permissions()
 
     def list(self, request):
         manager = StorageManager()
@@ -114,7 +119,14 @@ class CloudFolderViewSet(viewsets.ViewSet):
     authentication_classes = [SessionAuthentication, TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    def get_permissions(self):
+        if getattr(self, "action", None) in ("list",):
+            return [AllowAny()]
+        return super().get_permissions()
+
     def list(self, request):
+        from .file_manager import ensure_base_folders
+        ensure_base_folders()
         return Response(CloudFolderSerializer(CloudFolder.objects.all(), many=True).data)
 
     def create(self, request):
@@ -130,6 +142,11 @@ class CloudUploadRecordViewSet(viewsets.ViewSet):
 
     authentication_classes = [SessionAuthentication, TokenAuthentication]
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if getattr(self, "action", None) in ("list",):
+            return [AllowAny()]
+        return super().get_permissions()
 
     def list(self, request):
         records = CloudUploadRecord.objects.order_by("-created_at")[:100]

@@ -9,6 +9,85 @@
   <p class="page-subtitle">Real public datasets for intelligent and secure task scheduling</p>
 </div>
 
+<!-- ===== MANUAL DATASET INGESTION STUDIO ===== -->
+<section class="card" style="margin-bottom: var(--space-6); border: 1px solid rgba(245, 158, 11, 0.4);">
+  <header class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <h2 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-warning);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        Manual Dataset Ingestion Studio
+      </h2>
+      <p style="font-size: 0.85rem; color: var(--color-text-muted); margin: 2px 0 0 0;">
+        Upload and verify custom datasets with cryptographic SHA-256 validation. Automatic dataset insertion is disabled.
+      </p>
+    </div>
+    <span class="badge" style="border: 1px solid var(--color-warning); color: var(--color-warning); font-size: 0.75rem;">
+      Manual Mode Active
+    </span>
+  </header>
+  <div class="card-content">
+    <form id="dm-upload-form" enctype="multipart/form-data" style="margin-bottom: var(--space-4);">
+      {% csrf_token %}
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-4);">
+        <div class="form-group">
+          <label for="dm-ds-name" style="font-size: 0.8rem; font-weight: 600;">Dataset Name *</label>
+          <input type="text" id="dm-ds-name" name="name" class="form-input" placeholder="e.g., ICU Electrocardiogram Batch 1" required>
+        </div>
+        <div class="form-group">
+          <label for="dm-ds-policy" style="font-size: 0.8rem; font-weight: 600;">Data Governance Policy *</label>
+          <select id="dm-ds-policy" name="privacy_policy" class="form-select" required>
+            <option value="LOCAL_ONLY">🔒 LOCAL_ONLY (Workstation only)</option>
+            <option value="TRUSTED_EDGE" selected>⚡ TRUSTED_EDGE (Hospital MEC allowed)</option>
+            <option value="CLOUD_ALLOWED">☁️ CLOUD_ALLOWED (Cloud eligible)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="dm-ds-destination" style="font-size: 0.8rem; font-weight: 600;">Storage Destination Tier *</label>
+          <select id="dm-ds-destination" name="target_destination" class="form-select" required>
+            <option value="LOCAL_STORAGE">💻 LOCAL_STORAGE (50 GB Workstation)</option>
+            <option value="MEC_STORAGE" selected>⚡ MEC_STORAGE (200 GB Hospital Edge)</option>
+            <option value="CLOUD_STORAGE">☁️ CLOUD_STORAGE (1,000 GB Google Drive)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="dm-ds-file" style="font-size: 0.8rem; font-weight: 600;">Select Dataset File *</label>
+          <input type="file" id="dm-ds-file" name="file" class="form-input" required>
+        </div>
+      </div>
+      <div id="dm-policy-alert" class="alert alert-danger" style="display: none; margin-bottom: var(--space-3);"></div>
+      <div style="display: flex; justify-content: flex-end;">
+        <button type="submit" class="btn btn-primary" id="dm-btn-upload">
+          Upload &amp; Verify Dataset
+        </button>
+      </div>
+    </form>
+
+    <div style="margin-top: var(--space-4);">
+      <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: var(--space-2); color: var(--color-heading);">
+        Manual Datasets Inventory
+      </h3>
+      <div class="table-container">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Dataset ID / Name</th>
+              <th>File Name</th>
+              <th>Size</th>
+              <th>Policy</th>
+              <th>Destination Tier</th>
+              <th>SHA-256 Checksum</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="dm-manual-tbody">
+            <tr><td colspan="7" style="text-align: center; color: var(--color-text-muted);">No manual datasets uploaded yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ===== SUMMARY CARDS ===== -->
 <section class="card" style="margin-bottom: var(--space-6);">
   <header class="card-header"><h2 class="card-title">Dataset Overview</h2></header>
@@ -264,7 +343,83 @@
     }catch(e){console.error('verified catalog error',e)}
   }
 
-  loadOverview();loadCharts();loadPanels();loadExpOptions();loadVerifiedCatalog();
+  async function loadManualDatasets() {
+    try {
+      const r = await fetch('/datasets/app/manual/list/');
+      const d = await r.json();
+      const tbody = document.getElementById('dm-manual-tbody');
+      if (!tbody) return;
+      const list = d.datasets || [];
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--color-text-muted);">No manual datasets uploaded yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map(ds => {
+        const col = ds.privacy_policy === 'LOCAL_ONLY' ? '#ef4444' : (ds.privacy_policy === 'TRUSTED_EDGE' ? '#06b6d4' : '#10b981');
+        return `<tr>
+          <td><strong>${ds.name}</strong><br><code style="font-size:0.75rem; color:var(--color-text-muted);">${ds.dataset_id}</code></td>
+          <td><code>${ds.file_name}</code></td>
+          <td>${(ds.file_size / 1024).toFixed(1)} KB</td>
+          <td><span style="padding:2px 8px;border-radius:4px;border:1px solid ${col};color:${col};font-size:0.75rem;">${ds.privacy_policy}</span></td>
+          <td><strong>${ds.destination}</strong></td>
+          <td><code style="font-size:0.75rem; color:var(--color-primary);">${ds.sha256 ? ds.sha256.slice(0, 12) + '...' : 'N/A'}</code></td>
+          <td><button class="btn btn-ghost btn-sm btn-del-dm" data-id="${ds.dataset_id}" style="color:var(--color-danger);">Delete</button></td>
+        </tr>`;
+      }).join('');
+      tbody.querySelectorAll('.btn-del-dm').forEach(b => {
+        b.addEventListener('click', async () => {
+          const id = b.getAttribute('data-id');
+          if (!confirm('Delete dataset ' + id + '?')) return;
+          await fetch('/datasets/app/manual/delete/' + id + '/', { method: 'POST' });
+          loadManualDatasets();
+        });
+      });
+    } catch(e) { console.error('manual datasets error', e); }
+  }
+
+  const dmForm = document.getElementById('dm-upload-form');
+  if (dmForm) {
+    dmForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pol = document.getElementById('dm-ds-policy').value;
+      const dest = document.getElementById('dm-ds-destination').value;
+      const alertEl = document.getElementById('dm-policy-alert');
+      if (pol === 'LOCAL_ONLY' && (dest === 'MEC_STORAGE' || dest === 'CLOUD_STORAGE')) {
+        alertEl.textContent = 'Policy Violation: LOCAL_ONLY datasets cannot be stored on MEC or Cloud tiers.';
+        alertEl.style.display = 'block';
+        return;
+      }
+      if (pol === 'TRUSTED_EDGE' && dest === 'CLOUD_STORAGE') {
+        alertEl.textContent = 'Policy Violation: TRUSTED_EDGE datasets cannot be stored on Cloud tier.';
+        alertEl.style.display = 'block';
+        return;
+      }
+      alertEl.style.display = 'none';
+      const btn = document.getElementById('dm-btn-upload');
+      btn.disabled = true;
+      btn.textContent = 'Uploading...';
+      try {
+        const res = await fetch('/datasets/app/manual/upload/', { method: 'POST', body: new FormData(dmForm) });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          dmForm.reset();
+          loadManualDatasets();
+          if (typeof showToast === 'function') showToast(data.message, 'success');
+        } else {
+          alertEl.textContent = data.error || 'Upload failed';
+          alertEl.style.display = 'block';
+        }
+      } catch(err) {
+        alertEl.textContent = 'Network error during upload';
+        alertEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Upload & Verify Dataset';
+      }
+    });
+  }
+
+  loadOverview();loadCharts();loadPanels();loadExpOptions();loadVerifiedCatalog();loadManualDatasets();
 })();
 </script>
 {% endblock %}

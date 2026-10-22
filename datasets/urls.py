@@ -3,6 +3,13 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path("overview", views.dataset_overview, name="dataset_overview_bare"),
+    path("cards", views.dataset_cards, name="dataset_cards_bare"),
+    path("visualizations", views.dataset_visualizations, name="dataset_visualizations_bare"),
+    path("mysql", views.dataset_mysql_rows, name="dataset_mysql_bare"),
+    path("experiment-options", views.experiment_options, name="dataset_experiment_options_bare"),
+    path("verified-catalog", views.verified_catalog, name="verified_catalog_bare"),
+    path("verified-detail/<str:slug>", views.verified_detail, name="verified_detail_bare"),
     path("api/datasets/overview", views.dataset_overview, name="dataset_overview"),
     path("api/datasets/cards", views.dataset_cards, name="dataset_cards"),
     path("api/datasets/visualizations", views.dataset_visualizations, name="dataset_visualizations"),
@@ -36,4 +43,11 @@ urlpatterns = [
     path("scenarios/run/<str:scenario_id>/", views.run_workload_scenario_api, name="run_workload_scenario_api"),
     path("api/datasets/scenarios/", views.workload_scenarios_list_api),
     path("api/datasets/scenarios/run/<str:scenario_id>/", views.run_workload_scenario_api),
+    # Phase 10 Manual Dataset Ingestion Routes
+    path("manual/upload/", views.manual_dataset_upload_api, name="manual_dataset_upload_api"),
+    path("manual/list/", views.manual_datasets_list_api, name="manual_datasets_list_api"),
+    path("manual/delete/<str:dataset_id>/", views.manual_dataset_delete_api, name="manual_dataset_delete_api"),
+    path("api/datasets/manual/upload/", views.manual_dataset_upload_api),
+    path("api/datasets/manual/list/", views.manual_datasets_list_api),
+    path("api/datasets/manual/delete/<str:dataset_id>/", views.manual_dataset_delete_api),
 ]

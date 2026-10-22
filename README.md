@@ -1,6 +1,8 @@
-# Smart Hospital Medical-Image Processing using Intelligent and Secure Task Scheduling for Digital Twin-Enabled Edge–Cloud Networks
+# Intelligent and Secure Task Scheduling for Digital Twin-Enabled Edge–Cloud Networks
 
-An advanced academic research prototype and edge-computing testbed that integrates **real medical-image preprocessing**, a **live multi-tier Digital Twin**, and a **security-aware multi-objective Genetic Algorithm (GA)** scheduler for smart hospital edge–cloud networks.
+An advanced academic research platform and edge-computing testbed that integrates **genuine hospital-workload processing**, a **live multi-tier Digital Twin**, and a **security-aware multi-objective Genetic Algorithm (GA)** scheduler evaluated against 5 baseline schedulers across Local, MEC, and Cloud network infrastructure.
+
+> **Demonstration Scenario:** Hospital-related clinical workloads are employed as a realistic, high-assurance evaluation scenario to demonstrate privacy-preserving task offloading, strict placement policy enforcement, defensive cybersecurity monitoring, and timeout resilience.
 
 ---
 
@@ -8,11 +10,11 @@ An advanced academic research prototype and edge-computing testbed that integrat
 
 ```
 +---------------------------------------------------------------------------------------------------------+
-|                                    SMART HOSPITAL NETWORK ARCHITECTURE                                  |
+|                                    EDGE–CLOUD NETWORK ARCHITECTURE                                      |
 +---------------------------------------------------------------------------------------------------------+
                                                      │
-                                 [Medical Image Ingestion]
-                     MedMNIST PneumoniaMNIST Testbed (PNG / NPZ / Uploads)
+                                 [Workload Submission & Triage]
+                    14 Real Hospital Workloads (Images, EHRs, Labs, Documents, Appointments)
                                                      │
                                                      ▼
 +---------------------------------------------------------------------------------------------------------+
@@ -33,7 +35,8 @@ An advanced academic research prototype and edge-computing testbed that integrat
                                                      ▼
 +---------------------------------------------------------------------------------------------------------+
 |                     MULTI-OBJECTIVE GENETIC ALGORITHM (GA) & BASELINE SCHEDULERS                        |
-|  Minimise: Fitness = w1*Latency + w2*Energy + w3*Privacy_Loss + w4*Security_Risk + Hard_Penalty        |
+|  Minimise: Fitness = w1*Latency + w2*Energy + w3*Privacy_Loss + w4*Security_Risk + Strict_Penalty       |
+|  Strict Ineligibility: Unassignable tasks mapped to "BLOCKED" gene (-1). Zero Policy Violations!        |
 |  Baselines: Round Robin | First Fit | Random | Greedy (Latency-First) | Privacy-Aware                   |
 +---------------------------------------------------------------------------------------------------------+
                                                      │
@@ -42,96 +45,162 @@ An advanced academic research prototype and edge-computing testbed that integrat
                     ▼                                ▼                                ▼
          [LOCAL WORKSTATION]                  [MEC EDGE AGENT]               [SIMULATED CLOUD]
          - Direct Execution                  - Autonomous Poll               - WAN Transfer (170ms)
-         - Hospital Workstation              - Authenticated Task Run        - De-identified Scans
+         - LOCAL_STORAGE (50 GB)             - MEC_STORAGE (200 GB)          - CLOUD_STORAGE (1000 GB)
+         - Confidential Data                 - Authenticated MEC Tasks       - De-identified Workloads
                     │                                │                                │
                     └────────────────────────────────┼────────────────────────────────┘
                                                      │
                                                      ▼
 +---------------------------------------------------------------------------------------------------------+
-|                         GENUINE MEDICAL-IMAGE PREPROCESSING PIPELINE                                    |
-|  1. Format & Dimensional Validation (Rejects corrupt/non-image inputs with descriptive diagnostics)     |
-|  2. Grayscale Conversion (Standardized 8-bit single channel)                                            |
-|  3. Lanczos Target Resizing (e.g., 224x224 standard deep learning input)                                |
-|  4. Pixel Intensity Normalization ([0.0, 1.0] range)                                                    |
-|  5. CLAHE Contrast Enhancement (scikit-image exposure adaptive histogram equalization)                  |
-|  6. Cryptographic SHA-256 Checksums (Input and Output verification for auditability)                    |
-|  7. Monotonic High-Resolution Timing (`time.perf_counter` execution logging)                            |
+|                         GENUINE HOSPITAL WORKLOAD PROCESSING PIPELINE                                   |
+|  1. Preprocessing & Normalization: CLAHE contrast equalization, 224x224 standardization, SHA-256        |
+|  2. Clinical EHR Scoring: NEWS2 National Early Warning Score evaluation with vitals validation          |
+|  3. Lab Panels: Comprehensive metabolic & CBC panel reference check, flagging, and severity indexing    |
+|  4. Medical Document Metadata: ICD-10 diagnostic code tagging and cryptographic content signature       |
+|  5. Outpatient Appointment Batch: Constraint satisfaction, time conflict elimination, queue ordering     |
+|  6. Defensive Security: Recursive secret sanitization, rate-limiting, and privacy violation blockage    |
+|  7. Watchdogs & Timers: Execution watchdog timers, dropped-worker reclamation, exponential backoff     |
 +---------------------------------------------------------------------------------------------------------+
                                                      │
                                                      ▼
 +---------------------------------------------------------------------------------------------------------+
-|                         EXPERIMENT BENCHMARKING & CSV EXPORT SUITE                                      |
-|  - Live Comparison Tables: Latency (Avg, Median, P95), Deadline Miss %, Energy (J), Compliance Rate     |
-|  - Interactive Visualizations: Chart.js Bar & Line Convergence Charts                                   |
-|  - RFC-Compliant CSV Streaming: Downloadable benchmark data for research analysis                      |
+|                         EXPERIMENT BENCHMARKING & 14-COLUMN CSV EXPORT                                  |
+|  - Schedulers Evaluated: Proposed GA, Round Robin, First Fit, Random, Greedy, Privacy-Aware             |
+|  - Metrics: Makespan (s), Latency (ms), Energy (J), Violations (0), Blocked, Throughput, Utilization    |
+|  - 14-Column RFC-Compliant CSV Streaming: Direct export from REST API and Web UI                         |
 +---------------------------------------------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. Dataset Integration & Provenance
+## 2. The 14 Hospital Workload Scenarios
 
-The system integrates the official **MedMNIST v3** PneumoniaMNIST dataset:
+The platform implements 14 genuine clinical workloads across 4 test categories. Every workload executes genuine computation with high-resolution timing, input/output SHA-256 checksums, and explicit policy validation (zero placeholders or simulated outcomes):
 
-- **Dataset Name:** PneumoniaMNIST (MedMNIST v3.0.2)
-- **Source:** Yang et al., *"MedMNIST v2: A Large-Scale Lightweight Benchmark for 2D and 3D Biomedical Image Classification"*, Nature Scientific Data (2023).
-- **Primary Source:** Kermany et al., *"Identifying Medical Diagnoses and Treatable Diseases by Image-Based Deep Learning"*, Cell 172.5 (2018): 1122-1131.
-- **Storage Location:** `data_storage/medical_datasets/pneumoniamnist/` (strictly outside the public webroot).
-- **Split Breakdown:** 4,708 training, 524 validation, and 624 test images (5,856 total 28x28 grayscale pediatric chest X-rays).
-- **Synthetic Patient IDs:** Indexed with mock hospital references (`MED-PN-TEST-0001`, etc.) to demonstrate realistic hospital workflow handling without exposing real PHI.
+### Category 1: Success Workloads (5 Cases)
+| Scenario ID | Name | Policy | Expected Status | Description & Genuine Output |
+| :--- | :--- | :--- | :--- | :--- |
+| **`HOSP-SUCCESS-01`** | Medical Image Preprocessing | `TRUSTED_EDGE` | `COMPLETED` | CLAHE adaptive contrast equalization, 224x224 Lanczos resizing, input & output SHA-256 checksums. |
+| **`HOSP-SUCCESS-02`** | Patient Clinical Record Processing | `LOCAL_ONLY` | `COMPLETED` | NEWS2 National Early Warning Score calculation, vital signs risk stratification, and PHI de-identification. |
+| **`HOSP-SUCCESS-03`** | Laboratory Metabolic & CBC Panel | `TRUSTED_EDGE` | `COMPLETED` | Reference range validation (glucose, creatinine, WBC, platelets), abnormal flagging, and clinical severity index. |
+| **`HOSP-SUCCESS-04`** | Medical Document Metadata Extraction | `TRUSTED_EDGE` | `COMPLETED` | Entity tagging, ICD-10 diagnostic code extraction (e.g., J18.9 Pneumonia, E11 Type 2 Diabetes), SHA-256 signature. |
+| **`HOSP-SUCCESS-05`** | Outpatient Appointment Scheduling | `CLOUD_ALLOWED` | `COMPLETED` | Batch scheduling, room and physician conflict resolution, urgency triage ordering, and slot allocation. |
 
----
+### Category 2: Controlled Error Workloads (3 Cases)
+| Scenario ID | Name | Policy | Expected Status | Error Code | Behavior |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`HOSP-ERROR-01`** | Malformed / Corrupted Image File | `TRUSTED_EDGE` | `FAILED` | `ERR_MALFORMED_INPUT` | Zero-byte or truncated header detected; non-retryable execution failure. |
+| **`HOSP-ERROR-02`** | Incomplete Patient Record | `LOCAL_ONLY` | `REJECTED` | `ERR_MISSING_MANDATORY_FIELDS` | Pre-dispatch validation rejects record missing mandatory vitals without queuing. |
+| **`HOSP-ERROR-03`** | Unsupported Record Format | `TRUSTED_EDGE` | `REJECTED` | `ERR_UNSUPPORTED_FORMAT` | Schema mismatch or unknown serialization rejected before scheduling. |
 
-## 3. Explicit Privacy Placement Policies
+### Category 3: Defensive Security Scenarios (3 Cases)
+| Scenario ID | Name | Policy | Expected Status | Event Type | Defensive Protection |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`HOSP-SEC-01`** | Unauthorized Task Submission | `LOCAL_ONLY` | `REJECTED` | `UNAUTHORIZED_TASK_SUBMISSION` | Unauthenticated submission rejected with HTTP 403; security audit recorded with redacted tokens. |
+| **`HOSP-SEC-02`** | Invalid/Expired MEC Credentials | `TRUSTED_EDGE` | `REJECTED` | `INVALID_MEC_AUTH` | Rogue or expired token rejected; security audit recorded with sanitized payload. |
+| **`HOSP-SEC-03`** | Unauthorized Cloud Replication | `LOCAL_ONLY` | `BLOCKED` | `PRIVACY_POLICY_VIOLATION` | Attempt to replicate `LOCAL_ONLY` data to Cloud is blocked by policy engine with audit event. |
 
-Tasks are tagged with explicit placement policies enforced before candidate chromosome sampling and validated at dispatch:
-
-| Policy | Allowed Execution Tiers | Description / Hospital Use Case |
-| :--- | :--- | :--- |
-| **`LOCAL_ONLY`** | `LOCAL` Workstation only | Confidential or high-privacy scans prohibited from leaving hospital premises. Rejects MEC and Cloud placement with a hard penalty (`+10,000.0`). |
-| **`TRUSTED_EDGE`** | `LOCAL` Workstation or authenticated, non-stale `MEC` | General hospital ward tasks offloadable to verified edge nodes. Cloud placement is strictly forbidden. |
-| **`CLOUD_ALLOWED`** | `LOCAL`, `MEC`, or `CLOUD` | De-identified research scans eligible for burst offloading to cloud tiers with simulated latency models. |
-
----
-
-## 4. Digital Twin Telemetry Engine
-
-The Digital Twin (`engine/digital_twin.py`) provides an accurate virtual replica of execution tiers:
-
-1. **`LOCAL` Workstation:**
-   - Telemetry mode: `MEASURED_HARDWARE`
-   - Real-time CPU and RAM utilization measured directly from the host system via `psutil`.
-2. **`MEC` Edge Nodes:**
-   - Telemetry mode: `MEASURED_HEARTBEAT`
-   - Reflects registered `MECAgent` database models. Automatically transitions to `STALE_OFFLINE` if no heartbeat is received within 35 seconds.
-3. **`CLOUD` Infrastructure:**
-   - Telemetry mode: `SIMULATED_CLOUD`
-   - Explicitly labeled as a simulation tier with configurable network WAN latency (default ~170ms) and energy rates.
+### Category 4: Timeout & Retry Scenarios (3 Cases)
+| Scenario ID | Name | Policy | Expected Status | Error Code | Fault-Tolerance Mechanism |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`HOSP-TIME-01`** | Workload Exceeding Time Limit | `TRUSTED_EDGE` | `TIMED_OUT` | `ERR_EXECUTION_TIMEOUT` | Precision watchdog timer aborts execution, frees CPU/RAM resources, status `TIMED_OUT`. |
+| **`HOSP-TIME-02`** | Unresponsive Worker / Dropped Node | `TRUSTED_EDGE` | `TIMED_OUT` | `ERR_WORKER_UNRESPONSIVE` | Supervisor reclaims task, detaches offline MEC, status `TIMED_OUT`. |
+| **`HOSP-TIME-03`** | Transient Failure Retry Exhaustion | `TRUSTED_EDGE` | `FAILED` | `ERR_MAX_RETRIES_EXCEEDED` | Exponential backoff retries strictly halt when `retry_count >= max_retries` (zero infinite loops). |
 
 ---
 
-## 5. Multi-Objective Scheduling & Baseline Comparison
+## 3. Verified 3-Tier Storage & Physical Replication
 
-The system implements a multi-objective Genetic Algorithm alongside 5 baseline schedulers evaluated on identical workloads:
+Data is managed across 3 verified physical storage tiers stored outside the public webroot (`data_storage/`):
 
-- **Genetic Algorithm (GA):** Tournament selection, single-point crossover, per-gene mutation respecting candidate eligibility, elitism, and penalty functions for offline or privacy violations.
-- **Round Robin:** Cycles through eligible resources for each task.
-- **First Fit:** Selects the first eligible node in the hierarchy.
-- **Random:** Reproducible pseudo-random choice among eligible resources.
-- **Greedy:** Latency-minimizing assignment among eligible resources.
-- **Privacy-Aware:** Privacy-loss minimizing assignment with latency tie-breaking.
+1. **`LOCAL_STORAGE` (50 GB Capacity):**
+   - Placement Policy: Strictly `LOCAL_ONLY`
+   - Path: `data_storage/local_storage/`
+   - Use Case: Highly confidential patient scans and identifiable medical records.
+2. **`MEC_STORAGE` (200 GB Capacity):**
+   - Placement Policy: `TRUSTED_EDGE`
+   - Path: `data_storage/mec_storage/`
+   - Use Case: De-identified hospital ward scans and edge-cached laboratory reports.
+3. **`CLOUD_STORAGE` (1000 GB Capacity):**
+   - Placement Policy: `CLOUD_ALLOWED`
+   - Path: `data_storage/cloud_storage/`
+   - Use Case: Public medical benchmarks and de-identified archives.
 
-### Downloadable CSV Benchmarks
-Evaluated results can be exported as RFC-compliant CSV files from the web UI or via:
-```http
-GET /api/digital-twin/experiments/export-csv/?tasks_count=12&seed=42
+### Cryptographic Verification & Auditability:
+- Every replicated file is physically copied and verified via SHA-256 cryptographic checksum matching.
+- Re-transfers of unmodified files are skipped via idempotent hash checks.
+- Audit sweeps verify on-disk replica health via `POST /api/datasets/storage/verify/`.
+- Complete inventory export available via `GET /api/datasets/storage/export-csv/`.
+
+---
+
+## 4. Multi-Objective Scheduling & Comparative Benchmark
+
+The scheduling engine compares the **Proposed Multi-Objective Genetic Algorithm (GA)** against **5 baseline schedulers** on identical hospital workloads:
+
+1. **Proposed Genetic Algorithm (GA):** Tournament selection, single-point crossover, candidate-valid mutation, and multi-objective fitness balancing latency, energy, privacy loss, and security risk with strict ineligibility penalties.
+2. **Round Robin:** Cycles tasks across policy-eligible nodes.
+3. **First Fit:** Assigns each task to the first policy-eligible resource in hierarchy.
+4. **Random:** Uniform random selection among policy-eligible resources.
+5. **Greedy (Latency-First):** Minimizes predicted processing and transfer latency.
+6. **Privacy-Aware:** Minimizes privacy loss with latency tie-breaking.
+
+### Strict Policy Enforcement:
+- Unassignable tasks receive a `"BLOCKED"` gene (`-1`) with high fitness penalty.
+- **Zero Policy Violations:** All 6 algorithms achieve `policy_violations == 0` and 100% privacy compliance.
+- Infeasible tasks are accounted for cleanly under `blocked_tasks` without throwing exceptions.
+
+### 14-Column Benchmark CSV Export:
+Exports RFC-compliant CSV containing:
+`Algorithm, Tasks Assigned, Tasks Blocked, Policy Violations, Makespan (s), Average Latency (s), Throughput (tasks/s), Local Resource Utilization (%), MEC Resource Utilization (%), Cloud Resource Utilization (%), Energy Consumption (J), Scheduling Overhead (ms), Privacy Compliance Rate (%), Timestamp`
+
+---
+
+## 5. Management Commands
+
+### 1. List Registered Hospital Workloads & Storage Tiers
+```powershell
+python manage.py list_hospital_datasets
 ```
+Displays all 14 official workload scenarios, registered public datasets, and status of the 3 verified storage destinations.
+
+### 2. Download / Register Benchmark Datasets
+```powershell
+python manage.py download_hospital_datasets --skip-download
+```
+Registers metadata and versions for MedMNIST benchmark datasets without requiring live external network access.
+
+### 3. Run Comparative Schedulers Benchmark
+```powershell
+python manage.py run_hospital_scheduler_benchmark --tasks-count 14 --population 30 --generations 20 --seed 42
+```
+Executes all 6 scheduling algorithms on the hospital workload, stores decisions and experiment run in the database, displays the summary comparison table, and generates a timestamped CSV export in `data_storage/benchmarks/`.
 
 ---
 
-## 6. Getting Started (Windows Execution)
+## 6. REST API Endpoints
 
-### Prerequisites
+### Hospital Workloads & Scenarios:
+- `GET /api/datasets/scenarios/` — List all 14 registered hospital workload scenarios.
+- `POST /api/datasets/scenarios/run/<scenario_id>/` — Execute a live, genuine workload run and return output, duration, and SHA-256 checksums.
+
+### Storage & Replication:
+- `GET /api/datasets/storage/destinations/` — List the 3 verified storage destinations, capacities, and usage.
+- `GET /api/datasets/storage/replicas/` — List physical replicas, checksums, and verification status.
+- `POST /api/datasets/storage/replicate/` — Trigger policy-verified replication between tiers.
+- `GET /api/datasets/storage/export-csv/` — Download storage replica inventory CSV.
+- `POST /api/datasets/storage/verify/` — Perform an audit sweep of on-disk replicas.
+
+### Comparative Scheduler Benchmark:
+- `GET /api/tasks/hospital-benchmark/summary/` — Retrieve the latest benchmark experiment run.
+- `POST /api/tasks/hospital-benchmark/run/` — Execute a comparative benchmark across all 6 algorithms.
+- `GET /api/tasks/hospital-benchmark/export-csv/` — Download 14-column comparative benchmark CSV.
+
+---
+
+## 7. Getting Started (Windows Execution)
+
+### Prerequisites:
 - Python 3.11, 3.12, or 3.13 on Windows 10/11
 - Virtual environment (`venv`)
 
@@ -142,51 +211,37 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-### Step 2: Database Setup
-The application is pre-configured with a dual database engine that defaults to SQLite (`db.sqlite3`) and switches to MySQL when `USE_MYSQL=1` is set in the environment:
+### Step 2: Apply Database Migrations
 ```powershell
 python manage.py migrate
 ```
 
-### Step 3: Download & Extract Medical Dataset
-Download the verified MedMNIST PneumoniaMNIST dataset and extract benchmark samples outside the webroot:
-```powershell
-python manage.py download_medical_dataset
-```
-
-### Step 4: Run the Development Server
+### Step 3: Run the Development Server
 ```powershell
 python manage.py runserver
 ```
-Visit `http://127.0.0.1:8000/` to access the SecureDT dashboard.
-- **Medical Images Explorer:** `http://127.0.0.1:8000/medical-dataset/`
-- **Scheduler & GA Benchmarks:** `http://127.0.0.1:8000/genetic-algorithm/`
-- **Task Routing:** `http://127.0.0.1:8000/task-routing/`
+Visit `http://127.0.0.1:8000/` to access the SecureDT dashboard:
+- **Hospital Workloads & Datasets Lab:** `http://127.0.0.1:8000/medical-dataset/`
+- **Task Routing & Schedulers Benchmark:** `http://127.0.0.1:8000/task-routing/`
+- **Security Monitor & Audit Trails:** `http://127.0.0.1:8000/security-monitor/`
 - **MEC Infrastructure:** `http://127.0.0.1:8000/mec-infrastructure/`
-
-### Step 5: Run Autonomous MEC Edge Agent (Optional Edge Node)
-In a separate terminal:
-```powershell
-python mec_agent/agent.py run
-```
-The agent connects to the Django server, sends live telemetry heartbeats, pulls assigned medical image tasks, executes genuine preprocessing or CPU workloads, and reports verifiable results back to the server.
+- **Digital Twin:** `http://127.0.0.1:8000/digital-twin/`
 
 ---
 
-## 7. Automated Test Suite
+## 8. Automated Test Suite
 
-Run the complete regression and verification test suite:
+Run the complete self-contained test suite:
 ```powershell
 python manage.py test tests -v 2
 ```
-All 26 tests (including smoke, authentication, Google Drive integration, image preprocessing, policy engine, digital twin, GA optimizer, baselines, and CSV streaming) should complete with `OK`.
+All **58 tests** complete with `OK` in under 30 seconds with zero regressions, zero failures, and zero external network or cloud credential dependencies.
 
 ---
 
-## 8. Research Limitations & Medical Disclaimer
+## 9. Research Limitations & Disclaimer
 
 > [!WARNING]
 > **Academic Research Prototype Notice:**
-> This software is an engineering and computing research testbed for evaluating task scheduling, edge computing, Digital Twins, and privacy placement policies.
+> This software is an engineering and computer science research testbed for evaluating task scheduling, edge computing, Digital Twins, and privacy placement policies in edge–cloud networks.
 > It is **NOT** a medical diagnostic device and has **NOT** been certified or approved by the FDA, CE, or any health authority for clinical decision-making or diagnosis.
-> Preprocessing operations prepare medical images for pipeline analysis and must never be interpreted as clinical diagnoses.

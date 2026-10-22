@@ -551,3 +551,111 @@ def verify_replicas_api(request):
 
     res = verify_all_storage_replicas()
     return JsonResponse(res)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def workload_scenarios_list_api(request):
+    """List all 14 registered hospital workload scenarios across 4 categories."""
+    from engine.hospital_workloads import ensure_all_14_scenarios_registered
+    from datasets.models import WorkloadScenario
+
+    ensure_all_14_scenarios_registered()
+    scenarios = WorkloadScenario.objects.all().order_by("category", "scenario_id")
+    data = []
+    for s in scenarios:
+        data.append({
+            "scenario_id": s.scenario_id,
+            "name": s.name,
+            "category": s.category,
+            "workload_type": s.workload_type,
+            "privacy_policy": s.privacy_policy,
+            "expected_status": s.expected_status,
+            "expected_error_code": s.expected_error_code,
+            "timeout_limit_seconds": s.timeout_limit_seconds,
+            "max_retries": s.max_retries,
+            "description": s.description,
+            "sample_input_path": s.sample_input_path,
+        })
+    return JsonResponse({"scenarios": data, "count": len(data)})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def run_workload_scenario_api(request, scenario_id):
+    """
+    Execute a genuine workload run for any of the 14 official scenarios.
+    Returns status, SHA-256 checksums, execution timing, and verification details.
+    """
+    import time
+    from engine.hospital_workloads import (
+        ensure_all_14_scenarios_registered,
+        execute_hospital_workload,
+        get_synthetic_medical_image_fixture,
+        get_synthetic_patient_record_fixture,
+        get_synthetic_lab_report_fixture,
+        get_synthetic_medical_document_fixture,
+        get_synthetic_appointment_batch_fixture,
+        get_synthetic_corrupted_image_fixture,
+        get_synthetic_incomplete_patient_record_fixture,
+        get_synthetic_unsupported_format_fixture,
+    )
+    from datasets.models import WorkloadScenario
+    from tasks.models import Task
+
+    ensure_all_14_scenarios_registered()
+    scenario = WorkloadScenario.objects.filter(scenario_id=scenario_id).first()
+    if not scenario:
+        return JsonResponse({"error": f"Scenario {scenario_id} not found"}, status=404)
+
+    if scenario_id == "HOSP-SUCCESS-01":
+        path = str(get_synthetic_medical_image_fixture())
+    elif scenario_id == "HOSP-SUCCESS-02":
+        path = str(get_synthetic_patient_record_fixture())
+    elif scenario_id == "HOSP-SUCCESS-03":
+        path = str(get_synthetic_lab_report_fixture())
+    elif scenario_id == "HOSP-SUCCESS-04":
+        path = str(get_synthetic_medical_document_fixture())
+    elif scenario_id == "HOSP-SUCCESS-05":
+        path = str(get_synthetic_appointment_batch_fixture())
+    elif scenario_id == "HOSP-ERROR-01":
+        path = str(get_synthetic_corrupted_image_fixture())
+    elif scenario_id == "HOSP-ERROR-02":
+        path = str(get_synthetic_incomplete_patient_record_fixture())
+    elif scenario_id == "HOSP-ERROR-03":
+        path = str(get_synthetic_unsupported_format_fixture())
+    else:
+        path = str(get_synthetic_patient_record_fixture())
+
+    task = Task.objects.create(
+        task_id=f"TEST-{scenario_id}-{int(time.time())}",
+        name=f"Interactive Test {scenario_id}: {scenario.name}",
+        scenario_id=scenario.scenario_id,
+        workload_category=scenario.category,
+        workload_type=scenario.workload_type,
+        privacy_policy=scenario.privacy_policy,
+        image_path=path,
+        timeout_limit_seconds=scenario.timeout_limit_seconds,
+        max_retries=scenario.max_retries,
+    )
+
+    t0 = time.time()
+    ok, msg, res = execute_hospital_workload(task)
+    dur = round((time.time() - t0) * 1000.0, 2)
+    task.refresh_from_db()
+
+    return JsonResponse({
+        "scenario_id": scenario.scenario_id,
+        "name": scenario.name,
+        "category": scenario.category,
+        "status": task.status,
+        "expected_status": scenario.expected_status,
+        "success": ok,
+        "error_code": task.error_code or "",
+        "error_message": task.error_message or msg,
+        "input_checksum": task.input_checksum or "",
+        "output_checksum": task.output_checksum or "",
+        "execution_time_ms": dur,
+        "privacy_policy": task.privacy_policy,
+        "result_preview": res if isinstance(res, dict) else {},
+    })

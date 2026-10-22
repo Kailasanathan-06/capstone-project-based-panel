@@ -116,12 +116,28 @@ class DigitalTwinViewSet(viewsets.ViewSet):
                 "CRITICAL" if risk >= 0.8 else "HIGH" if risk >= 0.6 else "MEDIUM" if risk >= 0.3 else "LOW"
             )
             enriched.append(s)
+
+        alerts = list(monitor.get_alerts(limit=50))
+        try:
+            from datasets.models import SecurityAuditEvent
+            for ev in SecurityAuditEvent.objects.order_by("-timestamp")[:50]:
+                alerts.append({
+                    "timestamp": ev.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                    "kind": ev.event_type,
+                    "severity": ev.severity.lower(),
+                    "resource": ev.task_id or ev.source_ip or "STORAGE",
+                    "message": f"[{ev.event_type}] {ev.description} (Blocked: {ev.blocked})",
+                })
+            alerts.sort(key=lambda x: str(x.get("timestamp", "")), reverse=True)
+        except Exception:
+            pass
+
         return Response(
             {
                 "overview": overview,
                 "threat_level": monitor.threat_level(twin),
                 "max_risk": round(risk, 3),
-                "alerts": monitor.get_alerts(limit=100),
+                "alerts": alerts,
                 "resources": enriched,
             }
         )

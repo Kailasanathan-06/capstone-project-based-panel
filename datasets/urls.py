@@ -31,4 +31,9 @@ urlpatterns = [
     path("api/datasets/storage/replicate/", views.trigger_replication_api),
     path("api/datasets/storage/export-csv/", views.storage_export_csv_api),
     path("api/datasets/storage/verify/", views.verify_replicas_api),
+    # Phase 9 Scenario Interactive Lab Routes
+    path("scenarios/", views.workload_scenarios_list_api, name="workload_scenarios_list_api"),
+    path("scenarios/run/<str:scenario_id>/", views.run_workload_scenario_api, name="run_workload_scenario_api"),
+    path("api/datasets/scenarios/", views.workload_scenarios_list_api),
+    path("api/datasets/scenarios/run/<str:scenario_id>/", views.run_workload_scenario_api),
 ]

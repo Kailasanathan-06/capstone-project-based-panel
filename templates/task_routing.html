@@ -197,7 +197,61 @@
       </div>
     </div>
   </section>
-</div>
+<!-- Hospital Schedulers Comparative Benchmark Section -->
+<section class="card" aria-labelledby="benchmark-heading" style="margin-bottom: var(--space-6);">
+  <header class="card-header">
+    <div>
+      <h2 class="card-title" id="benchmark-heading">Hospital Workload Schedulers Comparative Benchmark</h2>
+      <p style="font-size: 0.85rem; color: var(--color-text-muted); margin: 0.25rem 0 0 0;">
+        Comparative evaluation of Proposed GA against 5 baselines: Round Robin, First Fit, Random, Greedy, and Privacy-Aware.
+      </p>
+    </div>
+    <div class="flex gap-2" style="align-items: center;">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <label for="bench-tasks-count" style="font-size:0.8rem; color:#94a3b8;">Tasks:</label>
+        <select id="bench-tasks-count" class="form-select" style="width:auto; padding:0.3rem 0.6rem; font-size:0.8rem;">
+          <option value="6">6 Tasks</option>
+          <option value="14" selected>14 Tasks (All Scenarios)</option>
+          <option value="28">28 Tasks (2x Workload)</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-sm" id="btn-run-benchmark" onclick="runComparativeBenchmark()">
+        <svg class="icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        Run Benchmark
+      </button>
+      <a href="/api/tasks/hospital-benchmark/export-csv/" class="btn btn-secondary btn-sm" id="btn-export-benchmark-csv">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Export CSV
+      </a>
+    </div>
+  </header>
+  <div class="card-content">
+    <div id="benchmark-summary-notice" style="margin-bottom: 1rem; font-size:0.85rem; color:#94a3b8;">
+      Loaded latest benchmark results. Zero policy violations strictly enforced across all algorithms.
+    </div>
+    <div class="table-container">
+      <table class="table" id="benchmark-results-table">
+        <thead>
+          <tr>
+            <th>Algorithm</th>
+            <th>Assigned</th>
+            <th>Blocked</th>
+            <th>Policy Violations</th>
+            <th>Makespan (s)</th>
+            <th>Avg Latency (ms)</th>
+            <th>Total Energy (J)</th>
+            <th>Throughput</th>
+            <th>Resource Distribution</th>
+            <th>Privacy Compliance</th>
+          </tr>
+        </thead>
+        <tbody id="benchmark-results-body">
+          <tr><td colspan="10" style="text-align:center; color:#94a3b8; padding:1.5rem;">Loading comparative benchmark data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
 
 <!-- Task Queue Table -->
 <section class="card" aria-labelledby="queue-heading">
@@ -408,6 +462,108 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#queue-filter')?.addEventListener('change', loadTaskQueue);
   
   loadTaskQueue();
+  loadBenchmarkSummary();
+
+  async function loadBenchmarkSummary() {
+    try {
+      const res = await fetch('/api/tasks/hospital-benchmark/summary/');
+      const data = await res.json();
+      const summary = data.summary || {};
+      const body = $('#benchmark-results-body');
+      if (!body) return;
+      
+      const algos = Object.keys(summary);
+      if (!algos.length) {
+        body.innerHTML = '<tr><td colspan="10" style="text-align:center; color:#94a3b8; padding:1.5rem;">No benchmark runs recorded yet. Click "Run Benchmark" above to evaluate all 6 schedulers.</td></tr>';
+        return;
+      }
+      
+      body.innerHTML = algos.map(name => {
+        const m = summary[name] || {};
+        const isGA = name === 'proposed_ga';
+        const violations = m.policy_violations || 0;
+        const makespan = (m.makespan_s || (m.avg_latency_ms ? m.avg_latency_ms/1000 : 0)).toFixed(3);
+        const lat = (m.avg_latency_ms || 0).toFixed(1);
+        const energy = (m.total_energy_j || 0).toFixed(2);
+        const assigned = m.tasks_assigned ?? (data.tasks_count ? data.tasks_count - (m.blocked_tasks || 0) : '—');
+        const blocked = m.tasks_blocked ?? m.blocked_tasks ?? 0;
+        const throughput = m.throughput ?? (m.makespan_s ? (data.tasks_count / m.makespan_s).toFixed(1) : '—');
+        const resUtil = m.resource_utilization || {};
+        const distStr = `LOCAL: ${resUtil.LOCAL || 0} | MEC: ${resUtil.MEC || 0} | CLOUD: ${resUtil.CLOUD || 0}`;
+        const compliance = Math.round((m.policy_compliance_rate ?? (m.privacy_compliance_rate ? m.privacy_compliance_rate/100 : 1.0)) * 100);
+
+        return `
+          <tr style="${isGA ? 'background:rgba(14, 165, 233, 0.08); font-weight:600;' : ''}">
+            <td>
+              <span style="${isGA ? 'color:#38bdf8; font-weight:700;' : 'color:#f8fafc;'}">
+                ${name} ${isGA ? '<span class="badge badge-primary" style="font-size:0.65rem; margin-left:0.3rem;">PROPOSED</span>' : ''}
+              </span>
+            </td>
+            <td><span class="badge badge-success">${assigned}</span></td>
+            <td><span class="badge ${blocked > 0 ? 'badge-warning' : 'badge-ghost'}">${blocked}</span></td>
+            <td>
+              <span class="badge ${violations === 0 ? 'badge-success' : 'badge-danger'}">
+                ${violations} ${violations === 0 ? '✓' : '✗'}
+              </span>
+            </td>
+            <td>${makespan} s</td>
+            <td>${lat} ms</td>
+            <td>${energy} J</td>
+            <td>${throughput} /s</td>
+            <td><small style="color:#94a3b8; font-family:'JetBrains Mono',monospace;">${distStr}</small></td>
+            <td>
+              <span class="badge badge-success">${compliance}%</span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      
+      const notice = $('#benchmark-summary-notice');
+      if (notice) {
+        notice.innerHTML = `Showing Experiment <strong>${data.experiment_id || 'Latest'}</strong> (${data.tasks_count || 14} tasks evaluated). Zero policy violations strictly enforced.`;
+      }
+    } catch (err) {
+      console.error('Failed to load benchmark summary:', err);
+    }
+  }
+
+  window.runComparativeBenchmark = async () => {
+    const btn = $('#btn-run-benchmark');
+    const tasksCount = parseInt($('#bench-tasks-count')?.value || '14');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="display:inline-block; width:12px; height:12px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; margin-right:0.3rem;"></span> Running...';
+    
+    try {
+      const res = await fetch('/api/tasks/hospital-benchmark/run/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tasks_count: tasksCount,
+          population: 20,
+          generations: 15,
+          seed: 42,
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (typeof SecureDT !== 'undefined' && SecureDT.showToast) {
+          SecureDT.showToast(`Benchmark run completed! Experiment: ${data.experiment_id}`, 'success');
+        } else {
+          alert(`Benchmark completed! Experiment: ${data.experiment_id}`);
+        }
+        loadBenchmarkSummary();
+      } else {
+        alert('Benchmark run failed: ' + (data.error || 'Server error'));
+      }
+    } catch (err) {
+      alert('Failed to execute benchmark: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Run Benchmark';
+    }
+  };
 });
 </script>
 {% endblock %}

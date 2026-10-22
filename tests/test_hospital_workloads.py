@@ -51,6 +51,13 @@ from engine.hospital_workloads import (
     attempt_dataset_replication,
     validate_workload_input,
 )
+from engine.storage_manager import (
+    ensure_storage_destinations_initialized,
+    replicate_file,
+    verify_all_storage_replicas,
+    export_storage_inventory_csv,
+    calculate_file_sha256,
+)
 
 
 class HospitalWorkloadScenariosRegistrationTests(TestCase):
@@ -528,4 +535,164 @@ class TimeoutAndLoopingScenariosTests(TestCase):
         history = list(task.queue_history.values_list("to_status", flat=True))
         self.assertIn("RETRYING", history)
         self.assertIn("FAILED", history)
+
+
+class StorageDestinationsAndReplicationTests(TestCase):
+    """Verify 3 verified storage destinations, physical replication, SHA-256 verification, and CSV export."""
+
+    def setUp(self):
+        ensure_all_14_scenarios_registered()
+        self.dest_dict = ensure_storage_destinations_initialized()
+
+    def test_ensure_storage_destinations_initialized(self):
+        """LOCAL_STORAGE, MEC_STORAGE, and CLOUD_STORAGE initialized with verified directories outside webroot."""
+        self.assertEqual(len(self.dest_dict), 3)
+        self.assertIn("LOCAL_STORAGE", self.dest_dict)
+        self.assertIn("MEC_STORAGE", self.dest_dict)
+        self.assertIn("CLOUD_STORAGE", self.dest_dict)
+
+        for dest_id, dest in self.dest_dict.items():
+            p = Path(dest.base_path)
+            self.assertTrue(p.exists(), f"Path for {dest_id} does not exist: {p}")
+            self.assertTrue((p / ".storage_verified").exists())
+            self.assertTrue(dest.capacity_bytes > 0)
+            self.assertTrue(dest.is_active)
+
+    def test_replicate_file_permitted_trusted_edge_to_mec(self):
+        """File with TRUSTED_EDGE policy successfully replicates to MEC_STORAGE with SHA-256 match and idempotency."""
+        src_file = Path("data_storage/hospital_workloads/test_sample_edge.bin")
+        src_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(src_file, "wb") as fh:
+            fh.write(b"SYNTHETIC_MEDICAL_PAYLOAD_TRUSTED_EDGE_CONTENT_12345")
+
+        src_hash = calculate_file_sha256(src_file)
+
+        # 1. First replication
+        ok, msg, replica = replicate_file(
+            source_path=str(src_file),
+            dataset_id="TEST-DS-EDGE-01",
+            target_destination_id="MEC_STORAGE",
+            privacy_policy="TRUSTED_EDGE",
+        )
+        self.assertTrue(ok, msg)
+        self.assertIsNotNone(replica)
+        self.assertEqual(replica.replication_status, "VERIFIED")
+        self.assertEqual(replica.sha256_checksum, src_hash)
+        self.assertTrue(replica.is_available)
+        self.assertTrue(Path(replica.absolute_path).exists())
+
+        # Verify on-disk checksum
+        dest_hash = calculate_file_sha256(Path(replica.absolute_path))
+        self.assertEqual(dest_hash, src_hash)
+
+        # 2. Idempotent re-run
+        ok_again, msg_again, rep_again = replicate_file(
+            source_path=str(src_file),
+            dataset_id="TEST-DS-EDGE-01",
+            target_destination_id="MEC_STORAGE",
+            privacy_policy="TRUSTED_EDGE",
+        )
+        self.assertTrue(ok_again)
+        self.assertIn("idempotent", msg_again)
+        self.assertEqual(rep_again.replication_status, "VERIFIED")
+
+    def test_replicate_file_permitted_cloud_allowed_to_cloud(self):
+        """File with CLOUD_ALLOWED policy successfully replicates to CLOUD_STORAGE."""
+        src_file = Path("data_storage/hospital_workloads/test_sample_cloud.bin")
+        src_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(src_file, "wb") as fh:
+            fh.write(b"PUBLIC_DEIDENTIFIED_MEDICAL_BENCHMARK_CONTENT_XYZ99")
+
+        src_hash = calculate_file_sha256(src_file)
+
+        ok, msg, replica = replicate_file(
+            source_path=str(src_file),
+            dataset_id="TEST-DS-CLOUD-01",
+            target_destination_id="CLOUD_STORAGE",
+            privacy_policy="CLOUD_ALLOWED",
+        )
+        self.assertTrue(ok, msg)
+        self.assertEqual(replica.replication_status, "VERIFIED")
+        self.assertEqual(replica.sha256_checksum, src_hash)
+
+    def test_replicate_file_blocked_by_policy_local_only_to_mec(self):
+        """Attempting to replicate LOCAL_ONLY data to MEC_STORAGE is strictly blocked with audit event."""
+        src_file = Path("data_storage/hospital_workloads/test_local_only.bin")
+        src_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(src_file, "wb") as fh:
+            fh.write(b"SENSITIVE_LOCAL_PATIENT_VITALS_SECRET")
+
+        ok, msg, replica = replicate_file(
+            source_path=str(src_file),
+            dataset_id="LOCAL-SENSITIVE-01",
+            target_destination_id="MEC_STORAGE",
+            privacy_policy="LOCAL_ONLY",
+        )
+        self.assertFalse(ok)
+        self.assertIn("BLOCKED_BY_POLICY", msg)
+        self.assertEqual(replica.replication_status, "BLOCKED_BY_POLICY")
+        self.assertFalse(replica.is_available)
+
+        audit = SecurityAuditEvent.objects.filter(
+            event_type="PRIVACY_POLICY_VIOLATION",
+            task_id="LOCAL-SENSITIVE-01",
+        ).first()
+        self.assertIsNotNone(audit)
+        self.assertEqual(audit.severity, "CRITICAL")
+        self.assertTrue(audit.blocked)
+
+    def test_verify_all_storage_replicas_audit_sweep(self):
+        """verify_all_storage_replicas correctly audits all replicas on disk."""
+        summary = verify_all_storage_replicas()
+        self.assertIn("total_replicas", summary)
+        self.assertIn("verified", summary)
+        self.assertIn("blocked", summary)
+
+    def test_export_storage_inventory_csv(self):
+        """export_storage_inventory_csv produces a valid CSV file with all required headers."""
+        csv_file_path = export_storage_inventory_csv()
+        self.assertTrue(os.path.exists(csv_file_path))
+
+        with open(csv_file_path, "r", encoding="utf-8") as fh:
+            header_line = fh.readline().strip()
+            self.assertIn("Replica ID", header_line)
+            self.assertIn("Dataset ID", header_line)
+            self.assertIn("Destination ID", header_line)
+            self.assertIn("Replication Status", header_line)
+            self.assertIn("SHA-256 Checksum", header_line)
+
+    def test_storage_rest_apis(self):
+        """REST APIs for storage destinations, replicas, replication, and CSV export function cleanly."""
+        client = APIClient()
+
+        # 1. Destinations endpoint
+        r1 = client.get("/api/datasets/storage/destinations/")
+        self.assertEqual(r1.status_code, 200)
+        dest_data = r1.json()["destinations"]
+        self.assertEqual(len(dest_data), 3)
+
+        # 2. Replicas endpoint
+        r2 = client.get("/api/datasets/storage/replicas/")
+        self.assertEqual(r2.status_code, 200)
+
+        # 3. Trigger replication endpoint with policy block
+        r3 = client.post(
+            "/api/datasets/storage/replicate/",
+            {
+                "source_path": str(get_synthetic_medical_image_fixture()),
+                "dataset_id": "TEST-API-REPL-01",
+                "target_destination_id": "CLOUD_STORAGE",
+                "privacy_policy": "LOCAL_ONLY",
+            },
+            format="json",
+        )
+        self.assertEqual(r3.status_code, 403)
+        self.assertEqual(r3.json()["replication_status"], "BLOCKED_BY_POLICY")
+
+        # 4. Export CSV endpoint
+        r4 = client.get("/api/datasets/storage/export-csv/")
+        self.assertEqual(r4.status_code, 200)
+        self.assertIn("text/csv", r4.headers.get("Content-Type", ""))
+        self.assertIn(b"Replica ID", r4.content)
+
 

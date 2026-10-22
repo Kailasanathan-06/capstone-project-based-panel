@@ -63,10 +63,21 @@ class Command(BaseCommand):
         else:
             self.stdout.write("  No public dataset versions registered yet. Run 'python manage.py download_hospital_datasets' to download.")
 
-        self.stdout.write(self.style.MIGRATE_HEADING("\n=== STORAGE DESTINATIONS ==="))
-        dests = StorageDestination.objects.all()
-        if dests.exists():
-            for d in dests:
-                self.stdout.write(f"  • {d.destination_id:<16} ({d.destination_type}) | Path: {d.base_path}")
-        else:
-            self.stdout.write("  Storage destinations will be initialized in Phase 6.")
+        self.stdout.write(self.style.MIGRATE_HEADING("\n=== 3 VERIFIED STORAGE DESTINATIONS ==="))
+        from engine.storage_manager import ensure_storage_destinations_initialized
+
+        dests = ensure_storage_destinations_initialized()
+        for dest_id, d in dests.items():
+            used_mb = round(d.used_bytes / (1024 * 1024), 2)
+            cap_gb = round(d.capacity_bytes / (1024 * 1024 * 1024), 1)
+            self.stdout.write(
+                f"  • {d.destination_id:<16} ({d.destination_type}) | Policy: {d.privacy_tier_allowed:<13} | Used: {used_mb} MB / {cap_gb} GB\n    Path: {d.base_path}"
+            )
+
+        replicas = DatasetStorageReplica.objects.all()
+        if replicas.exists():
+            self.stdout.write(self.style.MIGRATE_HEADING("\n=== DATASET STORAGE REPLICAS ==="))
+            for r in replicas:
+                self.stdout.write(
+                    f"  • {r.replica_id:<32} | {r.dataset_id} @ {r.storage_destination.destination_id} | Status: {r.replication_status}"
+                )

@@ -437,3 +437,117 @@ def medical_dataset_create_task(request):
         },
         status=201,
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 6 Storage Management API Views
+# ---------------------------------------------------------------------------
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def storage_destinations_api(request):
+    """List all 3 physical storage destinations and their capacity/usage."""
+    from engine.storage_manager import ensure_storage_destinations_initialized
+
+    dest_dict = ensure_storage_destinations_initialized()
+    data = []
+    for d in dest_dict.values():
+        data.append({
+            "destination_id": d.destination_id,
+            "name": d.name,
+            "destination_type": d.destination_type,
+            "base_path": d.base_path,
+            "is_active": d.is_active,
+            "is_emulator": d.is_emulator,
+            "capacity_bytes": d.capacity_bytes,
+            "used_bytes": d.used_bytes,
+            "privacy_tier_allowed": d.privacy_tier_allowed,
+            "capacity_gb": round(d.capacity_bytes / (1024 ** 3), 2),
+            "used_mb": round(d.used_bytes / (1024 ** 2), 2),
+        })
+    return JsonResponse({"destinations": data})
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def storage_replicas_api(request):
+    """List all storage replicas and their verification status."""
+    from datasets.models import DatasetStorageReplica
+
+    replicas = DatasetStorageReplica.objects.select_related("storage_destination", "scenario").all()
+    data = []
+    for r in replicas:
+        data.append({
+            "replica_id": r.replica_id,
+            "dataset_id": r.dataset_id,
+            "scenario_id": r.scenario.scenario_id if r.scenario else "",
+            "destination_id": r.storage_destination.destination_id if r.storage_destination else "",
+            "destination_type": r.storage_destination.destination_type if r.storage_destination else "",
+            "relative_key": r.relative_key,
+            "absolute_path": r.absolute_path,
+            "file_size_bytes": r.file_size_bytes,
+            "sha256_checksum": r.sha256_checksum,
+            "replication_status": r.replication_status,
+            "is_available": r.is_available,
+            "last_verified_at": r.last_verified_at.isoformat() if r.last_verified_at else None,
+            "last_error": r.last_error,
+        })
+    return JsonResponse({"replicas": data, "count": len(data)})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def trigger_replication_api(request):
+    """Trigger physical replication with privacy policy validation and SHA-256 integrity."""
+    from engine.storage_manager import replicate_file
+
+    payload = request.data if hasattr(request, "data") else {}
+    src_path = payload.get("source_path", "")
+    dataset_id = payload.get("dataset_id", "")
+    target_dest = payload.get("target_destination_id", "")
+    policy = payload.get("privacy_policy", "TRUSTED_EDGE")
+    scen_id = payload.get("scenario_id", "")
+    ip = request.META.get("REMOTE_ADDR", "127.0.0.1")
+
+    if not src_path or not dataset_id or not target_dest:
+        return JsonResponse({"error": "source_path, dataset_id, and target_destination_id are required"}, status=400)
+
+    ok, msg, replica = replicate_file(
+        source_path=src_path,
+        dataset_id=dataset_id,
+        target_destination_id=target_dest,
+        privacy_policy=policy,
+        scenario_id=scen_id,
+        source_ip=ip,
+    )
+    status_code = 200 if ok else (403 if "BLOCKED_BY_POLICY" in msg else 400)
+    return JsonResponse({
+        "success": ok,
+        "message": msg,
+        "replica_id": replica.replica_id if replica else None,
+        "replication_status": replica.replication_status if replica else None,
+    }, status=status_code)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def storage_export_csv_api(request):
+    """Download inventory CSV export of all storage destinations and replicas."""
+    from engine.storage_manager import export_storage_inventory_csv
+    from django.http import HttpResponse
+
+    csv_path = export_storage_inventory_csv()
+    with open(csv_path, "r", encoding="utf-8") as fh:
+        content = fh.read()
+    response = HttpResponse(content, content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="storage_inventory_export.csv"'
+    return response
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def verify_replicas_api(request):
+    """Trigger an on-demand audit sweep of all storage replicas against disk."""
+    from engine.storage_manager import verify_all_storage_replicas
+
+    res = verify_all_storage_replicas()
+    return JsonResponse(res)

@@ -27,7 +27,8 @@ from datasets.models import (
     DatasetStorageReplica,
     StorageDestination,
 )
-from tasks.models import Task
+from tasks.models import Task, SchedulingDecision, ExperimentRun
+from engine.benchmark_runner import run_hospital_benchmark, export_benchmark_csv
 from engine.hospital_workloads import (
     INITIAL_14_SCENARIOS,
     ensure_all_14_scenarios_registered,
@@ -694,5 +695,133 @@ class StorageDestinationsAndReplicationTests(TestCase):
         self.assertEqual(r4.status_code, 200)
         self.assertIn("text/csv", r4.headers.get("Content-Type", ""))
         self.assertIn(b"Replica ID", r4.content)
+
+
+class HospitalSchedulersComparativeBenchmarkTests(TestCase):
+    """
+    Phases 7 & 8: Verify comparative evaluation of Proposed GA vs 5 baselines:
+    - Round Robin
+    - First Fit
+    - Random
+    - Greedy
+    - Privacy-Aware
+    - Proposed GA
+
+    Ensures zero policy violations across all algorithms, correct makespan & latency calculations,
+    decision recording, CSV export with 14 columns, management command, and REST APIs.
+    """
+
+    def setUp(self):
+        ensure_all_14_scenarios_registered()
+        ensure_storage_destinations_initialized()
+
+    def test_run_hospital_benchmark_all_algorithms(self):
+        """Benchmark runs all 6 algorithms, recording zero policy violations, decisions, and experiment run."""
+        res = run_hospital_benchmark(tasks_count=6, seed=42, population=10, generations=5)
+        self.assertIn("experiment_id", res)
+        self.assertIn("runs", res)
+        self.assertIn("summary", res)
+
+        runs = res["runs"]
+        expected_algos = [
+            "round_robin",
+            "first_fit",
+            "random",
+            "greedy",
+            "privacy_aware",
+            "proposed_ga",
+        ]
+        for algo in expected_algos:
+            self.assertIn(algo, runs)
+            data = runs[algo]
+            # Policy enforcement constraint: zero policy violations
+            self.assertEqual(data["policy_violations"], 0, f"Algorithm {algo} had policy violations!")
+            self.assertEqual(data["privacy_compliance_rate"], 100.0)
+            self.assertGreater(data["makespan_s"], 0)
+            self.assertGreater(data["avg_latency_s"], 0)
+            self.assertEqual(data["tasks_assigned"] + data["tasks_blocked"], 6)
+
+        # Verify ExperimentRun persistence
+        exp = ExperimentRun.objects.filter(experiment_id=res["experiment_id"]).first()
+        self.assertIsNotNone(exp)
+        self.assertEqual(exp.tasks_count, 6)
+
+        # Verify SchedulingDecision persistence
+        decisions_count = SchedulingDecision.objects.filter(
+            task__scenario_id__gt=""
+        ).count()
+        self.assertGreater(decisions_count, 0)
+
+    def test_export_benchmark_csv(self):
+        """export_benchmark_csv creates a valid CSV containing all 14 mandatory columns."""
+        # Ensure at least one benchmark exists
+        run_hospital_benchmark(tasks_count=4, seed=42, population=8, generations=4)
+        csv_path = export_benchmark_csv()
+        self.assertTrue(os.path.exists(csv_path))
+
+        with open(csv_path, "r", encoding="utf-8") as fh:
+            header = fh.readline().strip().split(",")
+            required_cols = [
+                "Algorithm",
+                "Tasks Assigned",
+                "Tasks Blocked",
+                "Policy Violations",
+                "Makespan (s)",
+                "Average Latency (s)",
+                "Throughput (tasks/s)",
+                "Local Resource Utilization (%)",
+                "MEC Resource Utilization (%)",
+                "Cloud Resource Utilization (%)",
+                "Energy Consumption (J)",
+                "Scheduling Overhead (ms)",
+                "Privacy Compliance Rate (%)",
+                "Timestamp",
+            ]
+            for col in required_cols:
+                self.assertIn(col, header, f"Missing column {col} in CSV header: {header}")
+
+    def test_benchmark_management_command(self):
+        """Management command `run_hospital_scheduler_benchmark` executes cleanly without errors."""
+        call_command(
+            "run_hospital_scheduler_benchmark",
+            tasks_count=4,
+            population=8,
+            generations=4,
+            seed=42,
+        )
+        self.assertTrue(ExperimentRun.objects.exists())
+
+    def test_benchmark_rest_endpoints(self):
+        """REST endpoints for benchmark run, summary, and CSV export function correctly."""
+        client = APIClient()
+
+        # 1. Summary endpoint
+        r1 = client.get("/api/tasks/hospital-benchmark/summary/")
+        self.assertEqual(r1.status_code, 200)
+        self.assertIn("summary", r1.json())
+
+        # 2. Trigger run endpoint
+        r2 = client.post(
+            "/api/tasks/hospital-benchmark/run/",
+            {
+                "tasks_count": 4,
+                "population_size": 8,
+                "generations": 4,
+                "seed": 42,
+            },
+            format="json",
+        )
+        self.assertEqual(r2.status_code, 200)
+        body = r2.json()
+        self.assertIn("experiment_id", body)
+        self.assertIn("runs", body)
+        self.assertIn("proposed_ga", body["runs"])
+
+        # 3. Export CSV endpoint
+        r3 = client.get("/api/tasks/hospital-benchmark/export-csv/")
+        self.assertEqual(r3.status_code, 200)
+        self.assertIn("text/csv", r3.headers.get("Content-Type", ""))
+        self.assertIn(b"Algorithm", r3.content)
+        self.assertIn(b"Tasks Assigned", r3.content)
 
 

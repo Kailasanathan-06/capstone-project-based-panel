@@ -121,3 +121,85 @@ class TaskViewSet(viewsets.ViewSet):
         task.save(update_fields=["status", "assigned_mec", "error_message", "updated_at"])
         task.record_history(previous, "QUEUED", changed_by=request.user.username)
         return Response(TaskSerializer(task).data)
+
+
+# ---------------------------------------------------------------------------
+# Phase 7 & 8 Hospital Schedulers Benchmark API Views
+# ---------------------------------------------------------------------------
+import json
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from django.http import JsonResponse, HttpResponse
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def hospital_benchmark_summary_api(request):
+    """Retrieve latest hospital benchmark experiment summary and metrics."""
+    from tasks.models import ExperimentRun
+    from engine.benchmark_runner import run_hospital_benchmark
+
+    latest = ExperimentRun.objects.order_by("-created_at").first()
+    if not latest:
+        result = run_hospital_benchmark(tasks_count=5, population=15, generations=10)
+        return JsonResponse(result)
+
+    return JsonResponse({
+        "experiment_id": latest.experiment_id,
+        "name": latest.name,
+        "seed": latest.seed,
+        "tasks_count": latest.tasks_count,
+        "configuration": json.loads(latest.configuration_json) if latest.configuration_json else {},
+        "summary": json.loads(latest.results_json) if latest.results_json else {},
+        "created_at": latest.created_at.isoformat(),
+    })
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def hospital_benchmark_run_api(request):
+    """Trigger a new comparative benchmark run across hospital workloads."""
+    from engine.benchmark_runner import run_hospital_benchmark
+
+    data = request.data if hasattr(request, "data") else {}
+    tasks_count = int(data.get("tasks_count", 14))
+    population = int(data.get("population", 30))
+    generations = int(data.get("generations", 20))
+    seed = int(data.get("seed", 42))
+
+    result = run_hospital_benchmark(
+        tasks_count=tasks_count,
+        population=population,
+        generations=generations,
+        seed=seed,
+    )
+    return JsonResponse(result, status=200)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def hospital_benchmark_export_csv_api(request):
+    """Download comparative benchmark results CSV."""
+    from tasks.models import ExperimentRun
+    from engine.benchmark_runner import export_benchmark_csv, run_hospital_benchmark
+
+    latest = ExperimentRun.objects.order_by("-created_at").first()
+    if not latest or not latest.results_json:
+        res = run_hospital_benchmark(tasks_count=14, population=20, generations=15)
+        csv_path = export_benchmark_csv(res)
+        filename = f"benchmark_results_{res['experiment_id']}.csv"
+    else:
+        res = {
+            "experiment_id": latest.experiment_id,
+            "tasks_count": latest.tasks_count,
+            "summary": json.loads(latest.results_json),
+        }
+        csv_path = export_benchmark_csv(res)
+        filename = f"benchmark_results_{latest.experiment_id}.csv"
+
+    with open(csv_path, "r", encoding="utf-8") as fh:
+        content = fh.read()
+
+    response = HttpResponse(content, content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response

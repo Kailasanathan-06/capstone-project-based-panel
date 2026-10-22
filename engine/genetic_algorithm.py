@@ -220,6 +220,10 @@ class GeneticAlgorithm:
 
 if __name__ == "__main__":
     # quick self test with a handful of tasks
+    import django
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "securedt.settings")
+    django.setup()
+
     from engine.digital_twin import DigitalTwin
     twin = DigitalTwin()
     resources = twin.states()
@@ -239,6 +243,6 @@ if __name__ == "__main__":
     from engine.scheduler import Scheduler
     sched = Scheduler(twin)
     assignments, metrics, history = sched.proposed_ga_schedule(sample_tasks)
-    print("best fitness:", best)
+    print("best fitness:", metrics.get("best_fitness"))
     print("history (last 5):", history[-5:])
     print("assignments:", assignments)

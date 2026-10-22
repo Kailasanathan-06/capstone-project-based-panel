@@ -9,6 +9,16 @@
   <p class="page-subtitle">Visualize and control task scheduling across edge-cloud infrastructure</p>
 </div>
 
+{% if not user.is_authenticated %}
+<div class="alert alert-info" style="margin-bottom: var(--space-6); display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--color-primary); background: rgba(56, 189, 248, 0.08); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md);">
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-primary); flex-shrink: 0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    <span><strong>Guest View Mode:</strong> You are browsing without an operator session. To create tasks, trigger live dispatches, and modify workflows, sign in with the demo account.</span>
+  </div>
+  <a href="{% url 'login' %}" class="btn btn-primary btn-sm" style="white-space: nowrap; margin-left: 12px;">Sign In (Demo: admin)</a>
+</div>
+{% endif %}
+
 <!-- Pipeline Visualization -->
 <section class="card" aria-labelledby="pipeline-heading" style="margin-bottom: var(--space-6);">
   <header class="card-header">
@@ -408,6 +418,11 @@ document.addEventListener('DOMContentLoaded', () => {
         </tr>
       `).join('');
     } catch (err) {
+      const tbody = $('#task-queue-body');
+      if (tbody && err.message && (err.message.includes('401') || err.message.includes('403') || err.message.includes('Forbidden') || err.message.includes('credentials'))) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--color-text-muted); padding:1.5rem;">🔒 Operator Authentication Required. <a href="/login/" style="color:var(--color-primary); font-weight:600;">Sign in (admin / adminpassword123)</a> to dispatch tasks and manage queue.</td></tr>';
+        return;
+      }
       console.error('Failed to load queue:', err);
     }
   }

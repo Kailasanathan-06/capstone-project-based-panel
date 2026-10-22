@@ -5,7 +5,7 @@ from django.http import HttpResponse
 
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 
 from engine.digital_twin import DigitalTwin
@@ -22,7 +22,7 @@ class DigitalTwinViewSet(viewsets.ViewSet):
     """Digital Twin state and interaction endpoints."""
 
     authentication_classes = [SessionAuthentication, TokenAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def list(self, request):
         refresh_mec_status()

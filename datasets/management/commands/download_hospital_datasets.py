@@ -14,10 +14,18 @@ from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
 from django.utils import timezone
 
-import medmnist
-from medmnist import INFO
+try:
+    import medmnist
+    from medmnist import INFO
+    MEDMNIST_AVAILABLE = True
+except ImportError:
+    medmnist = None
+    INFO = {}
+    MEDMNIST_AVAILABLE = False
+
 from datasets.models import MedicalDatasetMetadata, MedicalDatasetSample, DatasetVersion
 from engine.hospital_workloads import ensure_all_14_scenarios_registered
+
 
 
 class Command(BaseCommand):
@@ -65,6 +73,10 @@ class Command(BaseCommand):
         dataset_flag = options["dataset"].lower().strip()
         max_samples = options["max_samples"]
         force = options["force"]
+
+        if not MEDMNIST_AVAILABLE:
+            self.stdout.write(self.style.WARNING("medmnist package is not installed. To download public MedMNIST datasets, run: pip install medmnist"))
+            return
 
         if dataset_flag not in INFO:
             raise CommandError(

@@ -1,0 +1,12 @@
+Scenario Filename,Category,Validation Purpose,Expected Outcome,Size (Bytes),SHA-256 Checksum
+success_01_basic_all_storage.zip,SUCCESS,"Valid data for Local, MEC, and Cloud",Analysis succeeds (all 3 tasks assigned),4099,dfebe038b8e0bb208ae1cb358c74c87f7fc69c7a81ab51e047e997ddeb5604a9
+success_02_mixed_file_formats.zip,SUCCESS,"Valid supported CSV, JSON, and TXT samples",All formats recognized and analyzed,4007,c4441782ad600ad6ec23215d3841af3c465a78440f72f35a27ca7e12f96c0991
+success_03_capacity_aware.zip,SUCCESS,Different dataset sizes and resource capacities,Eligible assignments respect capacity headroom,3962,76bcaeecaccf8776ef33183e18d4751a1466488c83030901562f8c822f419046
+success_04_privacy_aware.zip,SUCCESS,Different privacy policies across datasets,Only policy-permitted destinations are eligible,4141,4d5dc5f270afdbc17ff2ff545c4759b0575d801e8920b2fec789850d9b96966b
+success_05_multi_task_scheduling.zip,SUCCESS,Several independent tasks across three resources,Scheduler produces traceable decisions (6/6 assigned),4591,e18934ead94bae74c13d479f9093b999324d814ae6e2ed909dc5a7eabaa775db
+failed_01_corrupt_archive.zip,FAILED,Invalid or truncated ZIP archive,Archive validation fails safely,125,2e04cca49215177f46a6ef94a1d201794de4d1d1b2832b9a187bbf27b58d46fc
+failed_02_invalid_manifest.zip,FAILED,Missing required fields or invalid manifest structure,Manifest validation fails with clear error,1782,106695d45336c65f0156d338f3e21dfd542bb40000955e7e296503015a248ea9
+failed_03_capacity_or_policy_violation.zip,FAILED,Tasks exceed capacity or violate privacy constraints,Invalid assignments rejected or remain unassigned,3619,d0f88684ae6821e65514be53fd2e17fae386e1a7c91806273a48943937b53f68
+loop_01_large_task_queue.zip,LOOP/TIMEOUT,Large but bounded task queue,Processing remains responsive or reports overload,4920,4c95298435268230ded785e8d29c03906a4fa7d77cfadd9ca1d71daa4aa91bde
+loop_02_dependency_cycle.zip,LOOP/TIMEOUT,Task dependency metadata contains a cycle,Cycle is detected and safely rejected,3564,c7dca35c116dd5ccb9501880fb6f807501cd2c2c74fa843463d5ccbf24a7b115
+loop_03_timeout_simulation.zip,LOOP/TIMEOUT,Resource response configured to exceed test timeout,"Task times out, retries within limits, cancelled safely",3515,f521e04420171d80e26017348d540c37ca58395dc3b680f47c873bf9c3959e8e

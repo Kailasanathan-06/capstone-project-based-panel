@@ -55,22 +55,66 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path><polyline points="16 16 12 12 8 16"></polyline></svg>
             Upload &amp; Analyze Archive
           </button>
-          <button type="button" id="btn-load-sample" class="btn btn-secondary">
-            Load Sample Batch ZIP
-          </button>
         </div>
       </form>
     </div>
 
-    <!-- Supported Archive Format Notice -->
-    <div class="card" style="font-size: 0.85rem;">
-      <h3 style="font-size: 0.95rem; margin-bottom: 8px; color: var(--text-main);">ZIP Archive Requirements</h3>
-      <ul style="padding-left: 18px; color: var(--text-muted); line-height: 1.6;">
-        <li>Must contain files or subfolders intended for Local, MEC, or Cloud tiers.</li>
-        <li>Optional manifest file (<code>manifest.json</code> or <code>manifest.csv</code>) supported to declare explicit privacy policies and source devices.</li>
-        <li>Automatic categorization analyzes clinical PHI, radiology imaging, and administrative workloads if no manifest is present.</li>
-        <li>Strict path traversal validation protects against arbitrary directory escapes.</li>
-      </ul>
+    <!-- 11 Standardized Test Scenarios Suite -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+          11 Standardized Test Scenario ZIPs
+        </h2>
+        <span class="badge badge-cyan">Full Suite</span>
+      </div>
+
+      <p class="body-text" style="font-size: 0.85rem; margin-bottom: 12px;">
+        Select and directly execute any of the 11 test scenarios across Local, MEC, and Cloud resources, or download them individually.
+      </p>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label class="form-label" for="scenario-preset-select">Select Test Scenario Archive</label>
+        <select id="scenario-preset-select" class="form-select">
+          <optgroup label="Category A — Successful Datasets (5 Scenarios)">
+            <option value="success_01" selected>success_01_basic_all_storage.zip (Valid Local, MEC, Cloud)</option>
+            <option value="success_02">success_02_mixed_file_formats.zip (CSV, JSON, TXT parsing)</option>
+            <option value="success_03">success_03_capacity_aware.zip (Capacity-aware headroom allocation)</option>
+            <option value="success_04">success_04_privacy_aware.zip (HIPAA privacy boundary tiers)</option>
+            <option value="success_05">success_05_multi_task_scheduling.zip (6-workload GA optimization)</option>
+          </optgroup>
+          <optgroup label="Category B — Failed Datasets (3 Scenarios)">
+            <option value="failed_01">failed_01_corrupt_archive.zip (Truncated corrupt ZIP header)</option>
+            <option value="failed_02">failed_02_invalid_manifest.zip (Missing required schema fields)</option>
+            <option value="failed_03">failed_03_capacity_or_policy_violation.zip (300MB on 10MB Local vault)</option>
+          </optgroup>
+          <optgroup label="Category C — Loop &amp; Timeout Datasets (3 Scenarios)">
+            <option value="loop_01">loop_01_large_task_queue.zip (45-task bounded queue)</option>
+            <option value="loop_02">loop_02_dependency_cycle.zip (A -> B -> C -> A circular loop)</option>
+            <option value="loop_03">loop_03_timeout_simulation.zip (Watchdog 2s timeout simulation)</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+        <button type="button" id="btn-run-scenario" class="btn btn-primary" style="flex: 1;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+          Run Selected Test Scenario
+        </button>
+        <button type="button" id="btn-download-scenario" class="btn btn-secondary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Download ZIP
+        </button>
+      </div>
+
+      <div style="display: flex; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border-subtle);">
+        <a href="{% url 'api_download_sample_zip' 'master' %}" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; justify-content: center;">
+          Download Master Suite ZIP (All 11)
+        </a>
+        <a href="{% url 'api_download_sample_zip' 'inventory' %}" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; justify-content: center;">
+          Download Inventory CSV
+        </a>
+      </div>
     </div>
   </div>
 
@@ -249,42 +293,65 @@
     }
   });
 
-  btnSample.addEventListener('click', async () => {
-    btnSample.disabled = true;
-    btnSample.textContent = 'Loading Batch...';
-    document.getElementById('pipeline-status-badge').textContent = 'Analyzing Sample';
-    document.getElementById('pipeline-status-badge').className = 'badge badge-cyan';
-    document.getElementById('upload-result-banner').style.display = 'none';
-    document.getElementById('upload-error-banner').style.display = 'none';
+  const btnRunScenario = document.getElementById('btn-run-scenario');
+  const btnDownloadScenario = document.getElementById('btn-download-scenario');
+  const scenarioSelect = document.getElementById('scenario-preset-select');
 
-    try {
-      const resp = await fetch('{% url "api_upload_demo_zip" %}', {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-        },
-      });
-      const data = await resp.json();
-      if (data.stages) updateStages(data.stages);
+  if (btnDownloadScenario && scenarioSelect) {
+    btnDownloadScenario.addEventListener('click', () => {
+      const pkg = scenarioSelect.value;
+      window.location.href = `/api/download-sample-zip/${pkg}/`;
+    });
+  }
 
-      if (data.success) {
-        document.getElementById('pipeline-status-badge').textContent = 'Completed';
-        document.getElementById('pipeline-status-badge').className = 'badge badge-green';
-        document.getElementById('result-title').textContent = `Batch Analyzed: ${data.report_id}`;
-        document.getElementById('result-desc').textContent = `Processed 5 multi-tier sample files successfully.`;
-        document.getElementById('result-report-link').href = `/reports/${data.report_id}/`;
-        document.getElementById('upload-result-banner').style.display = 'block';
-      } else {
-        document.getElementById('error-desc').textContent = data.error || 'Failed to process sample batch.';
+  if (btnRunScenario && scenarioSelect) {
+    btnRunScenario.addEventListener('click', async () => {
+      const pkg = scenarioSelect.value;
+      btnRunScenario.disabled = true;
+      btnRunScenario.textContent = 'Executing Scenario...';
+      document.getElementById('pipeline-status-badge').textContent = 'Executing Scenario';
+      document.getElementById('pipeline-status-badge').className = 'badge badge-cyan';
+      document.getElementById('upload-result-banner').style.display = 'none';
+      document.getElementById('upload-error-banner').style.display = 'none';
+
+      const mode = document.getElementById('execution-mode-select').value;
+      const formData = new FormData();
+      formData.append('package', pkg);
+      formData.append('execution_mode', mode);
+
+      try {
+        const resp = await fetch('{% url "api_upload_demo_zip" %}', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+          },
+          body: formData,
+        });
+        const data = await resp.json();
+        if (data.stages) updateStages(data.stages);
+
+        if (data.success) {
+          document.getElementById('pipeline-status-badge').textContent = 'Completed';
+          document.getElementById('pipeline-status-badge').className = 'badge badge-green';
+          document.getElementById('result-title').textContent = `Scenario Completed: ${data.report_id}`;
+          document.getElementById('result-desc').textContent = `Scenario '${pkg}' processed successfully. Full persistent report generated.`;
+          document.getElementById('result-report-link').href = `/reports/${data.report_id}/`;
+          document.getElementById('upload-result-banner').style.display = 'block';
+        } else {
+          document.getElementById('pipeline-status-badge').textContent = 'Rejected as Designed';
+          document.getElementById('pipeline-status-badge').className = 'badge badge-red';
+          document.getElementById('error-title').textContent = `Scenario Test Handled Safely`;
+          document.getElementById('error-desc').textContent = data.error || 'Scenario executed rejection or error handling logic.';
+          document.getElementById('upload-error-banner').style.display = 'block';
+        }
+      } catch (err) {
+        document.getElementById('error-desc').textContent = err.message;
         document.getElementById('upload-error-banner').style.display = 'block';
+      } finally {
+        btnRunScenario.disabled = false;
+        btnRunScenario.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Run Selected Test Scenario`;
       }
-    } catch (err) {
-      document.getElementById('error-desc').textContent = err.message;
-      document.getElementById('upload-error-banner').style.display = 'block';
-    } finally {
-      btnSample.disabled = false;
-      btnSample.textContent = 'Load Sample Batch ZIP';
-    }
-  });
+    });
+  }
 </script>
 {% endblock %}

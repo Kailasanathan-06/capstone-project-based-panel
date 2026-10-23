@@ -194,16 +194,41 @@ def upload_dataset_api(request):
 @api_view(["POST", "GET"])
 @permission_classes([AllowAny])
 def upload_demo_zip_api(request):
-    """Loads pre-bundled synthetic hospital workload batch ZIP for instant testing."""
-    sample_path = Path(settings.BASE_DIR) / "sample_upload_datasets" / "hospital_workload_batch.zip"
+    """Loads any of the 4 pre-bundled multi-tier test ZIP archives for instant testing."""
+    package_map = {
+        "master": "master_test_datasets_suite.zip",
+        "complete": "master_test_datasets_suite.zip",
+        "inventory": "dataset_test_matrix_inventory.csv",
+        "readme_corrupt": "README_failed_01_corrupt_archive.txt",
+        # Category A: 5 Successful Scenarios
+        "success_01": "success_01_basic_all_storage.zip",
+        "success_02": "success_02_mixed_file_formats.zip",
+        "success_03": "success_03_capacity_aware.zip",
+        "success_04": "success_04_privacy_aware.zip",
+        "success_05": "success_05_multi_task_scheduling.zip",
+        # Category B: 3 Failed Scenarios
+        "failed_01": "failed_01_corrupt_archive.zip",
+        "failed_02": "failed_02_invalid_manifest.zip",
+        "failed_03": "failed_03_capacity_or_policy_violation.zip",
+        # Category C: 3 Loop / Timeout Scenarios
+        "loop_01": "loop_01_large_task_queue.zip",
+        "loop_02": "loop_02_dependency_cycle.zip",
+        "loop_03": "loop_03_timeout_simulation.zip",
+    }
+    req_pkg = request.POST.get("package") or request.GET.get("package") or "master"
+    filename = package_map.get(req_pkg, req_pkg if ("." in req_pkg) else f"{req_pkg}.zip")
+
+    sample_path = Path(settings.BASE_DIR) / "sample_upload_datasets" / filename
     if not sample_path.exists():
-        return JsonResponse({"success": False, "error": "Sample archive 'hospital_workload_batch.zip' not found on server."}, status=404)
+        sample_path = Path(settings.BASE_DIR) / "test_datasets_suite" / filename
+    if not sample_path.exists():
+        sample_path = Path(settings.BASE_DIR) / "sample_upload_datasets" / "master_test_datasets_suite.zip"
 
     with open(sample_path, "rb") as f:
         content = f.read()
 
     mode = request.POST.get("execution_mode", "SIMULATION") if request.method == "POST" else "SIMULATION"
-    mock_file = SimpleUploadedFile("hospital_workload_batch.zip", content, content_type="application/zip")
+    mock_file = SimpleUploadedFile(sample_path.name, content, content_type="application/zip")
     ip = request.META.get("REMOTE_ADDR", "127.0.0.1")
 
     result = process_zip_dataset_upload(
@@ -213,6 +238,49 @@ def upload_demo_zip_api(request):
     )
     status_code = 200 if result.get("success") else 400
     return JsonResponse(result, status=status_code)
+
+
+def download_sample_zip_api(request, package_key):
+    """Download any of the 11 scenario ZIPs, master suite, or inventory matrix."""
+    package_map = {
+        "master": "master_test_datasets_suite.zip",
+        "complete": "master_test_datasets_suite.zip",
+        "inventory": "dataset_test_matrix_inventory.csv",
+        "readme_corrupt": "README_failed_01_corrupt_archive.txt",
+        # Category A: 5 Successful Scenarios
+        "success_01": "success_01_basic_all_storage.zip",
+        "success_02": "success_02_mixed_file_formats.zip",
+        "success_03": "success_03_capacity_aware.zip",
+        "success_04": "success_04_privacy_aware.zip",
+        "success_05": "success_05_multi_task_scheduling.zip",
+        # Category B: 3 Failed Scenarios
+        "failed_01": "failed_01_corrupt_archive.zip",
+        "failed_02": "failed_02_invalid_manifest.zip",
+        "failed_03": "failed_03_capacity_or_policy_violation.zip",
+        # Category C: 3 Loop / Timeout Scenarios
+        "loop_01": "loop_01_large_task_queue.zip",
+        "loop_02": "loop_02_dependency_cycle.zip",
+        "loop_03": "loop_03_timeout_simulation.zip",
+    }
+    filename = package_map.get(package_key, f"{package_key}.zip" if not ("." in package_key) else package_key)
+    sample_path = Path(settings.BASE_DIR) / "sample_upload_datasets" / filename
+    if not sample_path.exists():
+        sample_path = Path(settings.BASE_DIR) / "test_datasets_suite" / filename
+    if not sample_path.exists():
+        return JsonResponse({"error": f"Artifact '{filename}' not found on server."}, status=404)
+
+    with open(sample_path, "rb") as f:
+        content = f.read()
+
+    content_type = "application/zip"
+    if filename.endswith(".csv"):
+        content_type = "text/csv"
+    elif filename.endswith(".txt") or filename.endswith(".md"):
+        content_type = "text/plain"
+
+    response = HttpResponse(content, content_type=content_type)
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 
 # =============================================================================

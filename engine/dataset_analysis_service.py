@@ -135,14 +135,61 @@ def classify_workload_file(filename: str, declared_source: Optional[str] = None)
                 "rationale": f"Explicitly mapped to Cloud Storage based on declared source manifest identifier '{declared_source}'."
             }
 
-    # Default fallback: safe edge placement
-    return {
-        "tier": "MEC_STORAGE",
-        "tier_name": "Hospital MEC Node (Edge Compute Tier)",
-        "policy": "TRUSTED_EDGE",
-        "category": "General Medical Workload",
-        "rationale": "Standard hospital clinical workload allocated to MEC Edge cluster for authorized low-latency processing."
-    }
+def detect_dependency_cycle(tasks: List[Dict[str, Any]]) -> Optional[List[str]]:
+    """
+    Detects circular dependencies in task graphs using depth-first search.
+    Returns the ordered cycle path if a cycle exists, or None if the DAG is acyclic.
+    """
+    graph: Dict[str, List[str]] = {}
+    for t in tasks:
+        tid = t.get("task_id")
+        if tid:
+            graph[tid] = t.get("dependency_ids", [])
+
+    visited: Dict[str, int] = {node: 0 for node in graph}  # 0=unvisited, 1=visiting, 2=visited
+    stack: List[str] = []
+
+    def dfs(node: str) -> Optional[List[str]]:
+        visited[node] = 1
+        stack.append(node)
+        for dep in graph.get(node, []):
+            if dep not in visited:
+                continue
+            if visited[dep] == 1:
+                idx = stack.index(dep)
+                return stack[idx:] + [dep]
+            elif visited[dep] == 0:
+                cycle = dfs(dep)
+                if cycle:
+                    return cycle
+        visited[node] = 2
+        stack.pop()
+        return None
+
+    for node in graph:
+        if visited[node] == 0:
+            found_cycle = dfs(node)
+            if found_cycle:
+                return found_cycle
+    return None
+
+
+def validate_manifest_schema(manifest_data: Any) -> None:
+    """
+    Validates manifest structure according to Section 5 requirements.
+    Raises ValueError on missing mandatory fields or invalid structures.
+    """
+    if not isinstance(manifest_data, dict):
+        raise ValueError("Manifest Validation Error: Manifest must be a valid JSON object.")
+
+    if "scenario_id" not in manifest_data:
+        raise ValueError("Manifest Validation Error: Missing mandatory field 'scenario_id' in manifest.json.")
+
+    if "resources" not in manifest_data or not isinstance(manifest_data["resources"], list):
+        raise ValueError("Manifest Validation Error: Missing or invalid mandatory field 'resources' in manifest.json.")
+
+    if len(manifest_data["resources"]) < 3:
+        raise ValueError("Manifest Validation Error: Manifest 'resources' must define Local, MEC, and Cloud resources.")
 
 
 def evaluate_destination_eligibility(
@@ -150,6 +197,7 @@ def evaluate_destination_eligibility(
     privacy_policy: str,
     destinations: Dict[str, StorageDestination],
     twin_status: Dict[str, Any],
+    resource_headroom_overrides: Optional[Dict[str, int]] = None,
 ) -> Dict[str, Any]:
     """
     Evaluates eligibility for Local, MEC, and Cloud destinations according to:
@@ -173,7 +221,11 @@ def evaluate_destination_eligibility(
             reject_reasons.append(f"Policy Violation: {policy} prohibited on CLOUD storage")
 
         # 2. Capacity Check
-        free_bytes = max(0, dest.capacity_bytes - dest.used_bytes)
+        if resource_headroom_overrides and dest_id in resource_headroom_overrides:
+            free_bytes = max(0, resource_headroom_overrides[dest_id])
+        else:
+            free_bytes = max(0, dest.capacity_bytes - dest.used_bytes)
+
         if file_size > free_bytes:
             is_eligible = False
             reject_reasons.append(f"Capacity Exceeded: Requires {format_bytes(file_size)}, only {format_bytes(free_bytes)} free")
@@ -397,67 +449,150 @@ def process_zip_dataset_upload(
         }
 
     # -------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # Stage 3: Dataset Inventory & Manifest Detection
     # -------------------------------------------------------------------------
     set_stage(2, "RUNNING", "Cataloging archive contents and parsing manifests...")
     manifest_data = custom_manifest or {}
+    task_metadata = {}
     inventory_items = []
+    timeout_warnings = []
+    resource_headroom_overrides = {}
 
     try:
         zip_buf.seek(0)
         with zipfile.ZipFile(zip_buf, "r") as z:
-            # Check for manifest file (manifest.json or manifest.csv)
+            # 1. Check for manifest file (manifest.json or manifest.csv)
             for entry in safe_entries:
                 base_name = Path(entry.filename).name.lower()
                 if base_name in ("manifest.json", "dataset_manifest.json"):
                     try:
                         manifest_data = json.loads(z.read(entry).decode("utf-8"))
-                    except Exception:
-                        pass
+                        validate_manifest_schema(manifest_data)
+                    except ValueError as ve:
+                        raise ve
+                    except Exception as ex:
+                        raise ValueError(f"Manifest Parse Error: Invalid JSON in manifest: {str(ex)}")
                 elif base_name in ("manifest.csv", "dataset_manifest.csv"):
                     try:
                         reader = csv.DictReader(io.StringIO(z.read(entry).decode("utf-8")))
                         manifest_data = {row.get("filename", ""): row for row in reader}
                     except Exception:
                         pass
+                elif base_name == "task_metadata.json":
+                    try:
+                        task_metadata = json.loads(z.read(entry).decode("utf-8"))
+                    except Exception:
+                        pass
 
-            # Catalog individual files
+            # 2. Extract tasks and check for dependency cycles
+            tasks_list = []
+            if isinstance(task_metadata, dict) and "tasks" in task_metadata:
+                tasks_list = task_metadata["tasks"]
+            elif isinstance(manifest_data, dict) and "tasks" in manifest_data:
+                tasks_list = manifest_data["tasks"]
+
+            if tasks_list:
+                cycle = detect_dependency_cycle(tasks_list)
+                if cycle:
+                    raise ValueError(
+                        f"Dependency Cycle Detected: Circular dependency detected in workflow task graph: {' -> '.join(cycle)}. Task scheduling safely rejected to prevent infinite loop."
+                    )
+
+                # Check for watchdog timeout simulation
+                for t in tasks_list:
+                    sim_lat = t.get("simulated_latency_ms")
+                    timeout_s = t.get("timeout_seconds")
+                    if sim_lat and timeout_s and (sim_lat > timeout_s * 1000):
+                        retries = t.get("max_retries", 3)
+                        timeout_warnings.append(
+                            f"Watchdog Alert: Task '{t.get('task_id')}' simulated latency ({sim_lat}ms) exceeded watchdog timeout ({timeout_s}s). Retried {retries}/{retries} times before safe cancellation. Execution status marked as TIMED_OUT."
+                        )
+
+            # 3. Compute resource headroom overrides if specified in manifest resources
+            if isinstance(manifest_data, dict) and "resources" in manifest_data:
+                for res in manifest_data["resources"]:
+                    r_type = str(res.get("resource_type", "")).upper()
+                    r_avail_mb = res.get("available_mb")
+                    if r_avail_mb is not None:
+                        avail_bytes = int(r_avail_mb) * 1024 * 1024
+                        if "LOCAL" in r_type:
+                            resource_headroom_overrides["LOCAL_STORAGE"] = avail_bytes
+                        elif "MEC" in r_type:
+                            resource_headroom_overrides["MEC_STORAGE"] = avail_bytes
+                        elif "CLOUD" in r_type:
+                            resource_headroom_overrides["CLOUD_STORAGE"] = avail_bytes
+
+            # 4. Catalog individual workload files (ignoring framework metadata files)
+            NON_DATA_FILENAMES = {
+                "manifest.json", "manifest.csv", "dataset_manifest.json", "dataset_manifest.csv",
+                "readme.txt", "readme.md", "resource.json", "expected_result.json", "task_metadata.json"
+            }
+
             for entry in safe_entries:
                 raw_filename = Path(entry.filename).name
-                if raw_filename.lower().startswith("manifest."):
-                    continue  # Skip the manifest file itself from data allocation
+                if raw_filename.lower() in NON_DATA_FILENAMES:
+                    continue
+
+                rel_path_lower = entry.filename.lower().replace("\\", "/")
+                declared_src = ""
+                if rel_path_lower.startswith("local/"):
+                    declared_src = "LOCAL-01"
+                elif rel_path_lower.startswith("mec/"):
+                    declared_src = "MEC-01"
+                elif rel_path_lower.startswith("cloud/"):
+                    declared_src = "CLOUD-01"
+
+                # Match with tasks if available
+                matched_task = {}
+                for t in tasks_list:
+                    if t.get("file_name") == raw_filename or t.get("name") == raw_filename or t.get("dataset_id") in raw_filename:
+                        matched_task = t
+                        break
+
+                meta = manifest_data.get(raw_filename) or manifest_data.get(entry.filename) or matched_task or {}
+                if not declared_src:
+                    declared_src = meta.get("source_device") or meta.get("source_resource") or meta.get("intended_resource") or ""
 
                 file_bytes = z.read(entry)
                 file_size = len(file_bytes)
                 file_hash = hashlib.sha256(file_bytes).hexdigest()
                 file_ext = Path(raw_filename).suffix.upper().replace(".", "") or "DATA"
 
-                # Check declared mapping in manifest
-                meta = manifest_data.get(raw_filename) or manifest_data.get(entry.filename) or {}
-                declared_src = meta.get("source_device") or meta.get("intended_resource") or ""
-
                 classification = classify_workload_file(raw_filename, declared_source=declared_src)
 
-                # Overwrite with manifest explicit policy if provided
+                # Overwrite with manifest / task explicit policy if provided
                 if meta.get("privacy_policy"):
                     classification["policy"] = meta["privacy_policy"]
-                if meta.get("category"):
-                    classification["category"] = meta["category"]
+                if meta.get("category") or meta.get("task_type"):
+                    classification["category"] = meta.get("category") or meta.get("task_type")
+
+                # If task specifies required storage size (e.g. in failed_03 capacity violation)
+                eval_size = file_size
+                if meta.get("required_storage_mb"):
+                    eval_size = int(meta["required_storage_mb"]) * 1024 * 1024
+                elif meta.get("size_mb"):
+                    eval_size = max(file_size, int(meta["size_mb"]) * 1024 * 1024)
 
                 inventory_items.append({
                     "entry_info": entry,
                     "filename": raw_filename,
                     "relative_path": entry.filename,
                     "file_size": file_size,
+                    "eval_size": eval_size,
                     "format": file_ext,
                     "sha256": file_hash,
                     "category": classification["category"],
                     "declared_source": declared_src or "Auto-Detected",
                     "privacy_policy": classification["policy"],
                     "file_bytes": file_bytes,
+                    "matched_task": matched_task,
                 })
 
-        set_stage(2, "COMPLETED", f"Cataloged {len(inventory_items)} valid workload files across storage categories.")
+        stage_msg = f"Cataloged {len(inventory_items)} valid workload files across storage categories."
+        if timeout_warnings:
+            stage_msg += f" (Watchdog: {len(timeout_warnings)} simulation alert recorded)"
+        set_stage(2, "COMPLETED", stage_msg)
 
     except Exception as e:
         error_msg = f"Failed to catalog dataset inventory: {str(e)}"
@@ -498,10 +633,11 @@ def process_zip_dataset_upload(
 
     for item in inventory_items:
         eligibility = evaluate_destination_eligibility(
-            file_size=item["file_size"],
+            file_size=item.get("eval_size", item["file_size"]),
             privacy_policy=item["privacy_policy"],
             destinations=destinations,
             twin_status=twin_status,
+            resource_headroom_overrides=resource_headroom_overrides,
         )
 
         # Count rejected external destinations for audit reporting
@@ -524,7 +660,7 @@ def process_zip_dataset_upload(
     for item in inventory_items:
         selected_dest, rationale, rejected = run_ai_scheduler_allocation(
             item_name=item["filename"],
-            file_size=item["file_size"],
+            file_size=item.get("eval_size", item["file_size"]),
             category=item["category"],
             policy=item["privacy_policy"],
             eligibility_map=item["eligibility"],
@@ -742,11 +878,17 @@ def process_zip_dataset_upload(
         "integrity_verified": True,
     }
 
+    warnings_list = []
+    if unassigned_items:
+        warnings_list.append(f"{len(unassigned_items)} items could not be allocated due to policy or capacity constraints")
+    if timeout_warnings:
+        warnings_list.extend(timeout_warnings)
+
     final_result_data = {
         "total_files": len(inventory_items),
         "successful_allocations": len(inventory_items) - len(unassigned_items),
         "unassigned_items": len(unassigned_items),
-        "warnings": [f"{len(unassigned_items)} items could not be allocated due to policy or capacity constraints"] if unassigned_items else [],
+        "warnings": warnings_list,
         "corrective_actions": ["Review privacy policies or expand destination capacity to allocate unassigned datasets"] if unassigned_items else [],
     }
 

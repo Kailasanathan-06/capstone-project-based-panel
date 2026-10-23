@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Task History - SecureDT{% endblock %}
+{% block body_page %}tasks{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+  <div>
+    <h1 class="page-heading">Task Execution &amp; Scheduling History</h1>
+    <p class="body-text">Audit log of processing workloads dispatched across Local Workstations, MEC Edge Nodes, and Cloud Tiers.</p>
+  </div>
+  <a href="{% url 'upload_dataset' %}" class="btn btn-primary">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+    Ingest New Task Dataset
+  </a>
+</div>
+
+<!-- Task Queue Metrics Overview -->
+<div class="grid-metrics">
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Total Task Records</span>
+      <svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+    </div>
+    <div class="metric-value">{{ total_count }}</div>
+    <div class="metric-sub">Recorded in task queue</div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Completed Tasks</span>
+      <span class="badge badge-green">Success</span>
+    </div>
+    <div class="metric-value text-green">{{ completed_count }}</div>
+    <div class="metric-sub">Dispatched &amp; executed</div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Failed / Blocked</span>
+      <span class="badge badge-red">Errors</span>
+    </div>
+    <div class="metric-value {% if failed_count > 0 %}text-red{% endif %}">{{ failed_count }}</div>
+    <div class="metric-sub">Policy violations or errors</div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Active / Pending</span>
+      <span class="badge badge-amber">In Queue</span>
+    </div>
+    <div class="metric-value text-amber">{{ running_count }}</div>
+    <div class="metric-sub">Queued or running tasks</div>
+  </div>
+</div>
+
+<!-- Task History Table -->
+<div class="card">
+  <div class="card-header">
+    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: 10px;">
+      <h2 class="card-title">Recorded Tasks</h2>
+      <input type="text" id="task-filter-input" class="form-input" placeholder="Filter tasks by ID, name, status, or node..." style="height: 34px; width: 280px; font-size: 0.82rem;">
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table" id="tasks-table">
+      <thead>
+        <tr>
+          <th>Task ID</th>
+          <th>Workload Name</th>
+          <th>Category / Type</th>
+          <th>Privacy Policy</th>
+          <th>Assigned Node / Tier</th>
+          <th>Execution Duration</th>
+          <th>Status</th>
+          <th>Error / Output Summary</th>
+          <th>Created Timestamp</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tasks %}
+        <tr>
+          <td class="text-mono text-bold text-cyan">{{ t.task_id }}</td>
+          <td>
+            <div class="text-bold">{{ t.name }}</div>
+            {% if t.scenario_id %}<div class="text-xs text-dim text-mono">{{ t.scenario_id }}</div>{% endif %}
+          </td>
+          <td><span class="text-sm">{{ t.workload_type }}</span></td>
+          <td>
+            <span class="badge {% if t.privacy_policy == 'LOCAL_ONLY' %}badge-green{% elif t.privacy_policy == 'TRUSTED_EDGE' %}badge-amber{% else %}badge-cyan{% endif %}">
+              {{ t.privacy_policy }}
+            </span>
+          </td>
+          <td class="text-bold">
+            {% if t.assigned_node %}
+              {{ t.assigned_node }}
+            {% elif t.assigned_mec %}
+              {{ t.assigned_mec.device_id }}
+            {% else %}
+              <span class="text-dim">Unassigned</span>
+            {% endif %}
+          </td>
+          <td class="text-mono">
+            {% if t.execution_time %}
+              {{ t.execution_time|floatformat:3 }}s
+            {% elif t.total_latency_ms %}
+              {{ t.total_latency_ms|floatformat:1 }}ms
+            {% else %}
+              &mdash;
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge {% if t.status == 'COMPLETED' or t.status == 'SUCCEEDED' %}badge-green{% elif t.status == 'FAILED' or t.status == 'BLOCKED' %}badge-red{% else %}badge-amber{% endif %}">
+              {{ t.status }}
+            </span>
+          </td>
+          <td style="max-width: 200px; font-size: 0.76rem; color: var(--text-muted);">
+            {% if t.error_message %}
+              <span class="text-red">{{ t.error_message|truncatechars:80 }}</span>
+            {% elif t.input_checksum %}
+              <span class="text-dim text-mono">SHA: {{ t.input_checksum|truncatechars:12 }}</span>
+            {% else %}
+              <span class="text-dim">Normal execution</span>
+            {% endif %}
+          </td>
+          <td class="text-mono text-xs text-dim">{{ t.created_at|date:"Y-m-d H:i:s" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" style="text-align: center; color: var(--text-dim); padding: 32px;">
+            No task records found in database.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const filterInput = document.getElementById('task-filter-input');
+  const table = document.getElementById('tasks-table');
+  if (filterInput && table) {
+    filterInput.addEventListener('input', () => {
+      const q = filterInput.value.toLowerCase();
+      const rows = table.querySelectorAll('tbody tr');
+      rows.forEach(r => {
+        const text = r.textContent.toLowerCase();
+        r.style.display = text.includes(q) ? '' : 'none';
+      });
+    });
+  }
+</script>
+{% endblock %}

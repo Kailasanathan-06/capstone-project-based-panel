@@ -10,6 +10,7 @@ from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 
 from . import views
+from datasets import views_pages as page_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -19,7 +20,27 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(next_page='/login/'), name='logout'),
     path('register/', views.register, name='register'),
 
-    # API endpoints
+    # Essential Core Application Pages (A through G)
+    path('', page_views.dashboard_view, name='dashboard'),
+    path('upload/', page_views.upload_dataset_view, name='upload_dataset'),
+    path('digital-twin/', page_views.digital_twin_view, name='digital_twin'),
+    path('storage-allocation/', page_views.storage_allocation_view, name='storage_allocation'),
+    path('reports/', page_views.dataset_reports_view, name='dataset_reports'),
+    path('reports/<str:report_id>/', page_views.report_detail_view, name='report_detail'),
+    path('reports/<str:report_id>/csv/', page_views.report_download_csv_view, name='report_download_csv'),
+    path('tasks/', page_views.task_history_view, name='task_history'),
+
+    # Core Application APIs
+    path('api/app/dashboard-stats/', page_views.dashboard_api, name='api_dashboard_stats'),
+    path('api/app/upload-zip/', page_views.upload_dataset_api, name='api_upload_dataset'),
+    path('api/app/upload-demo-zip/', page_views.upload_demo_zip_api, name='api_upload_demo_zip'),
+    path('api/app/digital-twin/', page_views.digital_twin_api, name='api_digital_twin_status'),
+    path('api/app/storage-allocations/', page_views.storage_allocation_api, name='api_storage_allocations'),
+    path('api/app/reports/', page_views.dataset_reports_api, name='api_dataset_reports'),
+    path('api/app/reports/<str:report_id>/', page_views.report_detail_api, name='api_report_detail'),
+    path('api/app/tasks/', page_views.task_history_api, name='api_task_history'),
+
+    # Existing Modular Backend APIs
     path('api/', include('securedt.api_urls')),
     path('api/auth/', include('securedt.auth_urls')),
     path('api/mec/', include('mec_manager.urls')),
@@ -31,12 +52,10 @@ urlpatterns = [
     path('api/datasets/', include('datasets.urls')),
     path('medical-datasets/', include('datasets.urls')),
     
-    # Frontend pages
-    path('', TemplateView.as_view(template_name='dashboard.html'), name='dashboard'),
+    # Legacy / Subsystem Views preserved for backward compatibility
     path('medical-dataset/', TemplateView.as_view(template_name='medical_dataset_explorer.html'), name='medical_dataset_explorer'),
     path('task-routing/', TemplateView.as_view(template_name='task_routing.html'), name='task_routing'),
     path('mec-infrastructure/', TemplateView.as_view(template_name='mec_infrastructure.html'), name='mec_infrastructure'),
-    path('digital-twin/', TemplateView.as_view(template_name='digital_twin.html'), name='digital_twin'),
     path('genetic-algorithm/', TemplateView.as_view(template_name='genetic_algorithm.html'), name='genetic_algorithm'),
     path('ai-intelligence/', TemplateView.as_view(template_name='ai_intelligence.html'), name='ai_intelligence'),
     path('security-monitor/', TemplateView.as_view(template_name='security_monitor.html'), name='security_monitor'),

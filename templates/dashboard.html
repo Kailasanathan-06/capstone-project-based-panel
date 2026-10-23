@@ -1,1469 +1,243 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Operations Dashboard - SecureDT{% endblock %}
+{% block title %}Dashboard - SecureDT{% endblock %}
 {% block body_page %}dashboard{% endblock %}
-{% block page_crumb %}Executive Operations Console{% endblock %}
-
-{% block extra_css %}
-<style>
-  /* ==========================================================================
-     SecureDT — Executive Dark Operations Console Design
-     Clean alignment, balanced contrast, unified typography, no cramped widgets
-     ========================================================================== */
-
-  .dash-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    width: 100%;
-    max-width: 100%;
-  }
-
-  /* --- 1. Operations Header --- */
-  .dash-header-panel {
-    background: linear-gradient(135deg, rgba(17, 26, 44, 0.9) 0%, rgba(11, 18, 33, 0.95) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: var(--radius-xl);
-    padding: 20px 24px;
-    box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.4);
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .header-main-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  .header-title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .header-icon-box {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-md);
-    background: rgba(56, 189, 248, 0.12);
-    border: 1px solid rgba(56, 189, 248, 0.25);
-    color: #38bdf8;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .dash-main-title {
-    font-size: 1.35rem;
-    font-weight: 700;
-    color: #f8fafc;
-    letter-spacing: -0.02em;
-    margin: 0;
-  }
-  .dash-main-sub {
-    font-size: 0.84rem;
-    color: #94a3b8;
-    margin: 3px 0 0 0;
-  }
-  .header-status-strip {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    padding-top: 10px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-  }
-  .status-badge-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 4px 11px;
-    background: rgba(30, 41, 59, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 9999px;
-    font-size: 0.76rem;
-    font-weight: 500;
-    color: #cbd5e1;
-    white-space: nowrap;
-  }
-  .status-badge-chip .chip-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .status-badge-chip .chip-dot.green { background: #10b981; box-shadow: 0 0 6px #10b981; }
-  .status-badge-chip .chip-dot.blue  { background: #38bdf8; box-shadow: 0 0 6px #38bdf8; }
-  .status-badge-chip .chip-dot.cloud { background: #818cf8; box-shadow: 0 0 6px #818cf8; }
-  .status-badge-chip .chip-dot.amber { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
-  .status-badge-chip code {
-    font-family: var(--font-mono);
-    font-size: 0.74rem;
-    color: #38bdf8;
-    background: rgba(56, 189, 248, 0.1);
-    padding: 1px 5px;
-    border-radius: 3px;
-  }
-
-  /* --- 2. Top Metric Cards (Responsive 4-Column Grid) --- */
-  .metrics-four-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
-    width: 100%;
-  }
-  @media (max-width: 860px) {
-    .metrics-four-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
-  @media (max-width: 480px) {
-    .metrics-four-grid { grid-template-columns: 1fr; }
-  }
-
-  .metric-card-box {
-    background: linear-gradient(180deg, rgba(20, 30, 48, 0.75) 0%, rgba(13, 21, 39, 0.9) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: var(--radius-lg);
-    padding: 14px 18px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    min-height: 110px;
-    min-width: 0;
-    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-  }
-  .metric-card-box:hover {
-    transform: translateY(-2px);
-    border-color: rgba(56, 189, 248, 0.35);
-    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
-  }
-  .card-top-line {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .card-label-text {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #94a3b8;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .card-icon-round {
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-sm);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.05);
-    color: #94a3b8;
-    flex-shrink: 0;
-  }
-  .card-icon-round.blue   { background: rgba(56, 189, 248, 0.12); color: #38bdf8; }
-  .card-icon-round.green  { background: rgba(16, 185, 129, 0.12); color: #10b981; }
-  .card-icon-round.amber  { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
-  .card-icon-round.purple { background: rgba(129, 140, 248, 0.12); color: #818cf8; }
-
-  .card-value-display {
-    font-size: 1.7rem;
-    font-weight: 800;
-    color: #f8fafc;
-    letter-spacing: -0.02em;
-    line-height: 1.15;
-    margin: 6px 0 4px 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .card-value-display.blue   { color: #38bdf8; }
-  .card-value-display.green  { color: #34d399; }
-  .card-value-display.amber  { color: #fbbf24; }
-  .card-value-display.purple { color: #a5b4fc; }
-
-  .card-bottom-line {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 0.73rem;
-    color: #94a3b8;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .mini-chip {
-    font-size: 0.68rem;
-    font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.06);
-    color: #cbd5e1;
-    white-space: nowrap;
-  }
-  .mini-chip.green { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-  .mini-chip.blue  { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
-
-  /* --- 3. Two-Column System Panels (MEC Gateway & Cloud Storage) --- */
-  .system-duo-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 20px;
-    width: 100%;
-  }
-  @media (max-width: 960px) {
-    .system-duo-grid { grid-template-columns: 1fr; }
-  }
-
-  .system-panel {
-    background: linear-gradient(180deg, rgba(17, 26, 44, 0.85) 0%, rgba(11, 18, 33, 0.95) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: var(--radius-xl);
-    padding: 20px 22px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.4);
-    min-width: 0;
-  }
-  .system-panel:hover {
-    border-color: rgba(56, 189, 248, 0.28);
-  }
-  .panel-header-line {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-    margin-bottom: 16px;
-    min-width: 0;
-  }
-  .panel-heading-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-  }
-  .panel-glyph {
-    width: 36px;
-    height: 36px;
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .panel-glyph.mec   { background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); }
-  .panel-glyph.cloud { background: rgba(129, 140, 248, 0.12); color: #818cf8; border: 1px solid rgba(129, 140, 248, 0.25); }
-
-  .panel-title-text {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: #f8fafc;
-    margin: 0;
-    letter-spacing: -0.01em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .panel-sub-text {
-    font-size: 0.76rem;
-    color: #94a3b8;
-    margin: 2px 0 0 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* Info Specs Grid */
-  .info-tiles-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    margin-bottom: 16px;
-  }
-  @media (max-width: 540px) {
-    .info-tiles-grid { grid-template-columns: 1fr; }
-  }
-  .info-tile {
-    background: rgba(30, 41, 59, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: var(--radius-md);
-    padding: 8px 11px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-  .tile-k {
-    font-size: 0.65rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #94a3b8;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .tile-v {
-    font-size: 0.8rem;
-    color: #f1f5f9;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .tile-v code {
-    font-family: var(--font-mono);
-    font-size: 0.76rem;
-    color: #38bdf8;
-    background: rgba(56, 189, 248, 0.1);
-    padding: 1px 5px;
-    border-radius: 4px;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  /* Telemetry 4-Metric Grid */
-  .telemetry-row-four {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-  @media (max-width: 480px) {
-    .telemetry-row-four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
-  .telem-small-card {
-    background: rgba(30, 41, 59, 0.45);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: var(--radius-md);
-    padding: 7px 9px;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    min-width: 0;
-  }
-  .telem-header-line {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .telem-tag-lbl {
-    font-size: 0.65rem;
-    font-weight: 700;
-    color: #94a3b8;
-    letter-spacing: 0.04em;
-  }
-  .telem-tag-val {
-    font-size: 0.9rem;
-    font-weight: 700;
-    font-family: var(--font-mono);
-    color: #f8fafc;
-  }
-  .telem-tag-val.blue   { color: #38bdf8; }
-  .telem-tag-val.purple { color: #818cf8; }
-  .telem-tag-val.green  { color: #34d399; }
-  .telem-tag-val.amber  { color: #fbbf24; }
-
-  .telem-track-line {
-    width: 100%;
-    height: 4px;
-    background: rgba(15, 23, 42, 0.8);
-    border-radius: 99px;
-    overflow: hidden;
-  }
-  .telem-fill-line {
-    height: 100%;
-    border-radius: 99px;
-    transition: width 0.4s ease;
-  }
-  .telem-fill-line.blue   { background: linear-gradient(90deg, #0284c7, #38bdf8); }
-  .telem-fill-line.purple { background: linear-gradient(90deg, #4f46e5, #818cf8); }
-  .telem-fill-line.green  { background: linear-gradient(90deg, #059669, #34d399); }
-  .telem-fill-line.amber  { background: linear-gradient(90deg, #d97706, #fbbf24); }
-
-  /* Cloud Storage Explorer Elements */
-  .cloud-bar-wrap {
-    background: rgba(30, 41, 59, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: var(--radius-md);
-    padding: 8px 12px;
-    margin-bottom: 14px;
-  }
-  .cloud-bar-labels {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.72rem;
-    margin-bottom: 5px;
-  }
-  .cloud-bar-labels span:first-child {
-    font-weight: 700;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .cloud-bar-labels span:last-child {
-    color: #f8fafc;
-    font-family: var(--font-mono);
-  }
-
-  .folder-list-wrap {
-    background: rgba(15, 23, 42, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: var(--radius-md);
-    padding: 6px 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    margin-bottom: 12px;
-  }
-  .folder-entry-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 5px 6px;
-    border-radius: var(--radius-sm);
-    font-size: 0.78rem;
-    transition: background 0.15s ease;
-    gap: 8px;
-    min-width: 0;
-  }
-  .folder-entry-row:hover {
-    background: rgba(255, 255, 255, 0.04);
-  }
-  .folder-entry-left {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    min-width: 0;
-    overflow: hidden;
-  }
-  .folder-entry-left svg {
-    width: 15px;
-    height: 15px;
-    flex-shrink: 0;
-  }
-  .folder-title-code {
-    font-family: var(--font-mono);
-    font-weight: 600;
-    color: #f1f5f9;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .folder-desc-text {
-    font-size: 0.71rem;
-    color: #94a3b8;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* --- 4. DEDICATED INFRASTRUCTURE STATUS STRIP (SECTION 7 REQUIREMENT) --- */
-  .infra-status-strip-box {
-    background: rgba(17, 26, 44, 0.75);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: var(--radius-lg);
-    padding: 12px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-    font-size: 0.78rem;
-    color: #94a3b8;
-    width: 100%;
-  }
-  .infra-strip-left, .infra-strip-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .infra-strip-link {
-    color: #38bdf8;
-    font-weight: 600;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    transition: color 0.15s ease;
-  }
-  .infra-strip-link:hover {
-    color: #7dd3fc;
-  }
-
-  /* --- 5. Manual Dataset Ingestion Studio --- */
-  .manual-studio-card {
-    background: linear-gradient(180deg, rgba(17, 26, 44, 0.85) 0%, rgba(11, 18, 33, 0.95) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: var(--radius-xl);
-    padding: 22px 24px;
-    box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.4);
-    width: 100%;
-  }
-  .studio-head-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-    margin-bottom: 16px;
-  }
-  .studio-head-title {
-    font-size: 1.15rem;
-    font-weight: 700;
-    color: #f8fafc;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .studio-head-sub {
-    font-size: 0.82rem;
-    color: #94a3b8;
-    margin: 2px 0 0 0;
-  }
-
-  /* Governance Callout Banner */
-  .governance-callout-box {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 10px 14px;
-    background: rgba(245, 158, 11, 0.08);
-    border: 1px solid rgba(245, 158, 11, 0.22);
-    border-radius: var(--radius-md);
-    font-size: 0.79rem;
-    color: #fbbf24;
-    line-height: 1.45;
-    margin-bottom: 18px;
-  }
-  .governance-callout-box code {
-    font-family: var(--font-mono);
-    font-size: 0.73rem;
-    background: rgba(245, 158, 11, 0.15);
-    padding: 1px 5px;
-    border-radius: 3px;
-    color: #fef3c7;
-  }
-
-  /* Form: 2 Rows x 2 Columns */
-  .form-pair-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-    margin-bottom: 16px;
-  }
-  @media (max-width: 720px) {
-    .form-pair-grid { grid-template-columns: 1fr; }
-  }
-  .input-label-unit {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-  .input-label-unit label {
-    font-size: 0.77rem;
-    font-weight: 600;
-    color: #cbd5e1;
-  }
-  .text-box-ctrl, .select-box-ctrl {
-    width: 100%;
-    padding: 8px 12px;
-    background: rgba(15, 23, 42, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: var(--radius-md);
-    color: #f8fafc;
-    font-family: inherit;
-    font-size: 0.82rem;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  }
-  .text-box-ctrl:focus, .select-box-ctrl:focus {
-    outline: none;
-    border-color: #38bdf8;
-    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
-  }
-
-  /* Dropzone */
-  .file-dropzone-box {
-    border: 2px dashed rgba(255, 255, 255, 0.14);
-    border-radius: var(--radius-lg);
-    padding: 22px 18px;
-    text-align: center;
-    background: rgba(30, 41, 59, 0.25);
-    cursor: pointer;
-    transition: border-color 0.2s ease, background 0.2s ease;
-    margin-bottom: 16px;
-  }
-  .file-dropzone-box:hover, .file-dropzone-box.dragover {
-    border-color: #38bdf8;
-    background: rgba(56, 189, 248, 0.05);
-  }
-  .drop-main-text {
-    font-weight: 600;
-    font-size: 0.88rem;
-    color: #e2e8f0;
-    margin-bottom: 2px;
-  }
-  .drop-sub-text {
-    font-size: 0.73rem;
-    color: #94a3b8;
-  }
-
-  /* Inventory Table Wrap */
-  .dataset-inventory-table-wrap {
-    margin-top: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: var(--radius-lg);
-    overflow-x: auto;
-  }
-  .inventory-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.8rem;
-    min-width: 650px;
-  }
-  .inventory-table th {
-    background: rgba(30, 41, 59, 0.7);
-    color: #94a3b8;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 0.68rem;
-    letter-spacing: 0.05em;
-    padding: 9px 12px;
-    text-align: left;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  }
-  .inventory-table td {
-    padding: 9px 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-    color: #cbd5e1;
-  }
-  .inventory-table tr:hover td {
-    background: rgba(255, 255, 255, 0.02);
-  }
-
-  /* Pulsing Online Beacon */
-  .beacon-dot-live {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #10b981;
-    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
-    animation: beaconLive 2s infinite ease-in-out;
-  }
-  @keyframes beaconLive {
-    0%, 100% { box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3); }
-    50% { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.08); }
-  }
-</style>
-{% endblock %}
 
 {% block content %}
-<div class="dash-wrapper">
+<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+  <div>
+    <h1 class="page-heading">Operations Dashboard</h1>
+    <p class="body-text">Real-time telemetry and resource allocation for Digital Twin Edge–Cloud infrastructure.</p>
+  </div>
+  <div style="display: flex; gap: 10px;">
+    <a href="{% url 'upload_dataset' %}" class="btn btn-primary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+      Upload ZIP Dataset
+    </a>
+    <a href="{% url 'digital_twin' %}" class="btn btn-secondary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+      View Digital Twin
+    </a>
+  </div>
+</div>
 
-  <!-- =========================================================================
-       1. CONSOLE HEADER PANEL
-       ========================================================================= -->
-  <header class="dash-header-panel">
-    <div class="header-main-row">
-      <div class="header-title-wrap">
-        <div class="header-icon-box">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-        </div>
-        <div>
-          <h1 class="dash-main-title">SecureDT Operations Console</h1>
-          <p class="dash-main-sub">Intelligent and Secure Task Scheduling for Digital Twin-Enabled Edge–Cloud Networks</p>
-        </div>
-      </div>
-      <div>
-        <span class="status-badge-chip" style="background:rgba(245,158,11,0.12);color:#fbbf24;border-color:rgba(245,158,11,0.3);padding:5px 12px;font-weight:600;">
-          <span class="chip-dot amber"></span>
-          Manual Only Ingestion
-        </span>
-      </div>
+<!-- 1. Top Real Metrics Row -->
+<div class="grid-metrics">
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Datasets Uploaded</span>
+      <svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
     </div>
-
-    <!-- Status Strip Row -->
-    <div class="header-status-strip">
-      <div class="status-badge-chip" title="Central Django server status">
-        <span class="chip-dot green"></span>
-        <span>Server:</span>
-        <code>127.0.0.1:8000</code>
-      </div>
-      <div class="status-badge-chip" title="Verified MEC Gateway connection">
-        <span class="chip-dot blue"></span>
-        <span>Connected MEC:</span>
-        <code id="header-mec-code">MEC-001:8001</code>
-      </div>
-      <div class="status-badge-chip" title="Cloud storage capacity allocation">
-        <span class="chip-dot cloud"></span>
-        <span>Cloud Storage:</span>
-        <code>1,000 GB Quota</code>
-      </div>
-      <div class="status-badge-chip" title="Zero automated dataset downloads active">
-        <span class="chip-dot green"></span>
-        <span>Data Governance:</span>
-        <strong style="color:#34d399;">Active</strong>
-      </div>
-    </div>
-  </header>
-
-  <!-- =========================================================================
-       2. TOP FOUR METRIC CARDS (4-COLUMN BALANCED GRID)
-       ========================================================================= -->
-  <section class="metrics-four-grid" aria-label="System Key Performance Indicators">
-    <!-- Card 1: Edge Nodes -->
-    <article class="metric-card-box">
-      <div class="card-top-line">
-        <span class="card-label-text">CONNECTED EDGE NODES</span>
-        <div class="card-icon-round blue">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-        </div>
-      </div>
-      <div class="card-value-display blue" id="kpi-online-mecs">1 / 1</div>
-      <div class="card-bottom-line">
-        <span class="mini-chip green" id="kpi-online-pct">100% Online</span>
-        <span>Gateway: <strong style="color:#f8fafc;" id="kpi-active-node-id">MEC-001</strong></span>
-      </div>
-    </article>
-
-    <!-- Card 2: Task Queue -->
-    <article class="metric-card-box">
-      <div class="card-top-line">
-        <span class="card-label-text">TASK QUEUE PIPELINE</span>
-        <div class="card-icon-round green">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        </div>
-      </div>
-      <div class="card-value-display green" id="kpi-active-tasks">0 Active</div>
-      <div class="card-bottom-line">
-        <span class="mini-chip blue" id="kpi-queued">Queued: 0</span>
-        <span>0 Violations</span>
-      </div>
-    </article>
-
-    <!-- Card 3: Edge Compute -->
-    <article class="metric-card-box">
-      <div class="card-top-line">
-        <span class="card-label-text">EDGE COMPUTE LOAD</span>
-        <div class="card-icon-round amber">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        </div>
-      </div>
-      <div class="card-value-display amber" id="kpi-avg-cpu">29.7% CPU</div>
-      <div class="card-bottom-line">
-        <span>RAM: <strong style="color:#f8fafc;" id="kpi-avg-ram">36.3%</strong></span>
-        <span class="mini-chip">Balanced Load</span>
-      </div>
-    </article>
-
-    <!-- Card 4: Cloud Storage Tier -->
-    <article class="metric-card-box">
-      <div class="card-top-line">
-        <span class="card-label-text">CLOUD STORAGE TIER</span>
-        <div class="card-icon-round purple">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 7 19h10.5z"/></svg>
-        </div>
-      </div>
-      <div class="card-value-display purple" id="kpi-cloud-quota">1,000 GB</div>
-      <div class="card-bottom-line">
-        <span>Used: <strong style="color:#38bdf8;" id="kpi-cloud-used">0.00 MB</strong></span>
-        <span class="mini-chip blue" id="kpi-cloud-latency">12.5ms Link</span>
-      </div>
-    </article>
-  </section>
-
-  <!-- =========================================================================
-       3. TWO-COLUMN SYSTEM PANELS: MEC GATEWAY & CLOUD STORAGE EXPLORER
-       ========================================================================= -->
-  <div class="system-duo-grid">
-
-    <!-- PANEL 1: CONNECTED MEC EDGE GATEWAY -->
-    <section class="system-panel" aria-labelledby="mec-gateway-heading">
-      <div>
-        <div class="panel-header-line">
-          <div class="panel-heading-left">
-            <div class="panel-glyph mec">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-            </div>
-            <div style="min-width:0;">
-              <h2 id="mec-gateway-heading" class="panel-title-text">Connected MEC Edge Gateway</h2>
-              <p class="panel-sub-text">Real-time edge telemetry verified with central Django server</p>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-            <span class="status-badge-chip" style="padding:3px 8px;font-size:0.72rem;background:rgba(16,185,129,0.15);color:#34d399;border-color:rgba(16,185,129,0.3);">
-              <span class="beacon-dot-live"></span>
-              <strong id="mec-hero-status-text">ONLINE</strong>
-            </span>
-            <button type="button" class="btn btn-secondary btn-sm" id="btn-ping-mec" title="Send live heartbeat ping to MEC gateway">
-              ⚡ Ping Gateway
-            </button>
-          </div>
-        </div>
-
-        <!-- 2-Column Info Grid -->
-        <div class="info-tiles-grid">
-          <div class="info-tile">
-            <span class="tile-k">DEVICE IDENTIFIER</span>
-            <span class="tile-v">
-              <code id="mec-hero-id">MEC-001</code>
-              <span style="font-size:0.72rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="mec-hero-name">Hospital Ward Edge GW</span>
-            </span>
-          </div>
-
-          <div class="info-tile">
-            <span class="tile-k">CENTRAL SERVER LINK</span>
-            <span class="tile-v">
-              <code id="mec-hero-server-url">http://127.0.0.1:8000</code>
-            </span>
-          </div>
-
-          <div class="info-tile">
-            <span class="tile-k">DIAGNOSTIC SOCKET</span>
-            <span class="tile-v">
-              <code id="mec-hero-ip-port">127.0.0.1:8001</code>
-              <span class="mini-chip green">Active</span>
-            </span>
-          </div>
-
-          <div class="info-tile">
-            <span class="tile-k">OPERATING PLATFORM</span>
-            <span class="tile-v" id="mec-hero-os" style="font-size:0.76rem;">
-              Ubuntu 22.04 LTS (Edge RT)
-            </span>
-          </div>
-
-          <div class="info-tile">
-            <span class="tile-k">PLACEMENT POLICY</span>
-            <span class="tile-v">
-              <span class="mini-chip blue">TRUSTED_EDGE</span>
-              <span style="font-size:0.72rem;color:#94a3b8;">Hospital Only</span>
-            </span>
-          </div>
-
-          <div class="info-tile">
-            <span class="tile-k">LAST HEARTBEAT</span>
-            <span class="tile-v" id="mec-hero-heartbeat" style="font-size:0.74rem;color:#cbd5e1;">
-              Just now (Synchronized)
-            </span>
-          </div>
-        </div>
-
-        <!-- 4-Meter Telemetry Gauges -->
-        <div class="telemetry-row-four">
-          <div class="telem-small-card">
-            <div class="telem-header-line">
-              <span class="telem-tag-lbl">CPU</span>
-              <span class="telem-tag-val blue" id="mec-hero-cpu">29.7%</span>
-            </div>
-            <div class="telem-track-line">
-              <div class="telem-fill-line blue" id="telem-bar-cpu" style="width: 29.7%;"></div>
-            </div>
-          </div>
-
-          <div class="telem-small-card">
-            <div class="telem-header-line">
-              <span class="telem-tag-lbl">RAM</span>
-              <span class="telem-tag-val purple" id="mec-hero-ram">36.3%</span>
-            </div>
-            <div class="telem-track-line">
-              <div class="telem-fill-line purple" id="telem-bar-ram" style="width: 36.3%;"></div>
-            </div>
-          </div>
-
-          <div class="telem-small-card">
-            <div class="telem-header-line">
-              <span class="telem-tag-lbl">DISK</span>
-              <span class="telem-tag-val green" id="mec-hero-disk">22.0%</span>
-            </div>
-            <div class="telem-track-line">
-              <div class="telem-fill-line green" id="telem-bar-disk" style="width: 22.0%;"></div>
-            </div>
-          </div>
-
-          <div class="telem-small-card">
-            <div class="telem-header-line">
-              <span class="telem-tag-lbl">PING</span>
-              <span class="telem-tag-val amber" id="mec-hero-latency">12.5ms</span>
-            </div>
-            <div class="telem-track-line">
-              <div class="telem-fill-line amber" id="telem-bar-lat" style="width: 25%;"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- PANEL 2: CLOUD STORAGE FOLDER EXPLORER -->
-    <section class="system-panel" aria-labelledby="cloud-explorer-heading">
-      <div>
-        <div class="panel-header-line">
-          <div class="panel-heading-left">
-            <div class="panel-glyph cloud">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 7 19h10.5z"/></svg>
-            </div>
-            <div style="min-width:0;">
-              <h2 id="cloud-explorer-heading" class="panel-title-text">Cloud Storage Folder Explorer</h2>
-              <p class="panel-sub-text">Structured multi-tier storage for public and de-identified data</p>
-            </div>
-          </div>
-          <div style="flex-shrink:0;">
-            <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-cloud" title="Sync cloud directory status">
-              🔄 Refresh
-            </button>
-          </div>
-        </div>
-
-        <!-- Quota Progress Meter -->
-        <div class="cloud-bar-wrap">
-          <div class="cloud-bar-labels">
-            <span>ALLOCATED CLOUD CAPACITY</span>
-            <span><strong id="cloud-used-mb" style="color:#38bdf8;">0.00</strong> MB / 1,000.0 GB <span class="mini-chip">0.0% Used</span></span>
-          </div>
-          <div class="telem-track-line">
-            <div id="cloud-meter-bar" class="telem-fill-line purple" style="width: 2%;"></div>
-          </div>
-        </div>
-
-        <!-- Folder Tree View -->
-        <div class="folder-list-wrap">
-          <div class="folder-entry-row" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 7px;">
-            <div class="folder-entry-left">
-              <svg viewBox="0 0 24 24" fill="#818cf8"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
-              <span class="folder-title-code">data_storage/cloud_storage/</span>
-            </div>
-            <span class="mini-chip blue" style="flex-shrink:0;">CLOUD_ALLOWED</span>
-          </div>
-
-          <div class="folder-entry-row">
-            <div class="folder-entry-left">
-              <svg viewBox="0 0 24 24" fill="#38bdf8"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
-              <span class="folder-title-code">datasets/</span>
-              <span class="folder-desc-text">&mdash; De-identified research records</span>
-            </div>
-            <span class="mini-chip" style="flex-shrink:0;">Read/Write</span>
-          </div>
-
-          <div class="folder-entry-row">
-            <div class="folder-entry-left">
-              <svg viewBox="0 0 24 24" fill="#34d399"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
-              <span class="folder-title-code">results/</span>
-              <span class="folder-desc-text">&mdash; Comparative CSV benchmarks</span>
-            </div>
-            <span class="mini-chip" style="flex-shrink:0;">Audited</span>
-          </div>
-
-          <div class="folder-entry-row">
-            <div class="folder-entry-left">
-              <svg viewBox="0 0 24 24" fill="#a78bfa"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
-              <span class="folder-title-code">models/</span>
-              <span class="folder-desc-text">&mdash; GA chromosome checkpoints</span>
-            </div>
-            <span class="mini-chip" style="flex-shrink:0;">Model Store</span>
-          </div>
-
-          <div class="folder-entry-row">
-            <div class="folder-entry-left">
-              <svg viewBox="0 0 24 24" fill="#fbbf24"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
-              <span class="folder-title-code">manual_uploads/</span>
-              <span class="folder-desc-text">&mdash; Verified manual datasets</span>
-            </div>
-            <span class="mini-chip" style="color:#fbbf24;background:rgba(245,158,11,0.15);flex-shrink:0;">Manual Only</span>
-          </div>
-        </div>
-      </div>
-    </section>
+    <div class="metric-value">{{ total_uploads }}</div>
+    <div class="metric-sub">Total archive packages received</div>
   </div>
 
-  <!-- =========================================================================
-       4. DEDICATED INFRASTRUCTURE STATUS STRIP (SECTION 7 REQUIREMENT)
-       ========================================================================= -->
-  <section class="infra-status-strip-box" aria-label="Infrastructure Connectivity Status">
-    <div class="infra-strip-left">
-      <span class="beacon-dot-live"></span>
-      <span>Gateway Telemetry Active &bull; Measured Energy: <strong style="color:#f8fafc;">1.15 W</strong> &bull; Stale-Timeout Guard: <strong style="color:#f8fafc;">35s</strong></span>
-      <a href="{% url 'mec_infrastructure' %}" class="infra-strip-link">MEC Infrastructure &rarr;</a>
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Datasets Analyzed</span>
+      <svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
     </div>
-    <div class="infra-strip-right">
-      <span class="chip-dot cloud" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#818cf8;"></span>
-      <span>Cloud Storage Synchronized &bull; <strong id="cloud-file-count" style="color:#f8fafc;">0</strong> Files Verified &bull; Zero External Leakage</span>
-      <a href="{% url 'cloud_storage' %}" class="infra-strip-link">Full Cloud Storage &rarr;</a>
+    <div class="metric-value text-cyan">{{ analyzed_reports }}</div>
+    <div class="metric-sub">Reports generated &amp; verified</div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Tasks Completed</span>
+      <svg class="metric-icon text-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
     </div>
-  </section>
+    <div class="metric-value text-green">{{ tasks_completed }}</div>
+    <div class="metric-sub">Executed across edge &amp; cloud</div>
+  </div>
 
-  <!-- =========================================================================
-       5. MANUAL DATASET INGESTION STUDIO (NO AUTOMATIC SEEDING)
-       ========================================================================= -->
-  <section class="manual-studio-card" aria-labelledby="manual-ingestion-heading">
-    <div class="studio-head-bar">
-      <div>
-        <h2 id="manual-ingestion-heading" class="studio-head-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Manual Dataset Ingestion Studio
-        </h2>
-        <p class="studio-head-sub">
-          Upload hospital datasets manually from your workstation. No external datasets are automatically inserted.
-        </p>
-      </div>
-      <span class="mini-chip" style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);padding:3px 9px;">
-        Policy Guard Active
-      </span>
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Tasks Failed / Blocked</span>
+      <svg class="metric-icon text-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
     </div>
-
-    <!-- Governance Alert Callout -->
-    <div class="governance-callout-box">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <div>
-        <strong>Strict Data Governance:</strong> Datasets flagged with <code>LOCAL_ONLY</code> policy cannot be transferred to MEC or Cloud tiers. Datasets flagged with <code>TRUSTED_EDGE</code> cannot be stored in the Cloud tier. Every file receives an authentic SHA-256 cryptographic checksum upon upload.
-      </div>
-    </div>
-
-    <!-- Manual Upload Form -->
-    <form id="manual-dataset-form" enctype="multipart/form-data">
-      {% csrf_token %}
-
-      <!-- 2 Clean Rows of 2 Columns -->
-      <div class="form-pair-grid">
-        <div class="input-label-unit">
-          <label for="ds-name">Dataset Display Name *</label>
-          <input type="text" id="ds-name" name="name" class="text-box-ctrl" placeholder="e.g., Ward-B Patient Vitals Batch" required>
-        </div>
-
-        <div class="input-label-unit">
-          <label for="ds-modality">Modality / Format</label>
-          <select id="ds-modality" name="modality" class="select-box-ctrl">
-            <option value="CSV">Clinical CSV / Tabular Vitals</option>
-            <option value="IMAGES">Medical Images (JPEG / PNG / DICOM)</option>
-            <option value="JSON">Diagnostic JSON / HL7 Records</option>
-            <option value="TXT">Clinical Text Document</option>
-            <option value="ZIP">Batch ZIP Archive</option>
-          </select>
-        </div>
-
-        <div class="input-label-unit">
-          <label for="ds-policy">Data Privacy Placement Policy *</label>
-          <select id="ds-policy" name="privacy_policy" class="select-box-ctrl" required>
-            <option value="LOCAL_ONLY">🔒 LOCAL_ONLY (Strict Hospital Workstation)</option>
-            <option value="TRUSTED_EDGE" selected>⚡ TRUSTED_EDGE (Permitted on Hospital MEC-001)</option>
-            <option value="CLOUD_ALLOWED">☁️ CLOUD_ALLOWED (De-identified / Cloud Permitted)</option>
-          </select>
-        </div>
-
-        <div class="input-label-unit">
-          <label for="ds-destination">Target Storage Destination *</label>
-          <select id="ds-destination" name="target_destination" class="select-box-ctrl" required>
-            <option value="LOCAL_STORAGE">💻 LOCAL_STORAGE (Workstation / 50 GB)</option>
-            <option value="MEC_STORAGE" selected>⚡ MEC_STORAGE (Hospital Edge MEC / 200 GB)</option>
-            <option value="CLOUD_STORAGE">☁️ CLOUD_STORAGE (Google Drive Tier / 1,000 GB)</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Drag & Drop Zone -->
-      <div class="file-dropzone-box" id="dropzone">
-        <input type="file" id="ds-file" name="file" style="display: none;" required>
-        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="1.5" style="margin: 0 auto 5px;"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m8 16 4-4 4 4"/></svg>
-        <div class="drop-main-text" id="dropzone-text">
-          Click to browse or drag and drop dataset file here
-        </div>
-        <div class="drop-sub-text">Supports .csv, .json, .png, .jpg, .dcm, .txt, .zip</div>
-      </div>
-
-      <div id="policy-violation-alert" class="alert alert-danger" style="display: none; margin-bottom: 14px;"></div>
-
-      <div style="display: flex; justify-content: flex-end; gap: 10px;">
-        <button type="reset" class="btn btn-ghost btn-sm">Clear Form</button>
-        <button type="submit" class="btn btn-primary btn-sm" id="btn-upload-ds">
-          🚀 Upload &amp; Verify Dataset
-        </button>
-      </div>
-    </form>
-
-    <!-- Inventory of Uploaded Datasets -->
-    <div class="dataset-inventory-table-wrap">
-      <table class="inventory-table">
-        <thead>
-          <tr>
-            <th>Dataset Name</th>
-            <th>File Name</th>
-            <th>Size</th>
-            <th>Governance Policy</th>
-            <th>Destination</th>
-            <th>SHA-256 Checksum</th>
-            <th>Uploaded At</th>
-            <th style="text-align: right;">Action</th>
-          </tr>
-        </thead>
-        <tbody id="manual-datasets-tbody">
-          <tr>
-            <td colspan="8" style="text-align: center; color: var(--color-text-muted); padding: 18px;">
-              No manual datasets uploaded yet. Use the form above to ingest a dataset manually.
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
+    <div class="metric-value {% if tasks_failed > 0 %}text-red{% endif %}">{{ tasks_failed }}</div>
+    <div class="metric-sub">Violations or execution faults</div>
+  </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  document.body.dataset.page = 'dashboard';
+<!-- 2. The Three Storage Devices & Real Capacity Status -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+        Tri-Tier Storage Infrastructure Status
+      </h2>
+      <div class="card-subtitle">Live status, storage capacity, and assigned dataset distribution</div>
+    </div>
+    <span class="badge badge-cyan">Operational</span>
+  </div>
 
-  // --- 1. Load Connected MEC Gateway Details ---
-  async function loadConnectedMec() {
-    try {
-      const res = await fetch('/api/mec/connected/');
-      if (!res.ok) return;
-      const data = await res.json();
+  <div class="grid-tri-storage">
+    {% for node in storage_nodes %}
+    <div class="storage-card">
+      <div class="storage-card-header">
+        <span class="storage-card-title">{{ node.name }}</span>
+        {% if node.is_online %}
+          <span class="badge badge-green"><span class="status-dot green"></span> {{ node.status }}</span>
+        {% else %}
+          <span class="badge badge-red"><span class="status-dot red"></span> {{ node.status }}</span>
+        {% endif %}
+      </div>
 
-      const setText = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = val;
-      };
+      <div class="storage-stat-row">
+        <span class="storage-stat-label">Device Identifier</span>
+        <span class="storage-stat-value text-cyan">{{ node.destination_id }}</span>
+      </div>
+      <div class="storage-stat-row">
+        <span class="storage-stat-label">Privacy Policy Allowed</span>
+        <span class="storage-stat-value">{{ node.privacy_tier_allowed }}</span>
+      </div>
+      <div class="storage-stat-row">
+        <span class="storage-stat-label">Assigned Datasets/Files</span>
+        <span class="storage-stat-value">{{ node.assigned_items_count }}</span>
+      </div>
+      <div class="storage-stat-row">
+        <span class="storage-stat-label">Used / Capacity</span>
+        <span class="storage-stat-value">{{ node.used_formatted }} / {{ node.capacity_formatted }}</span>
+      </div>
 
-      setText('mec-hero-id', data.device_id || 'MEC-001');
-      setText('kpi-active-node-id', data.device_id || 'MEC-001');
-      setText('header-mec-code', `${data.device_id || 'MEC-001'}:${data.port || 8001}`);
-      setText('mec-hero-name', data.system_name || 'Hospital Ward Edge Gateway');
-      setText('mec-hero-server-url', data.server_url || 'http://127.0.0.1:8000');
-      setText('mec-hero-ip-port', `${data.ip_address || '127.0.0.1'}:${data.port || 8001}`);
-      setText('mec-hero-os', data.operating_system || 'Ubuntu 22.04 LTS (Edge RT)');
-      setText('mec-hero-heartbeat', data.last_heartbeat || 'Just now');
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill {% if node.usage_percent > 85 %}red{% elif node.usage_percent > 65 %}amber{% endif %}" style="width: {{ node.usage_percent }}%;"></div>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); margin-top: 4px;">
+        <span>Free: {{ node.free_formatted }}</span>
+        <span>{{ node.usage_percent }}% Used</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
 
-      const isOnline = data.is_online || data.connected;
-      const statusText = document.getElementById('mec-hero-status-text');
-      if (statusText) statusText.textContent = isOnline ? 'ONLINE' : 'OFFLINE';
+<!-- 3. Recent Activity & Processing Pipeline Status -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+  <!-- Latest Upload & Allocation -->
+  <div class="card" style="margin-bottom: 0;">
+    <div class="card-header">
+      <h2 class="card-title">Latest Dataset Ingest &amp; Placement</h2>
+      <a href="{% url 'storage_allocation' %}" class="btn btn-ghost" style="padding: 0 6px; font-size: 0.78rem;">View All</a>
+    </div>
+    {% if latest_upload %}
+      <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.85rem;">
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-subtle);">
+          <span class="text-dim">Archive File:</span>
+          <span class="text-bold">{{ latest_upload.file_name }}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-subtle);">
+          <span class="text-dim">Upload ID:</span>
+          <span class="text-mono text-cyan">{{ latest_upload.upload_id }}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-subtle);">
+          <span class="text-dim">Execution Mode:</span>
+          <span class="badge badge-cyan">{{ latest_upload.execution_mode }}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-subtle);">
+          <span class="text-dim">Status:</span>
+          <span class="badge {% if latest_upload.status == 'COMPLETED' %}badge-green{% elif latest_upload.status == 'FAILED' %}badge-red{% else %}badge-amber{% endif %}">
+            {{ latest_upload.status }}
+          </span>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 6px 0;">
+          <span class="text-dim">Uploaded Timestamp:</span>
+          <span class="text-mono">{{ latest_upload.uploaded_at|date:"Y-m-d H:i:s" }}</span>
+        </div>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <p>No dataset archives uploaded yet.</p>
+        <a href="{% url 'upload_dataset' %}" class="btn btn-secondary btn-sm" style="margin-top: 8px;">Upload First Dataset</a>
+      </div>
+    {% endif %}
+  </div>
 
-      // Update Telemetry Values
-      const cpu = data.cpu_percent || 29.7;
-      const ram = data.ram_percent || 36.3;
-      const disk = data.disk_percent || 22.0;
-      const lat = data.latency_ms || 12.5;
+  <!-- Recent Defensive Security / Policy Events -->
+  <div class="card" style="margin-bottom: 0;">
+    <div class="card-header">
+      <h2 class="card-title">Security &amp; Policy Audit Events</h2>
+      <span class="badge badge-muted">{{ recent_audits.count }} Logged</span>
+    </div>
+    {% if recent_audits %}
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        {% for ev in recent_audits %}
+        <div style="padding: 8px 10px; background: var(--bg-surface); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); font-size: 0.8rem;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span class="text-bold text-cyan">{{ ev.event_type }}</span>
+            <span class="badge {% if ev.severity == 'CRITICAL' or ev.severity == 'HIGH' %}badge-red{% else %}badge-amber{% endif %}" style="font-size: 0.68rem; padding: 1px 6px;">
+              {{ ev.severity }}
+            </span>
+          </div>
+          <div style="color: var(--text-muted); font-size: 0.78rem;">{{ ev.description|truncatechars:100 }}</div>
+          <div style="font-size: 0.7rem; color: var(--text-dim); margin-top: 4px; font-family: var(--font-mono);">
+            {{ ev.timestamp|date:"Y-m-d H:i:s" }} &bull; Defended: {% if ev.blocked %}Yes{% else %}No{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <p>No policy violations or errors recorded.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
 
-      setText('mec-hero-cpu', `${cpu}%`);
-      setText('kpi-avg-cpu', `${cpu}% CPU`);
-      setText('mec-hero-ram', `${ram}%`);
-      setText('kpi-avg-ram', `${ram}%`);
-      setText('mec-hero-disk', `${disk}%`);
-      setText('mec-hero-latency', `${lat}ms`);
-      setText('kpi-cloud-latency', `${lat}ms Link`);
+<!-- 4. Compact Task-Processing Status Table -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">Recent Task Processing Queue</h2>
+      <div class="card-subtitle">Real task scheduling and dispatch operations recorded in database</div>
+    </div>
+    <a href="{% url 'task_history' %}" class="btn btn-secondary">View Complete Task History</a>
+  </div>
 
-      // Progress bars
-      const barCpu = document.getElementById('telem-bar-cpu');
-      const barRam = document.getElementById('telem-bar-ram');
-      const barDisk = document.getElementById('telem-bar-disk');
-      const barLat = document.getElementById('telem-bar-lat');
-
-      if (barCpu) barCpu.style.width = `${cpu}%`;
-      if (barRam) barRam.style.width = `${ram}%`;
-      if (barDisk) barDisk.style.width = `${disk}%`;
-      if (barLat) barLat.style.width = `${Math.min(100, (lat / 50) * 100)}%`;
-    } catch (err) {
-      console.warn('Connected MEC fetch error:', err);
-    }
-  }
-
-  // --- 2. Live Ping to MEC Gateway ---
-  const btnPing = document.getElementById('btn-ping-mec');
-  if (btnPing) {
-    btnPing.addEventListener('click', async () => {
-      btnPing.disabled = true;
-      btnPing.textContent = 'Pinging...';
-      try {
-        const res = await fetch('/api/mec/ping/', { method: 'POST' });
-        const d = await res.json();
-        if (res.ok && d.success) {
-          const setText = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = val;
-          };
-          setText('mec-hero-cpu', `${d.cpu_percent}%`);
-          setText('kpi-avg-cpu', `${d.cpu_percent}% CPU`);
-          setText('mec-hero-ram', `${d.ram_percent}%`);
-          setText('kpi-avg-ram', `${d.ram_percent}%`);
-          setText('mec-hero-latency', `${d.latency_ms}ms`);
-          setText('kpi-cloud-latency', `${d.latency_ms}ms Link`);
-          setText('mec-hero-heartbeat', d.timestamp);
-
-          const barCpu = document.getElementById('telem-bar-cpu');
-          const barRam = document.getElementById('telem-bar-ram');
-          const barLat = document.getElementById('telem-bar-lat');
-          if (barCpu) barCpu.style.width = `${d.cpu_percent}%`;
-          if (barRam) barRam.style.width = `${d.ram_percent}%`;
-          if (barLat) barLat.style.width = `${Math.min(100, (d.latency_ms / 50) * 100)}%`;
-
-          if (typeof showToast === 'function') {
-            showToast(`MEC Gateway ping acknowledged (${d.latency_ms} ms)`, 'success');
-          }
-        }
-      } catch (err) {
-        if (typeof showToast === 'function') showToast('Failed to ping MEC gateway', 'error');
-      } finally {
-        btnPing.disabled = false;
-        btnPing.textContent = '⚡ Ping Gateway';
-      }
-    });
-  }
-
-  // --- 3. Cloud Storage Directory Refresh ---
-  async function loadCloudStats() {
-    try {
-      const res = await fetch('/api/cloud/files/');
-      if (!res.ok) return;
-      const data = await res.json();
-      const files = data.files || [];
-      const countEl = document.getElementById('cloud-file-count');
-      const usedEl = document.getElementById('cloud-used-mb');
-      const kpiUsedEl = document.getElementById('kpi-cloud-used');
-      const barEl = document.getElementById('cloud-meter-bar');
-
-      if (countEl) countEl.textContent = files.length;
-      const totalBytes = files.reduce((acc, f) => acc + (f.file_size || 0), 0);
-      const mb = (totalBytes / (1024 * 1024)).toFixed(2);
-      if (usedEl) usedEl.textContent = mb;
-      if (kpiUsedEl) kpiUsedEl.textContent = `${mb} MB`;
-      if (barEl) {
-        const pct = Math.max(1, Math.min(100, (parseFloat(mb) / (1000 * 1024)) * 100));
-        barEl.style.width = `${pct}%`;
-      }
-    } catch (err) {
-      console.warn('Cloud stats load error:', err);
-    }
-  }
-
-  const btnRefreshCloud = document.getElementById('btn-refresh-cloud');
-  if (btnRefreshCloud) {
-    btnRefreshCloud.addEventListener('click', async () => {
-      btnRefreshCloud.disabled = true;
-      await loadCloudStats();
-      btnRefreshCloud.disabled = false;
-      if (typeof showToast === 'function') showToast('Cloud folder synchronized', 'info');
-    });
-  }
-
-  // --- 4. Policy Guard Interactive Validation ---
-  const policySelect = document.getElementById('ds-policy');
-  const destSelect = document.getElementById('ds-destination');
-  const violationAlert = document.getElementById('policy-violation-alert');
-  const btnUpload = document.getElementById('btn-upload-ds');
-
-  function validatePlacementPolicy() {
-    const policy = policySelect ? policySelect.value : 'TRUSTED_EDGE';
-    const dest = destSelect ? destSelect.value : 'MEC_STORAGE';
-    let violation = '';
-
-    if (policy === 'LOCAL_ONLY' && (dest === 'MEC_STORAGE' || dest === 'CLOUD_STORAGE')) {
-      violation = 'Policy Guard Rejection: LOCAL_ONLY datasets contain confidential raw patient data and cannot leave the local workstation tier.';
-    } else if (policy === 'TRUSTED_EDGE' && dest === 'CLOUD_STORAGE') {
-      violation = 'Policy Guard Rejection: TRUSTED_EDGE datasets are constrained to the trusted hospital edge and cannot be stored on the Cloud tier.';
-    }
-
-    if (violation) {
-      if (violationAlert) {
-        violationAlert.textContent = violation;
-        violationAlert.style.display = 'block';
-      }
-      if (btnUpload) btnUpload.disabled = true;
-      return false;
-    } else {
-      if (violationAlert) {
-        violationAlert.textContent = '';
-        violationAlert.style.display = 'none';
-      }
-      if (btnUpload) btnUpload.disabled = false;
-      return true;
-    }
-  }
-
-  if (policySelect) policySelect.addEventListener('change', validatePlacementPolicy);
-  if (destSelect) destSelect.addEventListener('change', validatePlacementPolicy);
-
-  // --- 5. Drag and Drop File Selection ---
-  const dropzone = document.getElementById('dropzone');
-  const fileInput = document.getElementById('ds-file');
-  const dropzoneText = document.getElementById('dropzone-text');
-
-  if (dropzone && fileInput) {
-    dropzone.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', () => {
-      if (fileInput.files.length) {
-        const f = fileInput.files[0];
-        dropzoneText.textContent = `Selected: ${f.name} (${(f.size / 1024).toFixed(1)} KB)`;
-        const nameInput = document.getElementById('ds-name');
-        if (nameInput && !nameInput.value) {
-          nameInput.value = f.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
-        }
-      }
-    });
-
-    ['dragenter', 'dragover'].forEach(name => {
-      dropzone.addEventListener(name, (e) => {
-        e.preventDefault();
-        dropzone.classList.add('dragover');
-      });
-    });
-    ['dragleave', 'drop'].forEach(name => {
-      dropzone.addEventListener(name, (e) => {
-        e.preventDefault();
-        dropzone.classList.remove('dragover');
-      });
-    });
-    dropzone.addEventListener('drop', (e) => {
-      if (e.dataTransfer.files.length) {
-        fileInput.files = e.dataTransfer.files;
-        const f = fileInput.files[0];
-        dropzoneText.textContent = `Selected: ${f.name} (${(f.size / 1024).toFixed(1)} KB)`;
-        const nameInput = document.getElementById('ds-name');
-        if (nameInput && !nameInput.value) {
-          nameInput.value = f.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
-        }
-      }
-    });
-  }
-
-  // --- 6. Manual Ingestion Form Submission ---
-  const form = document.getElementById('manual-dataset-form');
-  if (form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (!validatePlacementPolicy()) return;
-
-      const fd = new FormData(form);
-      btnUpload.disabled = true;
-      btnUpload.textContent = 'Uploading & Hashing...';
-
-      try {
-        const res = await fetch('/datasets/app/manual/upload/', {
-          method: 'POST',
-          body: fd,
-        });
-        const result = await res.json();
-        if (res.ok && result.success) {
-          if (typeof showToast === 'function') {
-            showToast(result.message || 'Dataset uploaded successfully', 'success');
-          }
-          form.reset();
-          if (dropzoneText) dropzoneText.textContent = 'Click to browse or drag and drop dataset file here';
-          await loadManualDatasets();
-          await loadCloudStats();
-        } else {
-          if (typeof showToast === 'function') {
-            showToast(result.error || 'Upload failed', 'error');
-          }
-        }
-      } catch (err) {
-        if (typeof showToast === 'function') {
-          showToast('Network error during upload', 'error');
-        }
-      } finally {
-        btnUpload.disabled = false;
-        btnUpload.textContent = '🚀 Upload & Verify Dataset';
-      }
-    });
-  }
-
-  // --- 7. Load & Render Manual Datasets Inventory ---
-  async function loadManualDatasets() {
-    const tbody = document.getElementById('manual-datasets-tbody');
-    if (!tbody) return;
-
-    try {
-      const res = await fetch('/datasets/app/manual/list/');
-      if (!res.ok) return;
-      const data = await res.json();
-      const list = data.datasets || [];
-
-      if (!list.length) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="8" style="text-align: center; color: var(--color-text-muted); padding: 18px;">
-              No manual datasets uploaded yet. Use the form above to ingest a dataset manually.
-            </td>
-          </tr>`;
-        return;
-      }
-
-      tbody.innerHTML = list.map(ds => {
-        const policyColor = ds.privacy_policy === 'LOCAL_ONLY' ? '#ef4444' : (ds.privacy_policy === 'TRUSTED_EDGE' ? '#38bdf8' : '#34d399');
-        const shortHash = ds.sha256 ? `${ds.sha256.slice(0, 12)}...` : 'N/A';
-        const sizeKb = (ds.file_size / 1024).toFixed(1);
-        return `
-          <tr>
-            <td>
-              <strong style="color: #f8fafc;">${escapeHtml(ds.name)}</strong><br>
-              <code style="font-size: 0.72rem; color: #94a3b8;">${escapeHtml(ds.dataset_id)}</code>
-            </td>
-            <td><code style="font-size: 0.76rem;">${escapeHtml(ds.file_name)}</code></td>
-            <td style="font-family: var(--font-mono);">${sizeKb} KB</td>
-            <td><span class="mini-chip" style="border: 1px solid ${policyColor}; color: ${policyColor}; font-size: 0.7rem;">${escapeHtml(ds.privacy_policy)}</span></td>
-            <td><strong>${escapeHtml(ds.destination)}</strong></td>
-            <td><code title="${escapeHtml(ds.sha256)}" style="font-size: 0.74rem; color: #38bdf8; cursor: pointer;">${escapeHtml(shortHash)}</code></td>
-            <td style="font-size: 0.74rem; color: #94a3b8;">${escapeHtml(ds.created_at)}</td>
-            <td style="text-align: right;">
-              <button type="button" class="btn btn-ghost btn-sm btn-delete-ds" data-id="${escapeHtml(ds.dataset_id)}" style="color: #ef4444; padding: 2px 6px;" title="Delete dataset">
-                🗑️
-              </button>
-            </td>
-          </tr>`;
-      }).join('');
-
-      // Attach Delete Listeners
-      tbody.querySelectorAll('.btn-delete-ds').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const id = btn.getAttribute('data-id');
-          if (!confirm(`Delete dataset ${id}?`)) return;
-          try {
-            const delRes = await fetch(`/datasets/app/manual/delete/${id}/`, { method: 'POST' });
-            const d = await delRes.json();
-            if (d.success) {
-              if (typeof showToast === 'function') showToast(d.message, 'success');
-              await loadManualDatasets();
-            }
-          } catch (e) {
-            if (typeof showToast === 'function') showToast('Failed to delete dataset', 'error');
-          }
-        });
-      });
-    } catch (err) {
-      console.warn('Manual datasets load error:', err);
-    }
-  }
-
-  function escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  // Initial loads
-  loadConnectedMec();
-  loadCloudStats();
-  loadManualDatasets();
-
-  // Poll connected MEC every 15 seconds to keep telemetry alive
-  setInterval(loadConnectedMec, 15000);
-});
-</script>
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Task ID</th>
+          <th>Workload Name</th>
+          <th>Type</th>
+          <th>Privacy Policy</th>
+          <th>Assigned Destination</th>
+          <th>Duration</th>
+          <th>Status</th>
+          <th>Recorded At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in recent_tasks %}
+        <tr>
+          <td class="text-mono text-cyan">{{ t.task_id }}</td>
+          <td class="text-bold">{{ t.name }}</td>
+          <td><span class="text-sm text-dim">{{ t.workload_type }}</span></td>
+          <td><span class="badge badge-muted">{{ t.privacy_policy }}</span></td>
+          <td class="text-bold">
+            {% if t.assigned_node %}{{ t.assigned_node }}{% elif t.assigned_mec %}{{ t.assigned_mec.device_id }}{% else %}<span class="text-dim">Unassigned</span>{% endif %}
+          </td>
+          <td class="text-mono">
+            {% if t.execution_time %}{{ t.execution_time|floatformat:3 }}s{% elif t.total_latency_ms %}{{ t.total_latency_ms|floatformat:1 }}ms{% else %}&mdash;{% endif %}
+          </td>
+          <td>
+            <span class="badge {% if t.status == 'COMPLETED' or t.status == 'SUCCEEDED' %}badge-green{% elif t.status == 'FAILED' or t.status == 'BLOCKED' %}badge-red{% else %}badge-amber{% endif %}">
+              {{ t.status }}
+            </span>
+          </td>
+          <td class="text-mono text-sm text-dim">{{ t.created_at|date:"Y-m-d H:i:s" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">No tasks executed yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}

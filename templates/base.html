@@ -2,208 +2,103 @@
 {% load static %}
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="SecureDT - Intelligent and Secure Task Scheduling for Digital Twin-Enabled Edge-Cloud Networks">
-<title>{% block title %}SecureDT{% endblock %}</title>
-<link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'css/style.css' %}">
-{% block extra_css %}{% endblock %}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="SecureDT - Intelligent and Secure Task Scheduling for Digital Twin-Enabled Edge-Cloud Networks">
+  <title>{% block title %}SecureDT - Digital Twin Operations{% endblock %}</title>
+  <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  {% block extra_css %}{% endblock %}
 </head>
-<body data-theme="dark" data-page="{% block body_page %}{% endblock %}">
+<body data-page="{% block body_page %}{% endblock %}">
 
-<header class="app-header" role="banner">
-  <div class="header-left">
-    <button class="menu-toggle" id="menu-toggle" aria-label="Toggle navigation" aria-expanded="false">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-        <line x1="3" y1="6" x2="21" y2="6"></line>
-        <line x1="3" y1="12" x2="21" y2="12"></line>
-        <line x1="3" y1="18" x2="21" y2="18"></line>
-      </svg>
-    </button>
-    <a href="{% url 'dashboard' %}" class="app-brand" aria-label="SecureDT Home">
-      <span class="brand-icon" aria-hidden="true">
-        <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
-          <rect x="4" y="4" width="24" height="24" rx="6" stroke="currentColor" stroke-width="2"/>
-          <path d="M10 16L14 20L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Application Top Header -->
+  <header class="app-header">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <button class="mobile-menu-btn" id="mobile-menu-toggle" aria-label="Toggle navigation">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
         </svg>
-      </span>
-      <span class="brand-text">Secure<em>DT</em></span>
-    </a>
-  </div>
-
-  <nav class="header-center" aria-label="Breadcrumb">
-    <ol class="breadcrumb" style="list-style:none!important;margin:0;padding:0;display:flex;align-items:center;gap:8px;">
-      <li><a href="{% url 'dashboard' %}" style="text-decoration:none;color:var(--color-text-muted);">Dashboard</a></li>
-      <li style="color:var(--color-text-dim);">&bull;</li>
-      <li aria-current="page" style="color:var(--color-text);font-weight:600;">{% block page_crumb %}{% endblock %}</li>
-    </ol>
-  </nav>
-
-  <div class="header-right">
-    <div class="status-indicators" role="status" aria-live="polite">
-      <span id="connection-status" class="status-pill offline" data-tooltip="Server Connection">
-        <span class="status-dot"></span>
-        <span class="status-text">Connecting</span>
-      </span>
-      <span id="data-source" class="status-pill info" data-tooltip="Data Source">
-        <span class="status-dot"></span>
-        <span class="status-text">API</span>
-      </span>
+      </button>
+      <a href="{% url 'dashboard' %}" class="header-brand">
+        <svg class="brand-shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          <path d="M9 12l2 2 4-4"></path>
+        </svg>
+        <span>Secure<em>DT</em></span>
+      </a>
     </div>
 
-    {% if user.is_authenticated %}
-      <div class="user-menu" id="user-menu">
-        <button class="user-avatar" id="user-avatar" aria-expanded="false" aria-haspopup="true">{{ user.username|first|upper }}</button>
-        <div class="user-dropdown" role="menu">
-          <div class="user-info">
-            <span class="user-name">{{ user.username }}</span>
-            <span class="user-role">Operator</span>
-          </div>
-          <hr>
-          <a class="dropdown-item" href="{% url 'dashboard' %}">
-            <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-            Console
-          </a>
-          <form action="{% url 'logout' %}" method="post" style="margin:0;">
-            {% csrf_token %}
-            <button type="submit" role="menuitem" class="dropdown-item danger">
-              <svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              Logout
-            </button>
-          </form>
-        </div>
-      </div>
-    {% else %}
-      <div class="auth-buttons">
-        <a href="{% url 'login' %}" class="btn btn-ghost btn-sm">Sign In</a>
-        <a href="{% url 'register' %}" class="btn btn-primary btn-sm">Get Started</a>
-      </div>
-    {% endif %}
-  </div>
-</header>
-
-<div class="app-container">
-  <aside class="sidebar" role="navigation" aria-label="Main navigation">
-    <nav class="sidebar-nav">
-      <ul class="nav-section">
-        <li class="nav-section-title">Operations</li>
-        <li><a href="{% url 'dashboard' %}" aria-current="{% if active_page == 'dashboard' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          Dashboard</a></li>
-        <li><a href="{% url 'medical_dataset_explorer' %}" aria-current="{% if active_page == 'medical_dataset_explorer' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-          Hospital Workloads</a></li>
-        <li><a href="{% url 'task_routing' %}" aria-current="{% if active_page == 'task_routing' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="18" r="2"/><line x1="7" y1="6" x2="17" y2="6"/><line x1="17" y1="6" x2="17" y2="12"/></svg>
-          Task Routing</a></li>
-        <li><a href="{% url 'mec_infrastructure' %}" aria-current="{% if active_page == 'mec_infrastructure' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-          MEC Infrastructure</a></li>
-      </ul>
-
-      <ul class="nav-section">
-        <li class="nav-section-title">Intelligence</li>
-        <li><a href="{% url 'digital_twin' %}" aria-current="{% if active_page == 'digital_twin' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><path d="M13 17h6"/></svg>
-          Digital Twin</a></li>
-        <li><a href="{% url 'genetic_algorithm' %}" aria-current="{% if active_page == 'genetic_algorithm' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
-          Genetic Algorithm</a></li>
-        <li><a href="{% url 'ai_intelligence' %}" aria-current="{% if active_page == 'ai_intelligence' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2a6 6 0 0 1 6 6c0 2-1 3-2 4v0a5 5 0 0 1-8 0c-1-1-2-2-2-4a6 6 0 0 1 6-6z"/><line x1="12" y1="12" x2="12" y2="16"/><circle cx="12" cy="19" r="1.5"/></svg>
-          AI Risk Engine</a></li>
-      </ul>
-
-      <ul class="nav-section">
-        <li class="nav-section-title">Security</li>
-        <li><a href="{% url 'security_monitor' %}" aria-current="{% if active_page == 'security_monitor' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg>
-          Security Monitor</a></li>
-        <li><a href="{% url 'attack_simulation' %}" aria-current="{% if active_page == 'attack_simulation' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          Attack Simulation</a></li>
-        <li><a href="{% url 'storage_attack' %}" aria-current="{% if active_page == 'storage_attack' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
-          Storage Security</a></li>
-      </ul>
-
-      <ul class="nav-section">
-        <li class="nav-section-title">Data &amp; Cloud</li>
-        <li><a href="{% url 'dataset_manager' %}" aria-current="{% if active_page == 'dataset_manager' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          Datasets</a></li>
-        <li><a href="{% url 'cloud_storage' %}" aria-current="{% if active_page == 'cloud_storage' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 7 19h10.5z"/></svg>
-          Cloud Storage</a></li>
-        <li><a href="{% url 'data_flow' %}" aria-current="{% if active_page == 'data_flow' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>
-          Data Flow</a></li>
-      </ul>
-
-      <ul class="nav-section">
-        <li class="nav-section-title">Analytics</li>
-        <li><a href="{% url 'analytics' %}" aria-current="{% if active_page == 'analytics' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="14"/></svg>
-          Analytics</a></li>
-        <li><a href="{% url 'performance' %}" aria-current="{% if active_page == 'performance' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          Performance</a></li>
-        <li><a href="{% url 'energy_monitor' %}" aria-current="{% if active_page == 'energy_monitor' %}page{% endif %}">
-          <svg class="nav-icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          Energy Monitor</a></li>
-      </ul>
-    </nav>
-
-    <div class="sidebar-footer">
-      <div class="theme-toggle">
-        <button id="theme-toggle" class="btn btn-ghost btn-sm" aria-label="Toggle theme">
-          <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-          <span class="toggle-label">Theme</span>
-        </button>
-      </div>
-      <span class="version-info">v2.0.0 &middot; Research</span>
+    <div class="header-actions">
+      <span class="badge badge-green" id="server-status-pill">
+        <span class="status-dot green"></span> Live Backend
+      </span>
+      {% if user.is_authenticated %}
+        <span class="text-sm text-dim" style="margin-right: 4px;">{{ user.username }}</span>
+        <form action="{% url 'logout' %}" method="post" style="display: inline; margin: 0;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-ghost btn-sm" style="height: 30px; padding: 0 8px; font-size: 0.78rem;">Logout</button>
+        </form>
+      {% else %}
+        <a href="{% url 'login' %}" class="btn btn-secondary" style="height: 30px; padding: 0 10px; font-size: 0.8rem;">Sign In</a>
+      {% endif %}
     </div>
-  </aside>
+  </header>
 
-  <main class="main-content" role="main">
-    {% if messages %}
-      <div class="toast-container" role="alert" aria-live="polite">
-        {% for message in messages %}
-          <div class="toast toast-{{ message.tags }}">
-            <svg class="toast-icon" viewBox="0 0 24 24">
-              {% if message.tags == 'success' %}<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>
-              {% elif message.tags == 'error' %}<circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>
-              {% else %}<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>{% endif %}
-            </svg>
-            <span>{{ message }}</span>
-          </div>
-        {% endfor %}
-      </div>
-    {% endif %}
+  <!-- Application Body Layout -->
+  <div class="app-container">
+    <!-- Focused Navigation Sidebar -->
+    <aside class="app-sidebar" id="app-sidebar">
+      <div class="nav-label">Core Operations</div>
+      <a href="{% url 'dashboard' %}" class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        <span>Dashboard</span>
+      </a>
+      <a href="{% url 'upload_dataset' %}" class="nav-item {% if active_page == 'upload' %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        <span>Upload Dataset</span>
+      </a>
+      <a href="{% url 'digital_twin' %}" class="nav-item {% if active_page == 'digital_twin' %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+        <span>Digital Twin</span>
+      </a>
 
-    {% block content %}{% endblock %}
-  </main>
-</div>
+      <div class="nav-label">Analysis &amp; Execution</div>
+      <a href="{% url 'storage_allocation' %}" class="nav-item {% if active_page == 'storage_allocation' %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+        <span>Storage Allocation</span>
+      </a>
+      <a href="{% url 'dataset_reports' %}" class="nav-item {% if active_page == 'reports' %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        <span>Dataset Reports</span>
+      </a>
+      <a href="{% url 'task_history' %}" class="nav-item {% if active_page == 'tasks' %}active{% endif %}">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        <span>Task History</span>
+      </a>
+    </aside>
 
-<footer class="app-footer" role="contentinfo">
-  <div class="footer-left">
-    <span class="status-dot online" aria-hidden="true"></span>
-    <span>SecureDT v2.0.0</span>
-    <span class="footer-separator" aria-hidden="true">|</span>
-    <span>Digital Twin &middot; Edge&ndash;Cloud Scheduling</span>
+    <!-- Main Content Body -->
+    <main class="app-content">
+      {% block content %}{% endblock %}
+    </main>
   </div>
-  <div class="footer-right">
-    <span>All attacks simulated &middot; Metrics either measured or clearly labelled ESTIMATED</span>
-  </div>
-</footer>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<script src="{% static 'js/app.js' %}"></script>
-{% block extra_js %}{% endblock %}
+  <script>
+    // Responsive sidebar toggle for mobile / tablets
+    const toggleBtn = document.getElementById('mobile-menu-toggle');
+    const sidebar = document.getElementById('app-sidebar');
+    if (toggleBtn && sidebar) {
+      toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+      });
+    }
+  </script>
+  {% block extra_js %}{% endblock %}
 </body>
 </html>

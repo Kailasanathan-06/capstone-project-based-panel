@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dataset Reports - SecureDT{% endblock %}
+{% block body_page %}reports{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+  <div>
+    <h1 class="page-heading">Persistent Dataset Analysis Reports</h1>
+    <p class="body-text">Audit records, multi-objective scheduling evaluations, and storage allocation histories.</p>
+  </div>
+  <a href="{% url 'upload_dataset' %}" class="btn btn-primary">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+    Upload New Archive
+  </a>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div style="display: flex; align-items: center; gap: 12px; width: 100%; justify-content: space-between; flex-wrap: wrap;">
+      <h2 class="card-title">Saved Analysis Reports</h2>
+      <div style="display: flex; gap: 8px;">
+        <input type="text" id="report-search-input" class="form-input" placeholder="Search by Report ID or Filename..." style="height: 34px; width: 260px; font-size: 0.82rem;">
+      </div>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table" id="reports-table">
+      <thead>
+        <tr>
+          <th>Report ID</th>
+          <th>Archive File Name</th>
+          <th>Files Count</th>
+          <th>Execution Mode</th>
+          <th>Analysis Runtime</th>
+          <th>Status</th>
+          <th>Generated At</th>
+          <th style="text-align: right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rep in reports %}
+        <tr>
+          <td class="text-mono text-bold text-cyan">
+            <a href="{% url 'report_detail' rep.report_id %}">{{ rep.report_id }}</a>
+          </td>
+          <td class="text-bold">{{ rep.upload.file_name }}</td>
+          <td class="text-mono">{{ rep.upload.total_files_count }} files</td>
+          <td>
+            <span class="badge badge-cyan">{{ rep.upload.execution_mode }}</span>
+          </td>
+          <td class="text-mono">{{ rep.analysis_duration_ms|floatformat:1 }} ms</td>
+          <td>
+            <span class="badge {% if rep.upload.status == 'COMPLETED' %}badge-green{% elif rep.upload.status == 'FAILED' %}badge-red{% else %}badge-amber{% endif %}">
+              {{ rep.upload.status }}
+            </span>
+          </td>
+          <td class="text-mono text-sm text-dim">{{ rep.created_at|date:"Y-m-d H:i:s" }}</td>
+          <td style="text-align: right;">
+            <div style="display: inline-flex; gap: 6px;">
+              <a href="{% url 'report_detail' rep.report_id %}" class="btn btn-secondary btn-sm" style="height: 30px; padding: 0 10px; font-size: 0.78rem;">
+                View
+              </a>
+              <a href="{% url 'report_download_csv' rep.report_id %}" class="btn btn-ghost btn-sm" style="height: 30px; padding: 0 8px; font-size: 0.78rem;" title="Download CSV Export">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                CSV
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" style="text-align: center; color: var(--text-dim); padding: 32px;">
+            No reports generated yet. Upload an archive from the Upload Dataset page to create your first report.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const searchInput = document.getElementById('report-search-input');
+  const table = document.getElementById('reports-table');
+  if (searchInput && table) {
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.toLowerCase();
+      const rows = table.querySelectorAll('tbody tr');
+      rows.forEach(r => {
+        const text = r.textContent.toLowerCase();
+        r.style.display = text.includes(q) ? '' : 'none';
+      });
+    });
+  }
+</script>
+{% endblock %}

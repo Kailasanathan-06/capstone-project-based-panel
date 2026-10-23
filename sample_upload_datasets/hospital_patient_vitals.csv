@@ -1,0 +1,6 @@
+patient_id,age,gender,heart_rate,systolic_bp,diastolic_bp,spo2,respiratory_rate,temperature_c,triage_level
+PT-1001,45,M,78,122,80,98,16,36.8,NORMAL
+PT-1002,62,F,110,145,95,93,24,38.2,HIGH
+PT-1003,29,F,68,115,75,99,14,36.6,LOW
+PT-1004,74,M,92,138,88,95,20,37.4,NORMAL
+PT-1005,58,M,125,160,102,89,28,39.1,CRITICAL

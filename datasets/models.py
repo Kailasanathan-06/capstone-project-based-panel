@@ -335,3 +335,97 @@ class SecurityAuditEvent(models.Model):
 
     def __str__(self):
         return f"[{self.severity}] {self.event_type} - {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
+
+
+class DatasetUpload(models.Model):
+    """Tracks uploaded ZIP archives and processing lifecycle."""
+
+    EXECUTION_MODES = [
+        ("SIMULATION", "Simulation Mode"),
+        ("EXECUTION", "Execution Mode"),
+    ]
+
+    STATUS_CHOICES = [
+        ("RECEIVED", "Received"),
+        ("VALIDATING", "Validating"),
+        ("INVENTORIED", "Inventoried"),
+        ("ANALYZING", "Analyzing"),
+        ("COMPLETED", "Completed"),
+        ("FAILED", "Failed"),
+    ]
+
+    upload_id = models.CharField("Upload ID", max_length=60, unique=True)
+    file_name = models.CharField("Archive File Name", max_length=255)
+    file_size = models.BigIntegerField("File Size (bytes)", default=0)
+    sha256_checksum = models.CharField("SHA-256 Checksum", max_length=64, blank=True)
+    archive_type = models.CharField("Archive Type", max_length=20, default="ZIP")
+    status = models.CharField("Status", max_length=30, default="RECEIVED", choices=STATUS_CHOICES)
+    total_files_count = models.IntegerField("Discovered Files Count", default=0)
+    total_uncompressed_bytes = models.BigIntegerField("Total Uncompressed Size", default=0)
+    execution_mode = models.CharField("Execution Mode", max_length=20, default="SIMULATION", choices=EXECUTION_MODES)
+    uploaded_at = models.DateTimeField("Uploaded At", default=timezone.now)
+    error_message = models.TextField("Error Message", blank=True)
+
+    class Meta:
+        verbose_name = "Dataset Upload"
+        verbose_name_plural = "Dataset Uploads"
+        ordering = ["-uploaded_at"]
+
+    def __str__(self):
+        return f"{self.upload_id} - {self.file_name} [{self.status}]"
+
+
+class DatasetInventoryItem(models.Model):
+    """Individual dataset or file discovered inside an uploaded archive."""
+
+    upload = models.ForeignKey(DatasetUpload, on_delete=models.CASCADE, related_name="inventory_items")
+    file_name = models.CharField("File Name", max_length=255)
+    relative_path = models.CharField("Relative Path in ZIP", max_length=500)
+    file_size = models.BigIntegerField("Size (bytes)", default=0)
+    format = models.CharField("Format", max_length=50, blank=True)
+    detected_category = models.CharField("Detected Category", max_length=100, blank=True)
+    declared_source = models.CharField("Declared Source Device", max_length=50, blank=True)
+    privacy_policy = models.CharField("Privacy Policy", max_length=50, default="TRUSTED_EDGE")
+    local_eligible = models.BooleanField("Local Eligible", default=True)
+    mec_eligible = models.BooleanField("MEC/Edge Eligible", default=True)
+    cloud_eligible = models.BooleanField("Cloud Eligible", default=True)
+    selected_destination = models.CharField("Selected Destination", max_length=50, default="UNASSIGNED")
+    decision_rationale = models.TextField("Decision Rationale", blank=True)
+    rejected_destinations_json = models.TextField("Rejected Destinations JSON", blank=True)
+    status = models.CharField("Status", max_length=40, default="RECOMMENDED")
+    sha256_checksum = models.CharField("SHA-256 Checksum", max_length=64, blank=True)
+    error_message = models.TextField("Error Message", blank=True)
+
+    class Meta:
+        verbose_name = "Dataset Inventory Item"
+        verbose_name_plural = "Dataset Inventory Items"
+        ordering = ["upload", "relative_path"]
+
+    def __str__(self):
+        return f"{self.file_name} -> {self.selected_destination} [{self.status}]"
+
+
+class DatasetAnalysisReport(models.Model):
+    """Persistent dataset storage and task allocation report."""
+
+    report_id = models.CharField("Report ID", max_length=60, unique=True)
+    upload = models.OneToOneField(DatasetUpload, on_delete=models.CASCADE, related_name="report")
+    title = models.CharField("Report Title", max_length=255)
+    method_used = models.CharField("Analysis Method Used", max_length=100, default="Genetic Algorithm & Policy Constraints Engine")
+    analysis_duration_ms = models.FloatField("Analysis Duration (ms)", default=0.0)
+    scheduling_duration_ms = models.FloatField("Scheduling Duration (ms)", default=0.0)
+    summary_json = models.TextField("Summary JSON", blank=True)
+    inventory_json = models.TextField("Inventory JSON", blank=True)
+    ai_analysis_json = models.TextField("AI Analysis JSON", blank=True)
+    allocation_json = models.TextField("Allocation JSON", blank=True)
+    security_audit_json = models.TextField("Security Audit JSON", blank=True)
+    final_result_json = models.TextField("Final Result JSON", blank=True)
+    created_at = models.DateTimeField("Created At", default=timezone.now)
+
+    class Meta:
+        verbose_name = "Dataset Analysis Report"
+        verbose_name_plural = "Dataset Analysis Reports"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.report_id} - {self.title}"

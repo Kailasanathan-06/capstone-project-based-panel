@@ -1,1264 +1,580 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Hospital Workload Testbed & Medical Datasets - SecureDT{% endblock %}
-{% block page_crumb %}Hospital Workload Testbed{% endblock %}
+{% block title %}Dataset Studio & AI Tri-Storage Hub - SecureDT{% endblock %}
+{% block page_crumb %}Dataset Studio & AI Storage{% endblock %}
 {% block body_page %}medical_dataset_explorer{% endblock %}
 
 {% block extra_css %}
 <style>
-.explorer-banner {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-xl, 16px);
-  padding: 1.5rem 2rem;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-}
+  .studio-banner {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-xl, 16px);
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  }
 
-.provenance-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  background: rgba(14, 165, 233, 0.15);
-  color: #38bdf8;
-  border: 1px solid rgba(14, 165, 233, 0.3);
-}
+  .tri-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 900px) {
+    .tri-summary-grid { grid-template-columns: 1fr; }
+  }
 
-/* Tab Navigation */
-.tab-navigation {
-  display: flex;
-  gap: 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  margin-bottom: 1.75rem;
-  flex-wrap: wrap;
-}
+  .tri-card {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid var(--line-0);
+    border-radius: var(--r-lg);
+    padding: 16px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: var(--tr-fast);
+  }
+  .tri-card:hover {
+    border-color: var(--line-1);
+    transform: translateY(-2px);
+  }
+  .tri-card.local { border-top: 3px solid #10b981; }
+  .tri-card.mec { border-top: 3px solid #8b5cf6; }
+  .tri-card.cloud { border-top: 3px solid #38bdf8; }
 
-.tab-button {
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: #94a3b8;
-  padding: 0.75rem 1.25rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+  .tri-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+  .tri-badge.local { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+  .tri-badge.mec { background: rgba(139, 92, 246, 0.15); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3); }
+  .tri-badge.cloud { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
 
-.tab-button:hover {
-  color: #f1f5f9;
-}
+  .upload-dropzone {
+    border: 2px dashed rgba(56, 189, 248, 0.35);
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: var(--r-md);
+    padding: 28px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: var(--tr-fast);
+    margin-bottom: 16px;
+  }
+  .upload-dropzone:hover, .upload-dropzone.dragover {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.08);
+  }
 
-.tab-button.active {
-  color: #38bdf8;
-  border-bottom-color: #38bdf8;
-}
+  .report-box {
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: var(--r-lg);
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 
-.tab-pane {
-  display: none;
-}
-
-.tab-pane.active {
-  display: block;
-}
-
-/* Category filter bar */
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: center;
-  justify-content: space-between;
-  background: rgba(30, 41, 59, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: var(--radius-lg, 12px);
-  padding: 0.85rem 1.25rem;
-  margin-bottom: 1.5rem;
-}
-
-.filter-group {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.filter-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #94a3b8;
-}
-
-.filter-chip {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #cbd5e1;
-  padding: 0.35rem 0.85rem;
-  border-radius: 9999px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.filter-chip:hover, .filter-chip.active {
-  background: rgba(14, 165, 233, 0.2);
-  border-color: #38bdf8;
-  color: #38bdf8;
-}
-
-.filter-select {
-  background: #0f172a;
-  color: #e2e8f0;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  padding: 0.4rem 0.8rem;
-  font-size: 0.85rem;
-  outline: none;
-}
-
-/* 14 Scenarios Grid */
-.scenario-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 1.25rem;
-  margin-bottom: 2rem;
-}
-
-.scenario-card {
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-lg, 12px);
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 1rem;
-  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
-}
-
-.scenario-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(56, 189, 248, 0.4);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
-}
-
-.badge-cat {
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 0.2rem 0.6rem;
-  border-radius: 9999px;
-  text-transform: uppercase;
-}
-
-.badge-cat-SUCCESS {
-  background: rgba(34, 197, 94, 0.15);
-  color: #4ade80;
-  border: 1px solid rgba(34, 197, 94, 0.3);
-}
-
-.badge-cat-ERROR {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-.badge-cat-SECURITY {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.badge-cat-TIMEOUT {
-  background: rgba(168, 85, 247, 0.15);
-  color: #c084fc;
-  border: 1px solid rgba(168, 85, 247, 0.3);
-}
-
-.badge-policy {
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 0.2rem 0.5rem;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #cbd5e1;
-}
-
-.badge-status {
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 0.2rem 0.5rem;
-  border-radius: 6px;
-  text-transform: uppercase;
-}
-
-.status-COMPLETED { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
-.status-REJECTED { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-.status-FAILED { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-.status-TIMED_OUT { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
-.status-BLOCKED { background: rgba(100, 116, 139, 0.25); color: #94a3b8; }
-
-.btn-run-scenario {
-  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  padding: 0.5rem 0.85rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  transition: all 0.2s;
-  width: 100%;
-}
-
-.btn-run-scenario:hover {
-  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
-}
-
-/* 3 Storage Destinations */
-.storage-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.25rem;
-  margin-bottom: 2rem;
-}
-
-.storage-card {
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-lg, 12px);
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
-.storage-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.storage-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #f8fafc;
-}
-
-.progress-track {
-  width: 100%;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 9999px;
-  overflow: hidden;
-}
-
-.progress-bar {
-  height: 100%;
-  border-radius: 9999px;
-  background: #38bdf8;
-  transition: width 0.3s ease;
-}
-
-/* Samples Grid */
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-  margin-top: 1.25rem;
-}
-
-.stat-box {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: var(--radius-lg, 12px);
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-box .label {
-  font-size: 0.75rem;
-  color: var(--color-text-muted, #94a3b8);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.25rem;
-}
-
-.stat-box .val {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #f8fafc;
-}
-
-.sample-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.sample-card {
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-lg, 12px);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.sample-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.4);
-}
-
-.img-container {
-  aspect-ratio: 1;
-  background: #020617;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.img-container img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  image-rendering: pixelated;
-  border-radius: 4px;
-}
-
-.card-body {
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  flex: 1;
-}
-
-.sample-ref {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #f1f5f9;
-}
-
-.badge-row {
-  display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-}
-
-.badge-split {
-  font-size: 0.7rem;
-  padding: 0.15rem 0.5rem;
-  border-radius: 6px;
-  background: rgba(100, 116, 139, 0.25);
-  color: #cbd5e1;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-
-.badge-label {
-  font-size: 0.7rem;
-  padding: 0.15rem 0.5rem;
-  border-radius: 6px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.badge-normal {
-  background: rgba(34, 197, 94, 0.15);
-  color: #4ade80;
-  border: 1px solid rgba(34, 197, 94, 0.3);
-}
-
-.badge-pneumonia {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-.hash-preview {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
-  color: #64748b;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.btn-dispatch {
-  margin-top: auto;
-  width: 100%;
-  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  padding: 0.55rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.btn-dispatch:hover {
-  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
-}
-
-/* Modals */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(2, 6, 23, 0.85);
-  backdrop-filter: blur(8px);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal-content {
-  background: #0f172a;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--radius-xl, 16px);
-  width: 100%;
-  max-width: 620px;
-  max-height: 90vh;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
-  overflow-y: auto;
-}
-
-.modal-header {
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: sticky;
-  top: 0;
-  background: #0f172a;
-  z-index: 2;
-}
-
-.modal-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #f8fafc;
-}
-
-.modal-body {
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.2rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.form-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.form-input, .form-select {
-  background: #1e293b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: #f8fafc;
-  padding: 0.6rem 0.8rem;
-  font-size: 0.9rem;
-  outline: none;
-}
-
-.policy-info-box {
-  background: rgba(30, 41, 59, 0.6);
-  border-left: 3px solid #38bdf8;
-  padding: 0.75rem 1rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  color: #cbd5e1;
-}
-
-.modal-footer {
-  padding: 1.25rem 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  position: sticky;
-  bottom: 0;
-  background: #0f172a;
-}
-
-.disclaimer-box {
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  border-radius: var(--radius-lg, 12px);
-  padding: 1rem 1.25rem;
-  margin-top: 2rem;
-  font-size: 0.82rem;
-  color: #fbbf24;
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
-}
+  .filter-tab-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--line-0);
+    padding-bottom: 10px;
+  }
+  .filter-btn {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--fg-2);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: var(--r-md);
+    cursor: pointer;
+    transition: var(--tr-fast);
+  }
+  .filter-btn:hover { color: var(--fg-0); background: var(--bg-2); }
+  .filter-btn.active {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    border-color: rgba(56, 189, 248, 0.3);
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="explorer-banner">
-  <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
+<div class="page-header" style="margin-bottom: var(--space-4);">
+  <h1 class="page-title">Dataset Studio &amp; AI Tri-Storage Hub</h1>
+  <p class="page-subtitle">Multi-tier dataset ingestion, AI storage placement classification, cryptographic verification, and HIPAA governance</p>
+</div>
+
+<!-- Storage Tier Overview Summary -->
+<div class="tri-summary-grid" id="tri-summary-counters">
+  <!-- Local Tier -->
+  <div class="tri-card local">
+    <span class="tri-badge local">LOCAL_STORAGE &bull; LOCAL_ONLY</span>
+    <div style="font-size:1.4rem; font-weight:800; color:#34d399;" id="count-local-files">-- files</div>
+    <div style="font-size:0.8rem; color:var(--fg-2); margin-top:2px;">
+      Hospital On-Prem Secure Vault &bull; <strong id="bytes-local-files" style="color:var(--fg-0);">-- KB</strong>
+    </div>
+    <div style="font-size:0.75rem; color:var(--fg-1); margin-top:8px;">
+      HIPAA Tier-1 PHI &bull; Confidential vitals &amp; clinical health records
+    </div>
+  </div>
+
+  <!-- MEC Tier -->
+  <div class="tri-card mec">
+    <span class="tri-badge mec">MEC_STORAGE &bull; TRUSTED_EDGE</span>
+    <div style="font-size:1.4rem; font-weight:800; color:#a78bfa;" id="count-mec-files">-- files</div>
+    <div style="font-size:0.8rem; color:var(--fg-2); margin-top:2px;">
+      MEC-001 Edge Node (127.0.0.1:8001) &bull; <strong id="bytes-mec-files" style="color:var(--fg-0);">-- KB</strong>
+    </div>
+    <div style="font-size:0.75rem; color:var(--fg-1); margin-top:8px;">
+      Acute Diagnostics &bull; High-res X-Ray / CT imaging &amp; pathology
+    </div>
+  </div>
+
+  <!-- Cloud Tier -->
+  <div class="tri-card cloud">
+    <span class="tri-badge cloud">CLOUD_STORAGE &bull; CLOUD_ALLOWED</span>
+    <div style="font-size:1.4rem; font-weight:800; color:#38bdf8;" id="count-cloud-files">-- files</div>
+    <div style="font-size:0.8rem; color:var(--fg-2); margin-top:2px;">
+      AWS S3 Cloud Tier &bull; <strong id="bytes-cloud-files" style="color:var(--fg-0);">-- KB</strong>
+    </div>
+    <div style="font-size:0.75rem; color:var(--fg-1); margin-top:8px;">
+      Multi-Region Replication &bull; Scheduling, appointments &amp; aggregates
+    </div>
+  </div>
+</div>
+
+<!-- Upload & AI Tri-Storage Analyzer Station -->
+<section class="card" aria-labelledby="upload-heading" style="margin-bottom: var(--space-6);">
+  <header class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
     <div>
-      <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.5rem;">
-        <h1 style="font-size:1.6rem; font-weight:800; color:#f8fafc; margin:0;">Hospital Workload Testbed &amp; Medical Datasets</h1>
-        <span class="provenance-tag">Real-World Hospital Evaluation</span>
-      </div>
-      <p style="color:#94a3b8; font-size:0.92rem; margin:0; max-width:850px;">
-        Comprehensive hospital workload benchmark suite evaluating 14 genuine clinical workloads across 4 test categories (Success, Controlled Error, Defensive Security, and Timeout Handling) with verified 3-tier storage replication and Digital Twin scheduling.
+      <h2 class="card-title" id="upload-heading">Dataset Ingestion &amp; AI Tri-Storage Analyzer</h2>
+      <p style="font-size:0.8rem; color:var(--fg-2); margin-top:2px;">
+        Upload a single dataset or a multi-file <strong>.ZIP batch</strong>. The AI Governance Engine will inspect each file and automatically place it into the compliant storage tier (Local vs MEC vs Cloud).
       </p>
     </div>
-    <div style="text-align:right; display:flex; gap:0.5rem;">
-      <a href="{% url 'task_routing' %}" class="btn btn-primary btn-sm" style="display:inline-flex; align-items:center; gap:0.4rem;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="18" r="2"/><line x1="7" y1="6" x2="17" y2="6"/><line x1="17" y1="6" x2="17" y2="12"/></svg>
-        Task Routing &amp; Benchmarks
-      </a>
-    </div>
-  </div>
-</div>
-
-<!-- Tab Navigation Header -->
-<div class="tab-navigation">
-  <button class="tab-button active" onclick="switchTab('scenarios')">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-    14 Hospital Workload Scenarios
-  </button>
-  <button class="tab-button" onclick="switchTab('images')">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-    Pediatric Chest X-Ray Archive (MedMNIST)
-  </button>
-  <button class="tab-button" onclick="switchTab('storage')">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
-    Verified 3-Tier Storage &amp; Replicas
-  </button>
-</div>
-
-<!-- TAB 1: 14 HOSPITAL WORKLOAD SCENARIOS -->
-<div class="tab-pane active" id="pane-scenarios">
-  <div class="filter-bar">
-    <div class="filter-group">
-      <span class="filter-label">Filter Category:</span>
-      <button class="filter-chip active" onclick="filterScenarios('ALL', this)">All (14)</button>
-      <button class="filter-chip" onclick="filterScenarios('SUCCESS', this)">Success Cases (5)</button>
-      <button class="filter-chip" onclick="filterScenarios('ERROR', this)">Input Errors (3)</button>
-      <button class="filter-chip" onclick="filterScenarios('SECURITY', this)">Security Defenses (3)</button>
-      <button class="filter-chip" onclick="filterScenarios('TIMEOUT', this)">Timeout &amp; Retry (3)</button>
-    </div>
-    <div style="font-size:0.85rem; color:#94a3b8;" id="scenario-counter">
-      14 registered scenarios
-    </div>
-  </div>
-
-  <div class="scenario-grid" id="scenario-grid">
-    <div style="grid-column:1/-1; text-align:center; padding:2rem; color:#94a3b8;">
-      Loading 14 hospital workload scenarios...
-    </div>
-  </div>
-</div>
-
-<!-- TAB 2: PEDIATRIC CHEST X-RAY ARCHIVE (MedMNIST) -->
-<div class="tab-pane" id="pane-images">
-  <div class="stat-grid" style="margin-bottom: 1.5rem;">
-    <div class="stat-box">
-      <span class="label">Native Dimensions</span>
-      <span class="val" id="meta-dims">1x28x28</span>
-    </div>
-    <div class="stat-box">
-      <span class="label">Total Archive Samples</span>
-      <span class="val" id="meta-total">5,856</span>
-    </div>
-    <div class="stat-box">
-      <span class="label">Train / Val / Test Splits</span>
-      <span class="val" style="font-size:1.1rem; padding-top:0.35rem;" id="meta-splits">4,708 / 524 / 624</span>
-    </div>
-    <div class="stat-box">
-      <span class="label">License &amp; Terms</span>
-      <span class="val" style="font-size:1.1rem; padding-top:0.35rem; color:#38bdf8;">CC BY 4.0</span>
-    </div>
-    <div class="stat-box">
-      <span class="label">Storage Location</span>
-      <span class="val" style="font-size:0.75rem; font-family:'JetBrains Mono', monospace; word-break:break-all; padding-top:0.4rem;" id="meta-storage">
-        data_storage/medical_datasets
-      </span>
-    </div>
-  </div>
-
-  <!-- Filter controls -->
-  <div class="filter-bar">
-    <div class="filter-group">
-      <span class="filter-label">Split:</span>
-      <select class="filter-select" id="filter-split" onchange="loadSamples(1)">
-        <option value="">All Splits</option>
-        <option value="test">Test Set (624)</option>
-        <option value="train">Train Set (4,708)</option>
-        <option value="val">Validation Set (524)</option>
-      </select>
-    </div>
-
-    <div class="filter-group">
-      <span class="filter-label">Diagnosis Class:</span>
-      <select class="filter-select" id="filter-label" onchange="loadSamples(1)">
-        <option value="">All Classes</option>
-        <option value="normal">Normal</option>
-        <option value="pneumonia">Pneumonia</option>
-      </select>
-    </div>
-
-    <div class="filter-group">
-      <span class="filter-label">Samples Per Page:</span>
-      <select class="filter-select" id="filter-page-size" onchange="loadSamples(1)">
-        <option value="12">12</option>
-        <option value="24" selected>24</option>
-        <option value="48">48</option>
-      </select>
-    </div>
-
-    <div id="sample-count-indicator" style="font-size:0.85rem; color:#94a3b8; font-weight:600;">
-      Loading samples...
-    </div>
-  </div>
-
-  <!-- Medical Image Samples Grid -->
-  <div class="sample-grid" id="sample-grid">
-    <!-- Filled dynamically via JS -->
-  </div>
-
-  <!-- Pagination Controls -->
-  <div style="display:flex; justify-content:center; align-items:center; gap:0.5rem; margin-bottom:2rem;" id="pagination-controls"></div>
-
-  <!-- Research Disclaimer Notice -->
-  <div class="disclaimer-box">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;">
-      <circle cx="12" cy="12" r="10"></circle>
-      <line x1="12" y1="8" x2="12" y2="12"></line>
-      <line x1="12" y1="16" x2="12.01" y2="16"></line>
-    </svg>
-    <div>
-      <strong>Research Prototype Notice:</strong>
-      This system is an academic research testbed for digital twin-enabled edge-cloud scheduling.
-      Images are preprocessed using calibrated contrast enhancement (CLAHE), grayscale conversion, and target resolution normalization.
-      Preprocessing prepares chest X-rays for pipeline workflows and does not diagnose disease or replace certified clinical instruments.
-    </div>
-  </div>
-</div>
-
-<!-- TAB 3: VERIFIED 3-TIER STORAGE & REPLICAS -->
-<div class="tab-pane" id="pane-storage">
-  <div class="storage-grid" id="storage-destinations-grid">
-    <!-- Populated via loadStorageDestinations() -->
-  </div>
-
-  <section class="card" style="margin-bottom: 2rem;">
-    <header class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <h2 class="card-title">Storage Replicas Inventory</h2>
-        <p style="font-size:0.85rem; color:#94a3b8; margin:0.25rem 0 0 0;">
-          All physical replicas across Local, MEC, and Cloud storage tiers outside the webroot with cryptographic SHA-256 verification.
-        </p>
+    <button type="button" class="btn btn-secondary btn-sm" id="btn-demo-zip">
+      <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>
+      Analyze Sample ZIP Batch
+    </button>
+  </header>
+  <div class="card-content">
+    <form id="studio-upload-form" enctype="multipart/form-data">
+      <div class="upload-dropzone" id="dropzone">
+        <input type="file" id="file-input" name="file" accept=".zip,.csv,.png,.jpg,.jpeg,.json,.dcm" style="display:none;" />
+        <svg class="icon" viewBox="0 0 24 24" style="width:36px !important; height:36px !important; max-width:36px !important; max-height:36px !important; color:#38bdf8; margin-bottom:8px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div style="font-size:1rem; font-weight:700; color:var(--fg-0);" id="dropzone-label">Click to select dataset file or ZIP archive, or drag and drop</div>
+        <div style="font-size:0.78rem; color:var(--fg-2); margin-top:4px;">Supports .zip archives containing multiple files across all 3 tiers, or individual .csv, .png, .json</div>
       </div>
-      <div style="display:flex; gap:0.5rem;">
-        <button class="btn btn-secondary btn-sm" onclick="auditStorageSweep()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-          Audit Disk Replicas
-        </button>
-        <a href="/api/datasets/storage/export-csv/" class="btn btn-primary btn-sm">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-          Export CSV
-        </a>
-      </div>
-    </header>
-    <div class="card-content" style="padding:0;">
-      <div class="table-container">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Replica ID</th>
-              <th>Dataset ID</th>
-              <th>Destination</th>
-              <th>Status</th>
-              <th>SHA-256 Checksum</th>
-              <th>Available</th>
-              <th>Verified At</th>
-            </tr>
-          </thead>
-          <tbody id="storage-replicas-body">
-            <tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:1.5rem;">Loading replicas...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-</div>
 
-<!-- Modal 1: Image Task Submission Modal -->
-<div class="modal-overlay" id="task-modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3 class="modal-title">Create Hospital Processing Task</h3>
-      <button class="btn btn-ghost btn-sm" onclick="closeTaskModal()" style="font-size:1.2rem; cursor:pointer;">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div style="display:flex; gap:1rem; align-items:center; background:rgba(255,255,255,0.03); padding:0.75rem; border-radius:8px;">
-        <img id="modal-sample-img" src="" style="width:64px; height:64px; object-fit:contain; background:#000; border-radius:4px;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
         <div>
-          <div style="font-family:'JetBrains Mono', monospace; font-weight:700; color:#38bdf8;" id="modal-sample-id">MED-PN-0000</div>
-          <div style="font-size:0.8rem; color:#94a3b8;" id="modal-sample-desc">Normal - Native 28x28</div>
+          <label style="display:block; font-size:0.82rem; font-weight:600; color:var(--fg-1); margin-bottom:6px;">Package / Dataset Name (Optional)</label>
+          <input type="text" id="dataset-name" name="name" class="fi" placeholder="e.g., Hospital Clinical Batch 2026" />
+        </div>
+        <div>
+          <label style="display:block; font-size:0.82rem; font-weight:600; color:var(--fg-1); margin-bottom:6px;">AI Placement Classification</label>
+          <select id="dataset-policy" name="privacy_policy" class="fs">
+            <option value="AUTO_AI" selected>✨ Automatic AI Classifier (Inspect contents &amp; route to Local, MEC, or Cloud)</option>
+            <option value="LOCAL_ONLY">Strict LOCAL_ONLY (Force On-Prem Local Storage)</option>
+            <option value="TRUSTED_EDGE">Strict TRUSTED_EDGE (Force MEC-001 Edge Server)</option>
+            <option value="CLOUD_ALLOWED">Strict CLOUD_ALLOWED (Force Cloud Storage Tier)</option>
+          </select>
         </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">Preprocessing Operation</label>
-        <select class="form-select" id="task-operation">
-          <option value="normalize_clahe">Intensity Normalization + CLAHE (Contrast Enhancement)</option>
-          <option value="grayscale_resize">Grayscale &amp; Resolution Resizing</option>
-          <option value="normalize_only">Pixel Intensity Normalization [0.0, 1.0]</option>
-          <option value="clahe_only">CLAHE Contrast Enhancement (Native Resolution)</option>
-        </select>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:0.78rem; color:var(--fg-2);">
+          🔒 Strict cryptographic SHA-256 verification and storage isolation enforced upon ingestion.
+        </span>
+        <button type="submit" class="btn btn-primary" id="btn-studio-submit">
+          <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Upload &amp; Run AI Tri-Storage Analysis
+        </button>
       </div>
+    </form>
+  </div>
+</section>
 
-      <div class="form-group">
-        <label class="form-label">Target Resolution</label>
-        <select class="form-select" id="task-resolution">
-          <option value="224" selected>224 x 224 px (Preferred Research Standard)</option>
-          <option value="128">128 x 128 px</option>
-          <option value="64">64 x 64 px</option>
-          <option value="28">28 x 28 px (Native MedMNIST)</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Privacy &amp; Security Placement Policy</label>
-        <select class="form-select" id="task-policy" onchange="updatePolicyNotice()">
-          <option value="LOCAL_ONLY">LOCAL_ONLY (Medical data strictly remains on workstation)</option>
-          <option value="TRUSTED_EDGE" selected>TRUSTED_EDGE (Allow Local Workstation or Online MEC Edge Node)</option>
-          <option value="CLOUD_ALLOWED">CLOUD_ALLOWED (Any eligible tier: Local, MEC, or Cloud)</option>
-        </select>
-      </div>
-
-      <div class="policy-info-box" id="policy-notice">
-        <strong>TRUSTED_EDGE Policy:</strong> Task can be executed on the local hospital workstation or dispatched to an authenticated, online MEC edge computing node.
-      </div>
-
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
-        <div class="form-group">
-          <label class="form-label">Priority (1 = Highest)</label>
-          <input type="number" class="form-input" id="task-priority" value="1" min="1" max="5">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Deadline (ms)</label>
-          <input type="number" class="form-input" id="task-deadline" value="500" min="50" step="50">
-        </div>
-      </div>
+<!-- Dynamic AI Tri-Storage Distribution Report Card (Shows upon upload or sample analysis) -->
+<section id="ai-report-card" class="report-box" style="display:none;" aria-labelledby="report-heading">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:12px;">
+    <div>
+      <span class="badge badge-success" style="font-size:0.75rem; margin-bottom:4px;">AI Analysis Complete</span>
+      <h2 class="card-title" id="report-heading" style="color:#f8fafc; font-size:1.15rem;">
+        AI Tri-Storage Distribution Report: <span id="report-package-name" style="color:#38bdf8;">hospital_workload_batch.zip</span>
+      </h2>
+      <p style="font-size:0.82rem; color:var(--fg-2); margin-top:2px;" id="report-summary-text">
+        5 file(s) analyzed. Cryptographically verified and partitioned across the 3 physical storage devices.
+      </p>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost btn-sm" onclick="closeTaskModal()">Cancel</button>
-      <button class="btn btn-primary btn-sm" id="btn-submit-task" onclick="submitHospitalTask()">
-        Dispatch to Digital Twin Scheduler
-      </button>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('ai-report-card').style.display='none';">Dismiss Report</button>
     </div>
   </div>
-</div>
 
-<!-- Modal 2: Scenario Live Execution Result Modal -->
-<div class="modal-overlay" id="scenario-result-modal">
-  <div class="modal-content" style="max-width: 680px;">
-    <div class="modal-header">
-      <h3 class="modal-title" id="res-modal-title">Scenario Live Execution Result</h3>
-      <button class="btn btn-ghost btn-sm" onclick="closeScenarioResultModal()" style="font-size:1.2rem; cursor:pointer;">&times;</button>
+  <!-- Mini Tri-Storage Breakdown Badges -->
+  <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-bottom:18px;">
+    <div style="background:rgba(16, 185, 129, 0.08); border:1px solid rgba(16, 185, 129, 0.25); border-radius:var(--r-md); padding:10px 14px;">
+      <strong style="color:#34d399; font-size:0.85rem;">LOCAL_STORAGE</strong>
+      <div style="font-size:1.1rem; font-weight:800; color:#fff;" id="report-local-count">0 files</div>
+      <div style="font-size:0.75rem; color:var(--fg-2);" id="report-local-bytes">0 KB &bull; Policy: LOCAL_ONLY</div>
     </div>
-    <div class="modal-body">
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem;">
-        <div style="background:rgba(255,255,255,0.03); padding:0.75rem; border-radius:8px;">
-          <div style="font-size:0.7rem; color:#94a3b8; text-transform:uppercase;">Execution Status</div>
-          <div id="res-status" style="font-size:1.1rem; font-weight:700; margin-top:0.2rem;">—</div>
-        </div>
-        <div style="background:rgba(255,255,255,0.03); padding:0.75rem; border-radius:8px;">
-          <div style="font-size:0.7rem; color:#94a3b8; text-transform:uppercase;">Duration</div>
-          <div id="res-duration" style="font-size:1.1rem; font-weight:700; color:#38bdf8; margin-top:0.2rem;">—</div>
-        </div>
-        <div style="background:rgba(255,255,255,0.03); padding:0.75rem; border-radius:8px;">
-          <div style="font-size:0.7rem; color:#94a3b8; text-transform:uppercase;">Policy Enforced</div>
-          <div id="res-policy" style="font-size:0.95rem; font-weight:700; color:#cbd5e1; margin-top:0.3rem;">—</div>
-        </div>
-        <div style="background:rgba(255,255,255,0.03); padding:0.75rem; border-radius:8px;">
-          <div style="font-size:0.7rem; color:#94a3b8; text-transform:uppercase;">Expected vs Actual</div>
-          <div id="res-match" style="font-size:0.95rem; font-weight:700; color:#4ade80; margin-top:0.3rem;">MATCH ✓</div>
-        </div>
-      </div>
-
-      <div id="res-error-box" style="display:none; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:0.75rem;">
-        <div style="font-weight:700; color:#f87171; font-size:0.85rem;" id="res-error-code">ERROR</div>
-        <div style="color:#cbd5e1; font-size:0.8rem; margin-top:0.2rem;" id="res-error-msg">Error details</div>
-      </div>
-
-      <div>
-        <div style="font-size:0.75rem; font-weight:600; color:#94a3b8; text-transform:uppercase; margin-bottom:0.3rem;">
-          Cryptographic Checksums (SHA-256)
-        </div>
-        <div style="font-family:'JetBrains Mono', monospace; font-size:0.75rem; background:#020617; padding:0.75rem; border-radius:8px; border:1px solid rgba(255,255,255,0.08); display:flex; flex-direction:column; gap:0.4rem;">
-          <div><span style="color:#38bdf8;">INPUT :</span> <span id="res-input-hash" style="color:#cbd5e1;">—</span></div>
-          <div><span style="color:#4ade80;">OUTPUT:</span> <span id="res-output-hash" style="color:#cbd5e1;">—</span></div>
-        </div>
-      </div>
-
-      <div>
-        <div style="font-size:0.75rem; font-weight:600; color:#94a3b8; text-transform:uppercase; margin-bottom:0.3rem;">
-          Genuine Workload Execution Output Payload
-        </div>
-        <pre id="res-payload" style="background:#020617; border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:0.85rem; font-family:'JetBrains Mono', monospace; font-size:0.75rem; color:#94a3b8; max-height:220px; overflow-y:auto; white-space:pre-wrap; margin:0;"></pre>
-      </div>
+    <div style="background:rgba(139, 92, 246, 0.08); border:1px solid rgba(139, 92, 246, 0.25); border-radius:var(--r-md); padding:10px 14px;">
+      <strong style="color:#a78bfa; font-size:0.85rem;">MEC_STORAGE</strong>
+      <div style="font-size:1.1rem; font-weight:800; color:#fff;" id="report-mec-count">0 files</div>
+      <div style="font-size:0.75rem; color:var(--fg-2);" id="report-mec-bytes">0 KB &bull; Policy: TRUSTED_EDGE</div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-primary btn-sm" onclick="closeScenarioResultModal()">Close</button>
+    <div style="background:rgba(56, 189, 248, 0.08); border:1px solid rgba(56, 189, 248, 0.25); border-radius:var(--r-md); padding:10px 14px;">
+      <strong style="color:#38bdf8; font-size:0.85rem;">CLOUD_STORAGE</strong>
+      <div style="font-size:1.1rem; font-weight:800; color:#fff;" id="report-cloud-count">0 files</div>
+      <div style="font-size:0.75rem; color:var(--fg-2);" id="report-cloud-bytes">0 KB &bull; Policy: CLOUD_ALLOWED</div>
     </div>
   </div>
-</div>
+
+  <!-- Detailed File Dispatched Table -->
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>File Name</th>
+          <th>Classification Category</th>
+          <th>AI Storage Placement</th>
+          <th>Policy Enforced</th>
+          <th>AI Placement Rationale</th>
+          <th>SHA-256 Checksum</th>
+          <th>Size</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="report-files-tbody">
+        <!-- Injected by JS -->
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- Active Ingested Datasets Inventory -->
+<section class="card" aria-labelledby="inventory-heading">
+  <header class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <h2 class="card-title" id="inventory-heading">Active Hospital Datasets &amp; Workloads Repository</h2>
+      <p style="font-size:0.8rem; color:var(--fg-2); margin-top:2px;">All currently stored dataset files across the 3 physical tiers</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <input type="text" id="inventory-search" placeholder="Search datasets..." class="fi" style="width:200px; padding:6px 10px; font-size:0.8rem;" />
+    </div>
+  </header>
+  <div class="card-content" style="padding:16px;">
+    
+    <!-- Filter Tabs -->
+    <div class="filter-tab-bar">
+      <button class="filter-btn active" data-filter="ALL" onclick="filterInventory('ALL', this)">All Tiers</button>
+      <button class="filter-btn" data-filter="LOCAL_STORAGE" onclick="filterInventory('LOCAL_STORAGE', this)">Local Storage (Vault)</button>
+      <button class="filter-btn" data-filter="MEC_STORAGE" onclick="filterInventory('MEC_STORAGE', this)">MEC-001 Edge Node</button>
+      <button class="filter-btn" data-filter="CLOUD_STORAGE" onclick="filterInventory('CLOUD_STORAGE', this)">Cloud Storage Tier</button>
+    </div>
+
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Dataset / File</th>
+            <th>Storage Device</th>
+            <th>Policy</th>
+            <th>Category</th>
+            <th>Size</th>
+            <th>SHA-256 Hash</th>
+            <th>Ingested At</th>
+            <th style="text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="inventory-tbody">
+          <tr><td colspan="8" style="text-align:center; padding:24px; color:var(--fg-2);">Loading active dataset repository...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-let currentSelectedSample = null;
-let allScenariosData = [];
+let allDatasets = [];
+let currentFilter = 'ALL';
 
-function switchTab(tabId) {
-  const tabs = ['scenarios', 'images', 'storage'];
-  tabs.forEach(t => {
-    document.getElementById(`pane-${t}`).classList.remove('active');
-  });
-  document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-
-  document.getElementById(`pane-${tabId}`).classList.add('active');
-  event.currentTarget.classList.add('active');
-
-  if (tabId === 'storage') {
-    loadStorageDestinations();
-    loadStorageReplicas();
-  }
-}
-
-// =============================================================================
-// TAB 1: 14 Hospital Scenarios Logic
-// =============================================================================
-async function loadWorkloadScenarios() {
+async function loadDatasetInventory() {
   try {
-    const res = await fetch('/api/datasets/scenarios/');
+    const res = await fetch('/datasets/app/manual/list/');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    allScenariosData = data.scenarios || [];
-    renderScenarios(allScenariosData);
+    allDatasets = data.datasets || [];
+    updateCounters(allDatasets);
+    renderInventory();
   } catch (err) {
-    console.error("Failed to load scenarios:", err);
-    document.getElementById('scenario-grid').innerHTML = `
-      <div style="grid-column:1/-1; text-align:center; padding:2rem; color:#ef4444;">
-        Failed to load scenarios: ${err.message}
-      </div>`;
+    console.error("Failed to load inventory:", err);
   }
 }
 
-function filterScenarios(category, btn) {
-  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-  btn.classList.add('active');
+function updateCounters(list) {
+  const localList = list.filter(d => d.destination_id === 'LOCAL_STORAGE');
+  const mecList = list.filter(d => d.destination_id === 'MEC_STORAGE');
+  const cloudList = list.filter(d => d.destination_id === 'CLOUD_STORAGE');
 
-  if (category === 'ALL') {
-    renderScenarios(allScenariosData);
-  } else {
-    const filtered = allScenariosData.filter(s => s.category === category);
-    renderScenarios(filtered);
-  }
+  const sumBytes = arr => arr.reduce((acc, d) => acc + (d.file_size || 0), 0);
+
+  const formatSize = b => (b < 1024 ? b + ' B' : b < 1024*1024 ? (b/1024).toFixed(1) + ' KB' : (b/(1024*1024)).toFixed(2) + ' MB');
+
+  document.getElementById('count-local-files').textContent = `${localList.length} file${localList.length === 1 ? '' : 's'}`;
+  document.getElementById('bytes-local-files').textContent = formatSize(sumBytes(localList));
+
+  document.getElementById('count-mec-files').textContent = `${mecList.length} file${mecList.length === 1 ? '' : 's'}`;
+  document.getElementById('bytes-mec-files').textContent = formatSize(sumBytes(mecList));
+
+  document.getElementById('count-cloud-files').textContent = `${cloudList.length} file${cloudList.length === 1 ? '' : 's'}`;
+  document.getElementById('bytes-cloud-files').textContent = formatSize(sumBytes(cloudList));
 }
 
-function renderScenarios(scenarios) {
-  const grid = document.getElementById('scenario-grid');
-  document.getElementById('scenario-counter').innerText = `${scenarios.length} scenarios displayed`;
+function filterInventory(tier, btnEl) {
+  currentFilter = tier;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+  renderInventory();
+}
 
-  if (!scenarios.length) {
-    grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:2rem; color:#94a3b8;">No scenarios match filter.</div>';
+function renderInventory() {
+  const tbody = document.getElementById('inventory-tbody');
+  if (!tbody) return;
+
+  const search = (document.getElementById('inventory-search')?.value || '').toLowerCase();
+
+  let filtered = allDatasets;
+  if (currentFilter !== 'ALL') {
+    filtered = filtered.filter(d => d.destination_id === currentFilter);
+  }
+  if (search) {
+    filtered = filtered.filter(d => (d.name || '').toLowerCase().includes(search) || (d.file_name || '').toLowerCase().includes(search) || (d.dataset_id || '').toLowerCase().includes(search));
+  }
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:24px; color:var(--fg-2);">No datasets match the current filter. Upload a file or run the sample batch above.</td></tr>`;
     return;
   }
 
-  grid.innerHTML = scenarios.map(s => `
-    <div class="scenario-card">
-      <div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-          <span class="badge-cat badge-cat-${s.category}">${s.category}</span>
-          <span style="font-family:'JetBrains Mono',monospace; font-weight:700; font-size:0.85rem; color:#38bdf8;">${s.scenario_id}</span>
-        </div>
-        <h3 style="font-size:1rem; font-weight:700; color:#f8fafc; margin:0.25rem 0 0.5rem 0;">${s.name}</h3>
-        <p style="font-size:0.82rem; color:#94a3b8; line-height:1.4; margin:0 0 0.75rem 0;">${s.description}</p>
-        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.5rem;">
-          <span class="badge-policy">${s.privacy_policy}</span>
-          <span class="badge-status status-${s.expected_status}">Expected: ${s.expected_status}</span>
-          ${s.expected_error_code ? `<span class="badge badge-warning" style="font-size:0.7rem;">${s.expected_error_code}</span>` : ''}
-        </div>
-      </div>
-      <div>
-        <button class="btn-run-scenario" onclick="runScenario('${s.scenario_id}')" id="btn-run-${s.scenario_id}">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-          Execute Workload
-        </button>
-      </div>
-    </div>
-  `).join('');
-}
-
-async function runScenario(scenarioId) {
-  const btn = document.getElementById(`btn-run-${scenarioId}`);
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<span style="display:inline-block; width:12px; height:12px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; margin-right:0.3rem;"></span> Executing...';
-  }
-
-  try {
-    const res = await fetch(`/api/datasets/scenarios/run/${scenarioId}/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
-    const data = await res.json();
-    openScenarioResultModal(data);
-  } catch (err) {
-    alert(`Failed to execute scenario ${scenarioId}: ${err.message}`);
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Execute Workload';
-    }
-  }
-}
-
-function openScenarioResultModal(data) {
-  document.getElementById('res-modal-title').innerText = `${data.scenario_id}: ${data.name}`;
-  
-  const statusEl = document.getElementById('res-status');
-  statusEl.className = `status-${data.status}`;
-  statusEl.innerText = data.status;
-
-  document.getElementById('res-duration').innerText = `${data.execution_time_ms} ms`;
-  document.getElementById('res-policy').innerText = data.privacy_policy;
-
-  const matchEl = document.getElementById('res-match');
-  if (data.status === data.expected_status) {
-    matchEl.style.color = '#4ade80';
-    matchEl.innerText = `MATCH ✓ (${data.expected_status})`;
-  } else {
-    matchEl.style.color = '#ef4444';
-    matchEl.innerText = `MISMATCH (Got ${data.status})`;
-  }
-
-  const errBox = document.getElementById('res-error-box');
-  if (data.error_code || data.error_message) {
-    errBox.style.display = 'block';
-    document.getElementById('res-error-code').innerText = data.error_code || 'ERROR';
-    document.getElementById('res-error-msg').innerText = data.error_message || 'Validation or Execution Failure';
-  } else {
-    errBox.style.display = 'none';
-  }
-
-  document.getElementById('res-input-hash').innerText = data.input_checksum || 'N/A';
-  document.getElementById('res-output-hash').innerText = data.output_checksum || 'N/A';
-  document.getElementById('res-payload').innerText = JSON.stringify(data.result_preview || {}, null, 2);
-
-  document.getElementById('scenario-result-modal').style.display = 'flex';
-}
-
-function closeScenarioResultModal() {
-  document.getElementById('scenario-result-modal').style.display = 'none';
-}
-
-// =============================================================================
-// TAB 2: MedMNIST Images Logic
-// =============================================================================
-async function loadDatasetSummary() {
-  try {
-    const res = await fetch('/api/datasets/medical/summary/');
-    const data = await res.json();
-    if (data.downloaded) {
-      document.getElementById('meta-dims').innerText = data.image_dimensions;
-      document.getElementById('meta-total').innerText = data.sample_count.toLocaleString();
-      document.getElementById('meta-splits').innerText = `${data.train_count} / ${data.val_count} / ${data.test_count}`;
-      document.getElementById('meta-storage').innerText = data.storage_path;
-    }
-  } catch (err) {
-    console.error("Failed to load dataset summary:", err);
-  }
-}
-
-async function loadSamples(page = 1) {
-  const split = document.getElementById('filter-split')?.value || '';
-  const label = document.getElementById('filter-label')?.value || '';
-  const pageSize = document.getElementById('filter-page-size')?.value || 24;
-  const grid = document.getElementById('sample-grid');
-  const countIndicator = document.getElementById('sample-count-indicator');
-
-  if (!grid) return;
-  grid.innerHTML = '<div style="color:#94a3b8; padding:2rem; grid-column:1/-1; text-align:center;">Loading medical images...</div>';
-
-  try {
-    const url = `/api/datasets/medical/samples/?page=${page}&page_size=${pageSize}&split=${encodeURIComponent(split)}&label=${encodeURIComponent(label)}`;
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (countIndicator) {
-      countIndicator.innerText = `Showing ${data.samples.length} of ${data.total} samples (Page ${data.current_page}/${data.num_pages || 1})`;
-    }
-
-    if (!data.samples || data.samples.length === 0) {
-      grid.innerHTML = '<div style="color:#94a3b8; padding:2rem; grid-column:1/-1; text-align:center;">No matching samples found.</div>';
-      return;
-    }
-
-    grid.innerHTML = data.samples.map(s => `
-      <div class="sample-card">
-        <div class="img-container">
-          <img src="${s.image_url}" alt="${s.sample_id}" loading="lazy">
-        </div>
-        <div class="card-body">
-          <div class="sample-ref">${s.sample_id}</div>
-          <div class="badge-row">
-            <span class="badge-split">${s.split}</span>
-            <span class="badge-label ${s.label_name === 'normal' ? 'badge-normal' : 'badge-pneumonia'}">
-              ${s.label_name}
-            </span>
-            <span class="badge-split">${s.dimensions}</span>
-          </div>
-          <div class="hash-preview" title="SHA-256: ${s.sha256}">
-            SHA: ${s.sha256.substring(0, 16)}...
-          </div>
-          <button class="btn-dispatch" onclick="openTaskModal('${s.sample_id}', '${s.image_url}', '${s.split}', '${s.label_name}')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="5 3 19 12 5 21 5 3"></polygon>
-            </svg>
-            Create Task
-          </button>
-        </div>
-      </div>
-    `).join('');
-
-    renderPagination(data.current_page, data.num_pages);
-  } catch (err) {
-    grid.innerHTML = `<div style="color:#ef4444; padding:2rem; grid-column:1/-1; text-align:center;">Error loading samples: ${err.message}</div>`;
-  }
-}
-
-function renderPagination(current, total) {
-  const container = document.getElementById('pagination-controls');
-  if (!container || total <= 1) {
-    if (container) container.innerHTML = '';
-    return;
-  }
-
-  let html = '';
-  if (current > 1) {
-    html += `<button class="btn btn-ghost btn-sm" onclick="loadSamples(${current - 1})">&laquo; Prev</button>`;
-  }
-
-  for (let p = Math.max(1, current - 2); p <= Math.min(total, current + 2); p++) {
-    const active = p === current ? 'btn-primary' : 'btn-ghost';
-    html += `<button class="btn ${active} btn-sm" onclick="loadSamples(${p})">${p}</button>`;
-  }
-
-  if (current < total) {
-    html += `<button class="btn btn-ghost btn-sm" onclick="loadSamples(${current + 1})">Next &raquo;</button>`;
-  }
-
-  container.innerHTML = html;
-}
-
-function openTaskModal(sampleId, imgUrl, split, labelName) {
-  currentSelectedSample = sampleId;
-  document.getElementById('modal-sample-id').innerText = sampleId;
-  document.getElementById('modal-sample-desc').innerText = `${labelName.toUpperCase()} - Split: ${split}`;
-  document.getElementById('modal-sample-img').src = imgUrl;
-  document.getElementById('task-modal').style.display = 'flex';
-}
-
-function closeTaskModal() {
-  document.getElementById('task-modal').style.display = 'none';
-  currentSelectedSample = null;
-}
-
-function updatePolicyNotice() {
-  const policy = document.getElementById('task-policy').value;
-  const box = document.getElementById('policy-notice');
-  if (policy === 'LOCAL_ONLY') {
-    box.style.borderLeftColor = '#ef4444';
-    box.innerHTML = '<strong>LOCAL_ONLY Policy:</strong> Task data is strictly prohibited from leaving the hospital workstation. Dispatches strictly to Local executor.';
-  } else if (policy === 'TRUSTED_EDGE') {
-    box.style.borderLeftColor = '#38bdf8';
-    box.innerHTML = '<strong>TRUSTED_EDGE Policy:</strong> May execute on the local workstation or on an authenticated, online MEC edge node.';
-  } else {
-    box.style.borderLeftColor = '#a855f7';
-    box.innerHTML = '<strong>CLOUD_ALLOWED Policy:</strong> Can be scheduled to any eligible Local, MEC, or Cloud computing resource.';
-  }
-}
-
-async function submitHospitalTask() {
-  if (!currentSelectedSample) return;
-
-  const btn = document.getElementById('btn-submit-task');
-  btn.disabled = true;
-  btn.innerText = 'Submitting...';
-
-  const payload = {
-    sample_id: currentSelectedSample,
-    operation: document.getElementById('task-operation').value,
-    target_resolution: parseInt(document.getElementById('task-resolution').value),
-    privacy_policy: document.getElementById('task-policy').value,
-    priority: parseInt(document.getElementById('task-priority').value),
-    deadline_ms: parseInt(document.getElementById('task-deadline').value),
-  };
-
-  try {
-    const res = await fetch('/api/datasets/medical/create-task/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await res.json();
-    if (res.ok && data.success) {
-      alert(`Hospital task created successfully!\nTask ID: ${data.task_id}\nPolicy: ${data.privacy_policy}\nStatus: ${data.status}`);
-      closeTaskModal();
-      window.location.href = '/task-routing/';
-    } else {
-      alert(`Submission error: ${data.error || 'Unknown failure'}`);
-    }
-  } catch (err) {
-    alert(`Failed to submit task: ${err.message}`);
-  } finally {
-    btn.disabled = false;
-    btn.innerText = 'Dispatch to Digital Twin Scheduler';
-  }
-}
-
-// =============================================================================
-// TAB 3: 3-Tier Storage Inventory Logic
-// =============================================================================
-async function loadStorageDestinations() {
-  const grid = document.getElementById('storage-destinations-grid');
-  if (!grid) return;
-
-  try {
-    const res = await fetch('/api/datasets/storage/destinations/');
-    const data = await res.json();
-    const dests = data.destinations || [];
-
-    grid.innerHTML = dests.map(d => {
-      const pct = Math.min(100, Math.round((d.used_bytes / Math.max(1, d.capacity_bytes)) * 100));
-      return `
-        <div class="storage-card">
-          <div class="storage-card-header">
-            <div>
-              <span class="badge badge-primary" style="font-size:0.7rem;">${d.destination_type}</span>
-              <div class="storage-title" style="margin-top:0.3rem;">${d.name}</div>
-            </div>
-            <span class="badge ${d.is_active ? 'badge-success' : 'badge-danger'}">${d.is_active ? 'ACTIVE' : 'OFFLINE'}</span>
-          </div>
-          <div>
-            <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:#94a3b8; margin-bottom:0.3rem;">
-              <span>Usage: ${d.used_mb} MB / ${d.capacity_gb} GB</span>
-              <span>${pct}%</span>
-            </div>
-            <div class="progress-track"><div class="progress-bar" style="width:${pct}%;"></div></div>
-          </div>
-          <div style="font-size:0.78rem; color:#94a3b8;">
-            <div><strong>Placement Policy:</strong> <span class="badge-policy">${d.privacy_policy}</span></div>
-            <div style="font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:#64748b; margin-top:0.4rem; word-break:break-all;">
-              Path: ${d.base_path}
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-  } catch (err) {
-    grid.innerHTML = `<div style="grid-column:1/-1; color:#ef4444;">Failed to load storage tiers: ${err.message}</div>`;
-  }
-}
-
-async function loadStorageReplicas() {
-  const body = document.getElementById('storage-replicas-body');
-  if (!body) return;
-
-  try {
-    const res = await fetch('/api/datasets/storage/replicas/');
-    const data = await res.json();
-    const reps = data.replicas || [];
-
-    if (!reps.length) {
-      body.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:1.5rem;">No storage replicas registered yet. Run an audit sweep or download datasets.</td></tr>';
-      return;
-    }
-
-    body.innerHTML = reps.map(r => `
+  tbody.innerHTML = filtered.map(d => {
+    const isLocal = d.destination_id === 'LOCAL_STORAGE';
+    const isMec = d.destination_id === 'MEC_STORAGE';
+    const tierBadge = isLocal ? 'badge-success' : isMec ? 'badge-primary' : 'badge-info';
+    const shortHash = d.sha256 ? `${d.sha256.slice(0, 12)}...` : 'N/A';
+    return `
       <tr>
-        <td><code class="font-mono">${r.replica_id}</code></td>
-        <td><strong>${r.dataset_id}</strong></td>
-        <td><span class="badge badge-primary">${r.destination}</span></td>
-        <td><span class="badge ${r.status === 'VERIFIED' ? 'badge-success' : 'badge-danger'}">${r.status}</span></td>
-        <td><code class="font-mono" style="font-size:0.75rem;">${r.sha256 ? r.sha256.substring(0, 16) + '...' : '—'}</code></td>
-        <td><span class="badge ${r.is_available ? 'badge-success' : 'badge-ghost'}">${r.is_available ? 'YES' : 'NO'}</span></td>
-        <td><small style="color:#94a3b8;">${r.verified_at ? r.verified_at.substring(0, 19).replace('T', ' ') : '—'}</small></td>
+        <td>
+          <strong style="color:var(--fg-0);">${escapeHtml(d.name)}</strong><br>
+          <code style="font-size:0.75rem; color:var(--fg-2);">${escapeHtml(d.file_name)}</code>
+        </td>
+        <td><span class="badge ${tierBadge}" style="font-size:0.7rem;">${escapeHtml(d.destination)}</span></td>
+        <td><span style="font-size:0.75rem; font-family:var(--font-mono); font-weight:600; color:${isLocal ? '#34d399' : isMec ? '#a78bfa' : '#38bdf8'}">${escapeHtml(d.privacy_policy)}</span></td>
+        <td style="font-size:0.78rem; color:var(--fg-1);">${escapeHtml(d.category || 'Clinical Workload')}</td>
+        <td style="font-family:var(--font-mono); font-size:0.8rem;">${d.file_size_formatted || (d.file_size ? (d.file_size/1024).toFixed(1) + ' KB' : '--')}</td>
+        <td><code title="${escapeHtml(d.sha256)}" style="font-size:0.75rem; color:#38bdf8; cursor:pointer;" onclick="navigator.clipboard?.writeText('${escapeHtml(d.sha256)}')">${shortHash}</code></td>
+        <td style="font-size:0.75rem; color:var(--fg-2);">${escapeHtml(d.created_at || 'Just now')}</td>
+        <td style="text-align:right;">
+          <button class="btn btn-ghost btn-sm" onclick="deleteDataset('${escapeHtml(d.dataset_id)}')" style="color:var(--bad); padding:4px 8px; font-size:0.75rem;">Delete</button>
+        </td>
       </tr>
-    `).join('');
+    `;
+  }).join('');
+}
+
+function displayAiReport(data) {
+  const card = document.getElementById('ai-report-card');
+  if (!card) return;
+
+  const summary = data.summary || {};
+  const files = data.files || [];
+
+  document.getElementById('report-package-name').textContent = data.package_name || 'Uploaded Workload Batch';
+  document.getElementById('report-summary-text').textContent = data.message || `Analyzed ${files.length} file(s) across all 3 storage tiers.`;
+
+  if (summary.local) {
+    document.getElementById('report-local-count').textContent = `${summary.local.count} file${summary.local.count === 1 ? '' : 's'}`;
+    document.getElementById('report-local-bytes').textContent = `${summary.local.size_formatted} • Policy: LOCAL_ONLY`;
+  }
+  if (summary.mec) {
+    document.getElementById('report-mec-count').textContent = `${summary.mec.count} file${summary.mec.count === 1 ? '' : 's'}`;
+    document.getElementById('report-mec-bytes').textContent = `${summary.mec.size_formatted} • Policy: TRUSTED_EDGE`;
+  }
+  if (summary.cloud) {
+    document.getElementById('report-cloud-count').textContent = `${summary.cloud.count} file${summary.cloud.count === 1 ? '' : 's'}`;
+    document.getElementById('report-cloud-bytes').textContent = `${summary.cloud.size_formatted} • Policy: CLOUD_ALLOWED`;
+  }
+
+  const tbody = document.getElementById('report-files-tbody');
+  tbody.innerHTML = files.map(f => {
+    const isLocal = f.target_storage_id === 'LOCAL_STORAGE';
+    const isMec = f.target_storage_id === 'MEC_STORAGE';
+    const tierBadge = isLocal ? 'badge-success' : isMec ? 'badge-primary' : 'badge-info';
+    const policyColor = isLocal ? '#34d399' : isMec ? '#a78bfa' : '#38bdf8';
+    const shortHash = f.sha256 ? `${f.sha256.slice(0, 12)}...` : 'N/A';
+
+    return `
+      <tr>
+        <td>
+          <strong style="color:var(--fg-0);">${escapeHtml(f.filename)}</strong><br>
+          <code style="font-size:0.72rem; color:var(--fg-2);">${escapeHtml(f.relative_path || f.filename)}</code>
+        </td>
+        <td style="font-size:0.8rem; font-weight:600; color:var(--fg-1);">${escapeHtml(f.category)}</td>
+        <td>
+          <span class="badge ${tierBadge}" style="font-size:0.72rem;">${escapeHtml(f.target_storage_name)}</span>
+        </td>
+        <td>
+          <span style="font-family:var(--font-mono); font-weight:700; color:${policyColor}; font-size:0.75rem;">${escapeHtml(f.privacy_policy)}</span>
+        </td>
+        <td style="font-size:0.78rem; color:var(--fg-1); max-width:280px; line-height:1.3;">
+          ${escapeHtml(f.ai_rationale)}
+        </td>
+        <td>
+          <code title="${escapeHtml(f.sha256)}" style="font-size:0.74rem; color:#38bdf8; cursor:pointer;" onclick="navigator.clipboard?.writeText('${escapeHtml(f.sha256)}')">${shortHash}</code>
+        </td>
+        <td style="font-family:var(--font-mono); font-size:0.78rem;">${f.file_size_formatted || (f.file_size/1024).toFixed(1) + ' KB'}</td>
+        <td>
+          <span class="badge badge-success" style="font-size:0.68rem;">${escapeHtml(f.status || 'VERIFIED')}</span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  card.style.display = 'block';
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function deleteDataset(datasetId) {
+  if (!confirm(`Are you sure you want to delete dataset ${datasetId}?`)) return;
+  try {
+    const res = await fetch(`/datasets/app/manual/delete/${datasetId}/`, { method: 'POST' });
+    if (res.ok) {
+      if (typeof showToast === 'function') showToast('Dataset deleted successfully', 'success');
+      loadDatasetInventory();
+    }
   } catch (err) {
-    body.innerHTML = `<tr><td colspan="7" style="color:#ef4444; text-align:center;">Failed to load replicas: ${err.message}</td></tr>`;
+    alert('Failed to delete dataset');
   }
 }
 
-async function auditStorageSweep() {
-  try {
-    const res = await fetch('/api/datasets/storage/verify/', { method: 'POST' });
-    const data = await res.json();
-    alert(`Storage Audit Complete!\nTotal Replicas: ${data.total_replicas}\nVerified: ${data.verified}\nBlocked: ${data.blocked}`);
-    loadStorageDestinations();
-    loadStorageReplicas();
-  } catch (err) {
-    alert(`Audit failed: ${err.message}`);
-  }
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  loadWorkloadScenarios();
-  loadDatasetSummary();
-  loadSamples(1);
+  document.body.dataset.page = 'medical_dataset_explorer';
+  loadDatasetInventory();
+
+  // Dropzone file handling
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('file-input');
+  const label = document.getElementById('dropzone-label');
+
+  if (dropzone && fileInput) {
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        label.textContent = `Selected: ${fileInput.files[0].name} (${(fileInput.files[0].size/1024).toFixed(1)} KB)`;
+      }
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) {
+        label.textContent = `Selected: ${fileInput.files[0].name} (${(fileInput.files[0].size/1024).toFixed(1)} KB)`;
+      }
+    });
+  }
+
+  // Upload Form Submit
+  const form = document.getElementById('studio-upload-form');
+  const submitBtn = document.getElementById('btn-studio-submit');
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!fileInput.files.length) {
+        alert('Please select a file or ZIP batch to upload.');
+        return;
+      }
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Analyzing & Dispatching...';
+
+      const fd = new FormData(form);
+      try {
+        const res = await fetch('/datasets/app/manual/upload/', {
+          method: 'POST',
+          body: fd,
+        });
+        const result = await res.json();
+        if (res.ok && result.success) {
+          if (typeof showToast === 'function') showToast(result.message, 'success');
+          displayAiReport(result);
+          form.reset();
+          if (label) label.textContent = 'Click to select dataset file or ZIP archive, or drag and drop';
+          await loadDatasetInventory();
+        } else {
+          alert(result.error || 'Upload failed');
+        }
+      } catch (err) {
+        alert('Network error during upload');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Upload & Run AI Tri-Storage Analysis';
+      }
+    });
+  }
+
+  // Demo ZIP Batch Trigger
+  const demoZipBtn = document.getElementById('btn-demo-zip');
+  if (demoZipBtn) {
+    demoZipBtn.addEventListener('click', async () => {
+      demoZipBtn.disabled = true;
+      demoZipBtn.textContent = 'Processing Sample ZIP...';
+      try {
+        const res = await fetch('/datasets/app/manual/demo-zip/', { method: 'POST' });
+        const result = await res.json();
+        if (res.ok && result.success) {
+          if (typeof showToast === 'function') showToast('Sample ZIP batch successfully classified & dispatched across 3 storage tiers!', 'success');
+          displayAiReport(result);
+          await loadDatasetInventory();
+        } else {
+          alert(result.error || 'Failed to process sample ZIP');
+        }
+      } catch (err) {
+        alert('Error loading sample ZIP batch');
+      } finally {
+        demoZipBtn.disabled = false;
+        demoZipBtn.textContent = 'Analyze Sample ZIP Batch';
+      }
+    });
+  }
+
+  // Search Filter
+  const searchInput = document.getElementById('inventory-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', renderInventory);
+  }
 });
 </script>
 {% endblock %}

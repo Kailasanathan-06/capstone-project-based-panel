@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Upload Dataset - SecureDT{% endblock %}
+{% block body_page %}upload{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+  <h1 class="page-heading">Manual ZIP Dataset Ingestion &amp; AI Analysis</h1>
+  <p class="body-text">Upload a single compressed ZIP archive containing datasets and metadata for all three storage resources (Local, MEC, and Cloud).</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px;">
+  <!-- Left Column: Upload Form & Options -->
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          Select ZIP Archive
+        </h2>
+        <span class="badge badge-cyan">ZIP Archive Only</span>
+      </div>
+
+      <form id="zip-upload-form" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label" for="zip-file-input">Choose Archive (.zip)</label>
+          <input type="file" id="zip-file-input" name="file" accept=".zip" class="form-input" style="padding-top: 6px;" required>
+          <div class="form-help">Max uncompressed expansion: 250 MB. Disallowed file types (.exe, .sh, .bat) are blocked.</div>
+        </div>
+
+        <div id="file-meta-preview" style="display: none; background: var(--bg-surface); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 14px; font-size: 0.85rem;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span class="text-dim">Filename:</span>
+            <span class="text-bold text-cyan" id="preview-filename">&mdash;</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span class="text-dim">Archive Size:</span>
+            <span class="text-mono" id="preview-filesize">&mdash;</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="execution-mode-select">Processing Operation Mode</label>
+          <select id="execution-mode-select" name="execution_mode" class="form-select">
+            <option value="SIMULATION" selected>Simulation Mode (Calculate allocations without writing disk files)</option>
+            <option value="EXECUTION">Execution Mode (Physically store files into Local/MEC/Cloud directories with SHA-256 validation)</option>
+          </select>
+          <div class="form-help">Simulation mode generates truthful recommendations without altering physical disk volumes.</div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 18px;">
+          <button type="submit" id="btn-submit-upload" class="btn btn-primary" style="flex: 1;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path><polyline points="16 16 12 12 8 16"></polyline></svg>
+            Upload &amp; Analyze Archive
+          </button>
+          <button type="button" id="btn-load-sample" class="btn btn-secondary">
+            Load Sample Batch ZIP
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Supported Archive Format Notice -->
+    <div class="card" style="font-size: 0.85rem;">
+      <h3 style="font-size: 0.95rem; margin-bottom: 8px; color: var(--text-main);">ZIP Archive Requirements</h3>
+      <ul style="padding-left: 18px; color: var(--text-muted); line-height: 1.6;">
+        <li>Must contain files or subfolders intended for Local, MEC, or Cloud tiers.</li>
+        <li>Optional manifest file (<code>manifest.json</code> or <code>manifest.csv</code>) supported to declare explicit privacy policies and source devices.</li>
+        <li>Automatic categorization analyzes clinical PHI, radiology imaging, and administrative workloads if no manifest is present.</li>
+        <li>Strict path traversal validation protects against arbitrary directory escapes.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Right Column: 10-Stage Processing Workflow & Feedback -->
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+          Processing Pipeline Workflow
+        </h2>
+        <span id="pipeline-status-badge" class="badge badge-muted">Ready</span>
+      </div>
+
+      <div id="stages-container" class="stages-stepper">
+        <div class="stage-item" id="stage-0">
+          <div><strong>1. Upload Received</strong><div class="text-xs text-dim stage-msg">Awaiting archive selection</div></div>
+          <span class="badge badge-muted stage-badge">Pending</span>
+        </div>
+        <div class="stage-item" id="stage-1">
+          <div><strong>2. ZIP Validation</strong><div class="text-xs text-dim stage-msg">Archive integrity &amp; traversal check</div></div>
+          <span class="badge badge-muted stage-badge">Pending</span>
+        </div>
+        <div class="stage-item" id="stage-2">
+          <div><strong>3. Dataset Inventory</strong><div class="text-xs text-dim stage-msg">Discovered files &amp; manifest detection</div></div>
+          <span class="badge badge-muted stage-badge">Pending</span>
+        </div>
+        <div class="stage-item" id="stage-3">
+          <div><strong>4. Feature Extraction</strong><div class="text-xs text-dim stage-msg">Cryptographic hashes &amp; file size</div></div>
+          <span class="badge badge-muted stage-badge">Pending</span>
+        </div>
+        <div class="stage-item" id="stage-4">
+          <div><strong>5. Resource Status Check</strong><div class="text-xs text-dim stage-msg">Digital Twin live telemetry sync</div></div>
+          <span class="badge badge-muted stage-badge">Pending</span>
+        </div>
+        <div class="stage-item" id="stage-5">
+          <div><strong>6. Privacy Validation</strong><div class="text-xs text-dim stage-msg">HIPAA tier boundary constraints</div></div>
+          <span class="badge badge-muted stage-badge">Pending</span>
+        </div>
+        <div class="stage-item" id="stage-6">
+          <div><strong>7. Scheduler Execution</strong><div class="text-xs text-dim stage-msg">Multi-objective Genetic Algorithm</div></div>
+          <span class="badge badge-muted stage-badge">Pending</span>
+        </div>
+        <div class="stage-item" id="stage-7">
+          <div><strong>8. Allocation Recommendation</strong><div class="text-xs text-dim stage-msg">Local, MEC, or Cloud assignment</div></div>
+          <span class="badge badge-muted stage-badge">Pending</span>
+        </div>
+        <div class="stage-item" id="stage-8">
+          <div><strong>9. Storage Execution</strong><div class="text-xs text-dim stage-msg">Simulation mode / physical placement</div></div>
+          <span class="badge badge-muted stage-badge">Pending</span>
+        </div>
+        <div class="stage-item" id="stage-9">
+          <div><strong>10. Report Generation</strong><div class="text-xs text-dim stage-msg">Persistent audit record creation</div></div>
+          <span class="badge badge-muted stage-badge">Pending</span>
+        </div>
+      </div>
+
+      <!-- Result Banner & Link -->
+      <div id="upload-result-banner" style="display: none; padding: 14px; border-radius: var(--radius-md); background: rgba(16, 185, 129, 0.1); border: 1px solid var(--status-green); margin-top: 14px;">
+        <div style="font-weight: 600; color: var(--status-green); margin-bottom: 4px;" id="result-title">Analysis Completed Successfully!</div>
+        <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 10px;" id="result-desc">Archive processed and persistent report saved.</div>
+        <a href="#" id="result-report-link" class="btn btn-primary btn-sm" style="height: 32px; font-size: 0.82rem;">Open Detailed Analysis Report</a>
+      </div>
+
+      <div id="upload-error-banner" style="display: none; padding: 14px; border-radius: var(--radius-md); background: rgba(239, 68, 68, 0.1); border: 1px solid var(--status-red); margin-top: 14px;">
+        <div style="font-weight: 600; color: var(--status-red); margin-bottom: 4px;" id="error-title">Archive Rejected</div>
+        <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 10px;" id="error-desc">Error details.</div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="location.reload();">Retry Upload</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const fileInput = document.getElementById('zip-file-input');
+  const filePreview = document.getElementById('file-meta-preview');
+  const filenameEl = document.getElementById('preview-filename');
+  const filesizeEl = document.getElementById('preview-filesize');
+  const uploadForm = document.getElementById('zip-upload-form');
+  const btnSubmit = document.getElementById('btn-submit-upload');
+  const btnSample = document.getElementById('btn-load-sample');
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    else return (bytes / 1048576).toFixed(2) + ' MB';
+  }
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) {
+      const f = fileInput.files[0];
+      filenameEl.textContent = f.name;
+      filesizeEl.textContent = formatBytes(f.size);
+      filePreview.style.display = 'block';
+    } else {
+      filePreview.style.display = 'none';
+    }
+  });
+
+  function updateStages(stages) {
+    stages.forEach((st, idx) => {
+      const el = document.getElementById(`stage-${idx}`);
+      if (!el) return;
+      const msgEl = el.querySelector('.stage-msg');
+      const badgeEl = el.querySelector('.stage-badge');
+
+      if (st.message) msgEl.textContent = st.message;
+
+      el.classList.remove('running', 'completed', 'failed');
+      badgeEl.className = 'badge stage-badge';
+
+      if (st.status === 'COMPLETED') {
+        el.classList.add('completed');
+        badgeEl.classList.add('badge-green');
+        badgeEl.textContent = 'Completed';
+      } else if (st.status === 'RUNNING') {
+        el.classList.add('running');
+        badgeEl.classList.add('badge-cyan');
+        badgeEl.textContent = 'Running';
+      } else if (st.status === 'FAILED') {
+        el.classList.add('failed');
+        badgeEl.classList.add('badge-red');
+        badgeEl.textContent = 'Failed';
+      } else {
+        badgeEl.classList.add('badge-muted');
+        badgeEl.textContent = 'Pending';
+      }
+    });
+  }
+
+  uploadForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!fileInput.files.length) return;
+
+    btnSubmit.disabled = true;
+    btnSubmit.innerHTML = 'Processing Archive...';
+    document.getElementById('pipeline-status-badge').textContent = 'Processing';
+    document.getElementById('pipeline-status-badge').className = 'badge badge-cyan';
+    document.getElementById('upload-result-banner').style.display = 'none';
+    document.getElementById('upload-error-banner').style.display = 'none';
+
+    const formData = new FormData(uploadForm);
+
+    try {
+      const resp = await fetch('{% url "api_upload_dataset" %}', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await resp.json();
+
+      if (data.stages) updateStages(data.stages);
+
+      if (data.success) {
+        document.getElementById('pipeline-status-badge').textContent = 'Completed';
+        document.getElementById('pipeline-status-badge').className = 'badge badge-green';
+        document.getElementById('result-title').textContent = `Analysis Completed: ${data.report_id}`;
+        document.getElementById('result-desc').textContent = `Processed ${data.inventory.length} files. Recommended allocations computed.`;
+        document.getElementById('result-report-link').href = `/reports/${data.report_id}/`;
+        document.getElementById('upload-result-banner').style.display = 'block';
+      } else {
+        document.getElementById('pipeline-status-badge').textContent = 'Failed';
+        document.getElementById('pipeline-status-badge').className = 'badge badge-red';
+        document.getElementById('error-desc').textContent = data.error || 'Archive analysis failed.';
+        document.getElementById('upload-error-banner').style.display = 'block';
+      }
+    } catch (err) {
+      document.getElementById('pipeline-status-badge').textContent = 'Network Error';
+      document.getElementById('pipeline-status-badge').className = 'badge badge-red';
+      document.getElementById('error-desc').textContent = err.message;
+      document.getElementById('upload-error-banner').style.display = 'block';
+    } finally {
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = 'Upload &amp; Analyze Archive';
+    }
+  });
+
+  btnSample.addEventListener('click', async () => {
+    btnSample.disabled = true;
+    btnSample.textContent = 'Loading Batch...';
+    document.getElementById('pipeline-status-badge').textContent = 'Analyzing Sample';
+    document.getElementById('pipeline-status-badge').className = 'badge badge-cyan';
+    document.getElementById('upload-result-banner').style.display = 'none';
+    document.getElementById('upload-error-banner').style.display = 'none';
+
+    try {
+      const resp = await fetch('{% url "api_upload_demo_zip" %}', {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+      });
+      const data = await resp.json();
+      if (data.stages) updateStages(data.stages);
+
+      if (data.success) {
+        document.getElementById('pipeline-status-badge').textContent = 'Completed';
+        document.getElementById('pipeline-status-badge').className = 'badge badge-green';
+        document.getElementById('result-title').textContent = `Batch Analyzed: ${data.report_id}`;
+        document.getElementById('result-desc').textContent = `Processed 5 multi-tier sample files successfully.`;
+        document.getElementById('result-report-link').href = `/reports/${data.report_id}/`;
+        document.getElementById('upload-result-banner').style.display = 'block';
+      } else {
+        document.getElementById('error-desc').textContent = data.error || 'Failed to process sample batch.';
+        document.getElementById('upload-error-banner').style.display = 'block';
+      }
+    } catch (err) {
+      document.getElementById('error-desc').textContent = err.message;
+      document.getElementById('upload-error-banner').style.display = 'block';
+    } finally {
+      btnSample.disabled = false;
+      btnSample.textContent = 'Load Sample Batch ZIP';
+    }
+  });
+</script>
+{% endblock %}

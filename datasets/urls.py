@@ -47,7 +47,9 @@ urlpatterns = [
     path("manual/upload/", views.manual_dataset_upload_api, name="manual_dataset_upload_api"),
     path("manual/list/", views.manual_datasets_list_api, name="manual_datasets_list_api"),
     path("manual/delete/<str:dataset_id>/", views.manual_dataset_delete_api, name="manual_dataset_delete_api"),
+    path("manual/demo-zip/", views.run_sample_zip_analysis_api, name="run_sample_zip_analysis_api"),
     path("api/datasets/manual/upload/", views.manual_dataset_upload_api),
     path("api/datasets/manual/list/", views.manual_datasets_list_api),
     path("api/datasets/manual/delete/<str:dataset_id>/", views.manual_dataset_delete_api),
+    path("api/datasets/manual/demo-zip/", views.run_sample_zip_analysis_api),
 ]

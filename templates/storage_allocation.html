@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Storage Allocation - SecureDT{% endblock %}
+{% block body_page %}storage_allocation{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+  <div>
+    <h1 class="page-heading">AI-Based Storage Allocation &amp; Eligibility</h1>
+    <p class="body-text">Granular placement decisions, HIPAA privacy policy constraints, and multi-tier eligibility evaluations.</p>
+  </div>
+  <a href="{% url 'upload_dataset' %}" class="btn btn-primary">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+    Upload New Archive
+  </a>
+</div>
+
+<!-- Storage Placement vs Task Scheduling Architectural Notice -->
+<div style="background: rgba(6, 182, 212, 0.08); border-left: 3px solid var(--accent-cyan); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 20px; font-size: 0.85rem;">
+  <strong class="text-cyan">Architectural Clarification:</strong>
+  <span style="color: var(--text-muted);">
+    This interface tracks <strong>Storage Placement</strong> (where dataset artifacts reside with SHA-256 integrity verification across Local, MEC, and Cloud volumes). 
+    <strong>Task Scheduling</strong> represents execution workloads dynamically dispatched by the Genetic Algorithm scheduler.
+  </span>
+</div>
+
+<!-- Summary of Data Assigned to Each Destination -->
+<div class="grid-metrics">
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Local Edge Storage</span>
+      <span class="badge badge-green">LOCAL_ONLY</span>
+    </div>
+    <div class="metric-value text-green">{{ summary.local_count }}</div>
+    <div class="metric-sub">{{ summary.local_formatted }} allocated data</div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Hospital MEC Node</span>
+      <span class="badge badge-amber">TRUSTED_EDGE</span>
+    </div>
+    <div class="metric-value text-amber">{{ summary.mec_count }}</div>
+    <div class="metric-sub">{{ summary.mec_formatted }} allocated data</div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Cloud Storage Tier</span>
+      <span class="badge badge-cyan">CLOUD_ALLOWED</span>
+    </div>
+    <div class="metric-value text-cyan">{{ summary.cloud_count }}</div>
+    <div class="metric-sub">{{ summary.cloud_formatted }} allocated data</div>
+  </div>
+
+  <div class="metric-card">
+    <div class="metric-header">
+      <span class="metric-label">Total Workload Items</span>
+      <span class="badge badge-muted">All Archives</span>
+    </div>
+    <div class="metric-value">{{ summary.total_count }}</div>
+    <div class="metric-sub">{{ summary.unassigned_count }} unassigned / blocked</div>
+  </div>
+</div>
+
+<!-- Detailed Allocation Matrix Table -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">Storage Allocation Decision Matrix</h2>
+      <div class="card-subtitle">Real dataset records evaluated against capacity, availability, and privacy policies</div>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Dataset / File Group</th>
+          <th>Size</th>
+          <th>Privacy Policy</th>
+          <th>Local Tier</th>
+          <th>MEC Edge</th>
+          <th>Cloud Tier</th>
+          <th>Selected Destination</th>
+          <th>Status</th>
+          <th>Decision Rationale</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td>
+            <div class="text-bold">{{ item.file_name }}</div>
+            <div class="text-xs text-dim text-mono">{{ item.relative_path }}</div>
+          </td>
+          <td class="text-mono">{{ item.file_size|filesizeformat }}</td>
+          <td>
+            <span class="badge {% if item.privacy_policy == 'LOCAL_ONLY' %}badge-green{% elif item.privacy_policy == 'TRUSTED_EDGE' %}badge-amber{% else %}badge-cyan{% endif %}">
+              {{ item.privacy_policy }}
+            </span>
+          </td>
+          <td>
+            {% if item.local_eligible %}
+              <span class="badge badge-green">Eligible</span>
+            {% else %}
+              <span class="badge badge-red">Ineligible</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if item.mec_eligible %}
+              <span class="badge badge-green">Eligible</span>
+            {% else %}
+              <span class="badge badge-red">Ineligible</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if item.cloud_eligible %}
+              <span class="badge badge-green">Eligible</span>
+            {% else %}
+              <span class="badge badge-red">Ineligible</span>
+            {% endif %}
+          </td>
+          <td class="text-bold">
+            {% if item.selected_destination == 'LOCAL_STORAGE' %}
+              <span class="text-green">Local Storage</span>
+            {% elif item.selected_destination == 'MEC_STORAGE' %}
+              <span class="text-amber">MEC Node</span>
+            {% elif item.selected_destination == 'CLOUD_STORAGE' %}
+              <span class="text-cyan">Cloud Storage</span>
+            {% else %}
+              <span class="text-red">Unassigned</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge {% if item.status == 'STORED_AND_VERIFIED' %}badge-green{% elif item.status == 'SIMULATED' or item.status == 'RECOMMENDED' %}badge-cyan{% else %}badge-red{% endif %}">
+              {{ item.status }}
+            </span>
+          </td>
+          <td style="max-width: 280px; font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">
+            {{ item.decision_rationale }}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" style="text-align: center; color: var(--text-dim); padding: 30px;">
+            No dataset inventory records found. Upload a ZIP archive to run allocation analysis.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -12,423 +12,483 @@
      Clean alignment, balanced contrast, unified typography, no cramped widgets
      ========================================================================== */
 
-  .dash-container {
+  .dash-wrapper {
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
+    gap: 20px;
+    width: 100%;
+    max-width: 100%;
   }
 
-  /* --- 1. Page Header --- */
-  .dash-header {
+  /* --- 1. Operations Header --- */
+  .dash-header-panel {
+    background: linear-gradient(135deg, rgba(17, 26, 44, 0.9) 0%, rgba(11, 18, 33, 0.95) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-xl);
+    padding: 20px 24px;
+    box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .header-main-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: var(--space-4);
-    padding: var(--space-5) var(--space-6);
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(13, 21, 39, 0.95) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: var(--radius-xl);
-    box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.4);
+    gap: 12px;
   }
-  .dash-header-title {
-    font-size: 1.45rem;
+  .header-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-icon-box {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .dash-main-title {
+    font-size: 1.35rem;
     font-weight: 700;
     color: #f8fafc;
     letter-spacing: -0.02em;
-    margin: 0 0 4px 0;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .dash-header-subtitle {
-    font-size: 0.86rem;
-    color: #94a3b8;
     margin: 0;
-    line-height: 1.4;
   }
-  .dash-header-pills {
+  .dash-main-sub {
+    font-size: 0.84rem;
+    color: #94a3b8;
+    margin: 3px 0 0 0;
+  }
+  .header-status-strip {
     display: flex;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
   }
-  .status-chip {
+  .status-badge-chip {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    padding: 6px 12px;
-    background: rgba(30, 41, 59, 0.6);
+    padding: 4px 11px;
+    background: rgba(30, 41, 59, 0.55);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 9999px;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     font-weight: 500;
     color: #cbd5e1;
+    white-space: nowrap;
   }
-  .status-chip .dot {
-    width: 8px;
-    height: 8px;
+  .status-badge-chip .chip-dot {
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     flex-shrink: 0;
   }
-  .status-chip .dot.online { background: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); }
-  .status-chip .dot.mec { background: #38bdf8; box-shadow: 0 0 8px rgba(56, 189, 248, 0.6); }
-  .status-chip .dot.cloud { background: #818cf8; box-shadow: 0 0 8px rgba(129, 140, 248, 0.6); }
-  .status-chip .dot.amber { background: #f59e0b; box-shadow: 0 0 8px rgba(245, 158, 11, 0.6); }
-  .status-chip code {
+  .status-badge-chip .chip-dot.green { background: #10b981; box-shadow: 0 0 6px #10b981; }
+  .status-badge-chip .chip-dot.blue  { background: #38bdf8; box-shadow: 0 0 6px #38bdf8; }
+  .status-badge-chip .chip-dot.cloud { background: #818cf8; box-shadow: 0 0 6px #818cf8; }
+  .status-badge-chip .chip-dot.amber { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+  .status-badge-chip code {
     font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-size: 0.74rem;
     color: #38bdf8;
     background: rgba(56, 189, 248, 0.1);
-    padding: 1px 6px;
-    border-radius: 4px;
+    padding: 1px 5px;
+    border-radius: 3px;
   }
 
-  /* --- 2. Top Metric Cards (4-Column Balanced Grid) --- */
-  .metrics-grid-4 {
+  /* --- 2. Top Metric Cards (Responsive 4-Column Grid) --- */
+  .metrics-four-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--space-4);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    width: 100%;
   }
-  @media (max-width: 1100px) {
-    .metrics-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 860px) {
+    .metrics-four-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
-  @media (max-width: 600px) {
-    .metrics-grid-4 { grid-template-columns: 1fr; }
+  @media (max-width: 480px) {
+    .metrics-four-grid { grid-template-columns: 1fr; }
   }
 
-  .metric-card-pro {
+  .metric-card-box {
     background: linear-gradient(180deg, rgba(20, 30, 48, 0.75) 0%, rgba(13, 21, 39, 0.9) 100%);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-lg);
-    padding: var(--space-4) var(--space-5);
+    padding: 14px 18px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    min-height: 115px;
+    min-height: 110px;
+    min-width: 0;
     transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   }
-  .metric-card-pro:hover {
+  .metric-card-box:hover {
     transform: translateY(-2px);
     border-color: rgba(56, 189, 248, 0.35);
     box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
   }
-  .metric-card-header {
+  .card-top-line {
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
-  .metric-title {
-    font-size: 0.74rem;
+  .card-label-text {
+    font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .metric-icon-wrap {
-    width: 32px;
-    height: 32px;
-    border-radius: var(--radius-md);
+  .card-icon-round {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
     justify-content: center;
     background: rgba(255, 255, 255, 0.05);
     color: #94a3b8;
+    flex-shrink: 0;
   }
-  .metric-icon-wrap.primary { background: rgba(56, 189, 248, 0.12); color: #38bdf8; }
-  .metric-icon-wrap.success { background: rgba(16, 185, 129, 0.12); color: #10b981; }
-  .metric-icon-wrap.warning { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
-  .metric-icon-wrap.indigo  { background: rgba(129, 140, 248, 0.12); color: #818cf8; }
+  .card-icon-round.blue   { background: rgba(56, 189, 248, 0.12); color: #38bdf8; }
+  .card-icon-round.green  { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+  .card-icon-round.amber  { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+  .card-icon-round.purple { background: rgba(129, 140, 248, 0.12); color: #818cf8; }
 
-  .metric-number {
-    font-size: 1.85rem;
+  .card-value-display {
+    font-size: 1.7rem;
     font-weight: 800;
     color: #f8fafc;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.02em;
     line-height: 1.15;
-    margin: 8px 0 6px 0;
+    margin: 6px 0 4px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .metric-number.primary { color: #38bdf8; }
-  .metric-number.success { color: #34d399; }
-  .metric-number.warning { color: #fbbf24; }
-  .metric-number.indigo  { color: #a5b4fc; }
+  .card-value-display.blue   { color: #38bdf8; }
+  .card-value-display.green  { color: #34d399; }
+  .card-value-display.amber  { color: #fbbf24; }
+  .card-value-display.purple { color: #a5b4fc; }
 
-  .metric-footer {
+  .card-bottom-line {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.75rem;
+    font-size: 0.73rem;
     color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .metric-sub-badge {
-    font-size: 0.7rem;
+  .mini-chip {
+    font-size: 0.68rem;
     font-weight: 600;
-    padding: 1px 7px;
+    padding: 1px 6px;
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.06);
     color: #cbd5e1;
+    white-space: nowrap;
   }
-  .metric-sub-badge.success { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-  .metric-sub-badge.primary { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+  .mini-chip.green { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+  .mini-chip.blue  { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
 
-  /* --- 3. Two-Column System Panels (1fr 1fr) --- */
-  .system-panels-grid {
+  /* --- 3. Two-Column System Panels (MEC Gateway & Cloud Storage) --- */
+  .system-duo-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-6);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    width: 100%;
   }
-  @media (max-width: 980px) {
-    .system-panels-grid { grid-template-columns: 1fr; }
+  @media (max-width: 960px) {
+    .system-duo-grid { grid-template-columns: 1fr; }
   }
 
-  .panel-card {
+  .system-panel {
     background: linear-gradient(180deg, rgba(17, 26, 44, 0.85) 0%, rgba(11, 18, 33, 0.95) 100%);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-xl);
-    padding: var(--space-5) var(--space-6);
+    padding: 20px 22px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.4);
-    transition: border-color 0.2s ease;
+    min-width: 0;
   }
-  .panel-card:hover {
-    border-color: rgba(56, 189, 248, 0.3);
+  .system-panel:hover {
+    border-color: rgba(56, 189, 248, 0.28);
   }
-  .panel-card-header {
+  .panel-header-line {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: var(--space-4);
+    padding-bottom: 14px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-    margin-bottom: var(--space-4);
+    margin-bottom: 16px;
+    min-width: 0;
   }
-  .panel-title-group {
+  .panel-heading-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    min-width: 0;
   }
-  .panel-icon-box {
-    width: 38px;
-    height: 38px;
+  .panel-glyph {
+    width: 36px;
+    height: 36px;
     border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
   }
-  .panel-icon-box.mec   { background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); }
-  .panel-icon-box.cloud { background: rgba(129, 140, 248, 0.12); color: #818cf8; border: 1px solid rgba(129, 140, 248, 0.25); }
+  .panel-glyph.mec   { background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); }
+  .panel-glyph.cloud { background: rgba(129, 140, 248, 0.12); color: #818cf8; border: 1px solid rgba(129, 140, 248, 0.25); }
 
-  .panel-title {
-    font-size: 1.08rem;
+  .panel-title-text {
+    font-size: 1.05rem;
     font-weight: 700;
     color: #f8fafc;
     margin: 0;
     letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .panel-subtitle {
-    font-size: 0.78rem;
+  .panel-sub-text {
+    font-size: 0.76rem;
     color: #94a3b8;
     margin: 2px 0 0 0;
-  }
-  .panel-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  /* Specifications Grid inside Panel */
-  .specs-2col {
+  /* Info Specs Grid */
+  .info-tiles-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
-    margin-bottom: var(--space-4);
+    margin-bottom: 16px;
   }
-  @media (max-width: 600px) {
-    .specs-2col { grid-template-columns: 1fr; }
+  @media (max-width: 540px) {
+    .info-tiles-grid { grid-template-columns: 1fr; }
   }
-  .spec-item {
+  .info-tile {
     background: rgba(30, 41, 59, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: var(--radius-md);
-    padding: 9px 12px;
+    padding: 8px 11px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
+    min-width: 0;
   }
-  .spec-label {
-    font-size: 0.68rem;
+  .tile-k {
+    font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .spec-value {
-    font-size: 0.82rem;
+  .tile-v {
+    font-size: 0.8rem;
     color: #f1f5f9;
     font-weight: 500;
     display: flex;
     align-items: center;
     gap: 6px;
-    word-break: break-word;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .spec-value code {
+  .tile-v code {
     font-family: var(--font-mono);
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     color: #38bdf8;
     background: rgba(56, 189, 248, 0.1);
-    padding: 1px 6px;
+    padding: 1px 5px;
     border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
-  .spec-badge {
-    font-size: 0.68rem;
-    font-weight: 600;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.08);
-    color: #cbd5e1;
-  }
-  .spec-badge.success { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-  .spec-badge.primary { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
 
-  /* Telemetry Bars Grid */
-  .telem-meters-grid {
+  /* Telemetry 4-Metric Grid */
+  .telemetry-row-four {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-bottom: var(--space-4);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
   }
-  @media (max-width: 600px) {
-    .telem-meters-grid { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 480px) {
+    .telemetry-row-four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
-  .meter-card {
+  .telem-small-card {
     background: rgba(30, 41, 59, 0.45);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: var(--radius-md);
-    padding: 8px 10px;
+    padding: 7px 9px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
+    min-width: 0;
   }
-  .meter-header {
+  .telem-header-line {
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
-  .meter-lbl {
+  .telem-tag-lbl {
     font-size: 0.65rem;
     font-weight: 700;
     color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
   }
-  .meter-val {
-    font-size: 0.95rem;
+  .telem-tag-val {
+    font-size: 0.9rem;
     font-weight: 700;
     font-family: var(--font-mono);
     color: #f8fafc;
   }
-  .meter-val.primary { color: #38bdf8; }
-  .meter-val.info    { color: #818cf8; }
-  .meter-val.success { color: #34d399; }
-  .meter-val.warning { color: #fbbf24; }
+  .telem-tag-val.blue   { color: #38bdf8; }
+  .telem-tag-val.purple { color: #818cf8; }
+  .telem-tag-val.green  { color: #34d399; }
+  .telem-tag-val.amber  { color: #fbbf24; }
 
-  .meter-bar-track {
+  .telem-track-line {
     width: 100%;
     height: 4px;
-    background: rgba(15, 23, 42, 0.7);
+    background: rgba(15, 23, 42, 0.8);
     border-radius: 99px;
     overflow: hidden;
   }
-  .meter-bar-fill {
+  .telem-fill-line {
     height: 100%;
     border-radius: 99px;
     transition: width 0.4s ease;
   }
-  .meter-bar-fill.primary { background: linear-gradient(90deg, #0284c7, #38bdf8); }
-  .meter-bar-fill.info    { background: linear-gradient(90deg, #4f46e5, #818cf8); }
-  .meter-bar-fill.success { background: linear-gradient(90deg, #059669, #34d399); }
-  .meter-bar-fill.warning { background: linear-gradient(90deg, #d97706, #fbbf24); }
+  .telem-fill-line.blue   { background: linear-gradient(90deg, #0284c7, #38bdf8); }
+  .telem-fill-line.purple { background: linear-gradient(90deg, #4f46e5, #818cf8); }
+  .telem-fill-line.green  { background: linear-gradient(90deg, #059669, #34d399); }
+  .telem-fill-line.amber  { background: linear-gradient(90deg, #d97706, #fbbf24); }
 
   /* Cloud Storage Explorer Elements */
-  .cloud-quota-bar {
+  .cloud-bar-wrap {
     background: rgba(30, 41, 59, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: var(--radius-md);
-    padding: 9px 12px;
-    margin-bottom: var(--space-4);
+    padding: 8px 12px;
+    margin-bottom: 14px;
   }
-  .quota-info-row {
+  .cloud-bar-labels {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.74rem;
-    margin-bottom: 6px;
+    font-size: 0.72rem;
+    margin-bottom: 5px;
   }
-  .quota-info-row span:first-child {
+  .cloud-bar-labels span:first-child {
     font-weight: 700;
     color: #94a3b8;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
   }
-  .quota-info-row span:last-child {
+  .cloud-bar-labels span:last-child {
     color: #f8fafc;
     font-family: var(--font-mono);
   }
 
-  .folder-tree-box {
+  .folder-list-wrap {
     background: rgba(15, 23, 42, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: var(--radius-md);
-    padding: 8px 12px;
+    padding: 6px 10px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    margin-bottom: var(--space-4);
+    gap: 3px;
+    margin-bottom: 12px;
   }
-  .folder-row {
+  .folder-entry-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 8px;
+    padding: 5px 6px;
     border-radius: var(--radius-sm);
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     transition: background 0.15s ease;
+    gap: 8px;
+    min-width: 0;
   }
-  .folder-row:hover {
+  .folder-entry-row:hover {
     background: rgba(255, 255, 255, 0.04);
   }
-  .folder-row-main {
+  .folder-entry-left {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
+    min-width: 0;
+    overflow: hidden;
   }
-  .folder-row-main svg {
-    width: 16px;
-    height: 16px;
+  .folder-entry-left svg {
+    width: 15px;
+    height: 15px;
     flex-shrink: 0;
   }
-  .folder-path-name {
+  .folder-title-code {
     font-family: var(--font-mono);
     font-weight: 600;
     color: #f1f5f9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .folder-purpose-text {
-    font-size: 0.73rem;
+  .folder-desc-text {
+    font-size: 0.71rem;
     color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .panel-footer-row {
+  /* --- 4. DEDICATED INFRASTRUCTURE STATUS STRIP (SECTION 7 REQUIREMENT) --- */
+  .infra-status-strip-box {
+    background: rgba(17, 26, 44, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: var(--radius-lg);
+    padding: 12px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-top: var(--space-3);
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    font-size: 0.76rem;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 0.78rem;
     color: #94a3b8;
+    width: 100%;
   }
-  .panel-footer-row a {
+  .infra-strip-left, .infra-strip-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .infra-strip-link {
     color: #38bdf8;
     font-weight: 600;
     text-decoration: none;
@@ -437,29 +497,30 @@
     gap: 4px;
     transition: color 0.15s ease;
   }
-  .panel-footer-row a:hover {
+  .infra-strip-link:hover {
     color: #7dd3fc;
   }
 
-  /* --- 4. Manual Dataset Ingestion Studio --- */
-  .ingestion-studio-panel {
+  /* --- 5. Manual Dataset Ingestion Studio --- */
+  .manual-studio-card {
     background: linear-gradient(180deg, rgba(17, 26, 44, 0.85) 0%, rgba(11, 18, 33, 0.95) 100%);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-xl);
-    padding: var(--space-6);
+    padding: 22px 24px;
     box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.4);
+    width: 100%;
   }
-  .studio-header {
+  .studio-head-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 12px;
-    padding-bottom: var(--space-4);
+    padding-bottom: 16px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-    margin-bottom: var(--space-4);
+    margin-bottom: 16px;
   }
-  .studio-title {
+  .studio-head-title {
     font-size: 1.15rem;
     font-weight: 700;
     color: #f8fafc;
@@ -468,33 +529,56 @@
     align-items: center;
     gap: 8px;
   }
-  .studio-subtitle {
+  .studio-head-sub {
     font-size: 0.82rem;
     color: #94a3b8;
     margin: 2px 0 0 0;
   }
 
-  /* Form Layout: 2 Clean Rows of 2 Columns */
-  .studio-form-grid {
+  /* Governance Callout Banner */
+  .governance-callout-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.22);
+    border-radius: var(--radius-md);
+    font-size: 0.79rem;
+    color: #fbbf24;
+    line-height: 1.45;
+    margin-bottom: 18px;
+  }
+  .governance-callout-box code {
+    font-family: var(--font-mono);
+    font-size: 0.73rem;
+    background: rgba(245, 158, 11, 0.15);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #fef3c7;
+  }
+
+  /* Form: 2 Rows x 2 Columns */
+  .form-pair-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-4);
-    margin-bottom: var(--space-4);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
   }
-  @media (max-width: 768px) {
-    .studio-form-grid { grid-template-columns: 1fr; }
+  @media (max-width: 720px) {
+    .form-pair-grid { grid-template-columns: 1fr; }
   }
-  .field-group {
+  .input-label-unit {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
   }
-  .field-label {
-    font-size: 0.78rem;
+  .input-label-unit label {
+    font-size: 0.77rem;
     font-weight: 600;
     color: #cbd5e1;
   }
-  .field-input, .field-select {
+  .text-box-ctrl, .select-box-ctrl {
     width: 100%;
     padding: 8px 12px;
     background: rgba(15, 23, 42, 0.7);
@@ -502,238 +586,227 @@
     border-radius: var(--radius-md);
     color: #f8fafc;
     font-family: inherit;
-    font-size: 0.84rem;
+    font-size: 0.82rem;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
-  .field-input:focus, .field-select:focus {
+  .text-box-ctrl:focus, .select-box-ctrl:focus {
     outline: none;
     border-color: #38bdf8;
     box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
   }
 
-  /* Governance Callout Banner */
-  .governance-alert {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 10px 14px;
-    background: rgba(245, 158, 11, 0.08);
-    border: 1px solid rgba(245, 158, 11, 0.25);
-    border-radius: var(--radius-md);
-    font-size: 0.8rem;
-    color: #fbbf24;
-    line-height: 1.45;
-    margin-bottom: var(--space-4);
-  }
-  .governance-alert code {
-    font-family: var(--font-mono);
-    font-size: 0.74rem;
-    background: rgba(245, 158, 11, 0.15);
-    padding: 1px 5px;
-    border-radius: 3px;
-    color: #fef3c7;
-  }
-
   /* Dropzone */
-  .studio-dropzone {
+  .file-dropzone-box {
     border: 2px dashed rgba(255, 255, 255, 0.14);
     border-radius: var(--radius-lg);
-    padding: var(--space-5) var(--space-4);
+    padding: 22px 18px;
     text-align: center;
-    background: rgba(30, 41, 59, 0.3);
+    background: rgba(30, 41, 59, 0.25);
     cursor: pointer;
     transition: border-color 0.2s ease, background 0.2s ease;
-    margin-bottom: var(--space-4);
+    margin-bottom: 16px;
   }
-  .studio-dropzone:hover, .studio-dropzone.dragover {
+  .file-dropzone-box:hover, .file-dropzone-box.dragover {
     border-color: #38bdf8;
     background: rgba(56, 189, 248, 0.05);
   }
-  .dropzone-prompt {
+  .drop-main-text {
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     color: #e2e8f0;
     margin-bottom: 2px;
   }
-  .dropzone-sub {
-    font-size: 0.74rem;
+  .drop-sub-text {
+    font-size: 0.73rem;
     color: #94a3b8;
   }
 
-  /* Inventory Table */
-  .inventory-table-wrap {
-    margin-top: var(--space-5);
+  /* Inventory Table Wrap */
+  .dataset-inventory-table-wrap {
+    margin-top: 20px;
     border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: var(--radius-lg);
-    overflow: hidden;
+    overflow-x: auto;
   }
-  .pro-table {
+  .inventory-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
+    min-width: 650px;
   }
-  .pro-table th {
+  .inventory-table th {
     background: rgba(30, 41, 59, 0.7);
     color: #94a3b8;
     font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     letter-spacing: 0.05em;
-    padding: 10px 14px;
+    padding: 9px 12px;
     text-align: left;
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   }
-  .pro-table td {
-    padding: 10px 14px;
+  .inventory-table td {
+    padding: 9px 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     color: #cbd5e1;
   }
-  .pro-table tr:hover td {
+  .inventory-table tr:hover td {
     background: rgba(255, 255, 255, 0.02);
   }
 
-  /* Pulse Beacon for Online MEC */
-  .pulse-online {
+  /* Pulsing Online Beacon */
+  .beacon-dot-live {
     display: inline-block;
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
     background: #10b981;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
-    animation: beacon 2s infinite ease-in-out;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+    animation: beaconLive 2s infinite ease-in-out;
   }
-  @keyframes beacon {
-    0%, 100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25); }
-    50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.08); }
+  @keyframes beaconLive {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3); }
+    50% { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.08); }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="dash-container">
+<div class="dash-wrapper">
 
   <!-- =========================================================================
-       1. EXECUTIVE PLATFORM HEADER
+       1. CONSOLE HEADER PANEL
        ========================================================================= -->
-  <header class="dash-header">
-    <div>
-      <h1 class="dash-header-title">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-        SecureDT Operations Console
-      </h1>
-      <p class="dash-header-subtitle">
-        Intelligent and Secure Task Scheduling for Digital Twin-Enabled Edge–Cloud Networks
-      </p>
+  <header class="dash-header-panel">
+    <div class="header-main-row">
+      <div class="header-title-wrap">
+        <div class="header-icon-box">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        </div>
+        <div>
+          <h1 class="dash-main-title">SecureDT Operations Console</h1>
+          <p class="dash-main-sub">Intelligent and Secure Task Scheduling for Digital Twin-Enabled Edge–Cloud Networks</p>
+        </div>
+      </div>
+      <div>
+        <span class="status-badge-chip" style="background:rgba(245,158,11,0.12);color:#fbbf24;border-color:rgba(245,158,11,0.3);padding:5px 12px;font-weight:600;">
+          <span class="chip-dot amber"></span>
+          Manual Only Ingestion
+        </span>
+      </div>
     </div>
-    <div class="dash-header-pills">
-      <div class="status-chip" title="Central Django server is responding">
-        <span class="dot online"></span>
+
+    <!-- Status Strip Row -->
+    <div class="header-status-strip">
+      <div class="status-badge-chip" title="Central Django server status">
+        <span class="chip-dot green"></span>
         <span>Server:</span>
         <code>127.0.0.1:8000</code>
       </div>
-      <div class="status-chip" title="Connected Hospital MEC gateway node">
-        <span class="dot mec"></span>
-        <span>MEC:</span>
-        <code id="top-pill-mec">MEC-001:8001</code>
+      <div class="status-badge-chip" title="Verified MEC Gateway connection">
+        <span class="chip-dot blue"></span>
+        <span>Connected MEC:</span>
+        <code id="header-mec-code">MEC-001:8001</code>
       </div>
-      <div class="status-chip" title="Configured cloud storage provider">
-        <span class="dot cloud"></span>
-        <span>Cloud:</span>
-        <code>1,000 GB Tier</code>
+      <div class="status-badge-chip" title="Cloud storage capacity allocation">
+        <span class="chip-dot cloud"></span>
+        <span>Cloud Storage:</span>
+        <code>1,000 GB Quota</code>
       </div>
-      <div class="status-chip" title="Strict manual dataset governance active">
-        <span class="dot amber"></span>
-        <span style="color:#f59e0b;font-weight:600;">Manual Only</span>
+      <div class="status-badge-chip" title="Zero automated dataset downloads active">
+        <span class="chip-dot green"></span>
+        <span>Data Governance:</span>
+        <strong style="color:#34d399;">Active</strong>
       </div>
     </div>
   </header>
 
   <!-- =========================================================================
-       2. TOP METRIC CARDS (BALANCED 4-COLUMN GRID)
+       2. TOP FOUR METRIC CARDS (4-COLUMN BALANCED GRID)
        ========================================================================= -->
-  <section class="metrics-grid-4" aria-label="Key System Metrics">
+  <section class="metrics-four-grid" aria-label="System Key Performance Indicators">
     <!-- Card 1: Edge Nodes -->
-    <article class="metric-card-pro">
-      <div class="metric-card-header">
-        <span class="metric-title">CONNECTED EDGE NODES</span>
-        <div class="metric-icon-wrap primary">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+    <article class="metric-card-box">
+      <div class="card-top-line">
+        <span class="card-label-text">CONNECTED EDGE NODES</span>
+        <div class="card-icon-round blue">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
         </div>
       </div>
-      <div class="metric-number primary" id="kpi-online-mecs">1 / 1</div>
-      <div class="metric-footer">
-        <span class="metric-sub-badge primary" id="kpi-online-pct">100% Operational</span>
-        <span>Node: <strong style="color:#f8fafc;" id="kpi-active-node-id">MEC-001</strong></span>
+      <div class="card-value-display blue" id="kpi-online-mecs">1 / 1</div>
+      <div class="card-bottom-line">
+        <span class="mini-chip green" id="kpi-online-pct">100% Online</span>
+        <span>Gateway: <strong style="color:#f8fafc;" id="kpi-active-node-id">MEC-001</strong></span>
       </div>
     </article>
 
-    <!-- Card 2: Active Tasks -->
-    <article class="metric-card-pro">
-      <div class="metric-card-header">
-        <span class="metric-title">TASK QUEUE PIPELINE</span>
-        <div class="metric-icon-wrap success">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <!-- Card 2: Task Queue -->
+    <article class="metric-card-box">
+      <div class="card-top-line">
+        <span class="card-label-text">TASK QUEUE PIPELINE</span>
+        <div class="card-icon-round green">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </div>
       </div>
-      <div class="metric-number success" id="kpi-active-tasks">0 Active</div>
-      <div class="metric-footer">
-        <span class="metric-sub-badge success" id="kpi-queued">Queued: 0</span>
-        <span>0 Policy Violations</span>
+      <div class="card-value-display green" id="kpi-active-tasks">0 Active</div>
+      <div class="card-bottom-line">
+        <span class="mini-chip blue" id="kpi-queued">Queued: 0</span>
+        <span>0 Violations</span>
       </div>
     </article>
 
     <!-- Card 3: Edge Compute -->
-    <article class="metric-card-pro">
-      <div class="metric-card-header">
-        <span class="metric-title">EDGE COMPUTE LOAD</span>
-        <div class="metric-icon-wrap warning">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <article class="metric-card-box">
+      <div class="card-top-line">
+        <span class="card-label-text">EDGE COMPUTE LOAD</span>
+        <div class="card-icon-round amber">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         </div>
       </div>
-      <div class="metric-number warning" id="kpi-avg-cpu">29.7% CPU</div>
-      <div class="metric-footer">
+      <div class="card-value-display amber" id="kpi-avg-cpu">29.7% CPU</div>
+      <div class="card-bottom-line">
         <span>RAM: <strong style="color:#f8fafc;" id="kpi-avg-ram">36.3%</strong></span>
-        <span class="metric-sub-badge">Balanced Edge Load</span>
+        <span class="mini-chip">Balanced Load</span>
       </div>
     </article>
 
     <!-- Card 4: Cloud Storage Tier -->
-    <article class="metric-card-pro">
-      <div class="metric-card-header">
-        <span class="metric-title">CLOUD STORAGE CAPACITY</span>
-        <div class="metric-icon-wrap indigo">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 7 19h10.5z"/></svg>
+    <article class="metric-card-box">
+      <div class="card-top-line">
+        <span class="card-label-text">CLOUD STORAGE TIER</span>
+        <div class="card-icon-round purple">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 7 19h10.5z"/></svg>
         </div>
       </div>
-      <div class="metric-number indigo" id="kpi-cloud-quota">1,000 GB</div>
-      <div class="metric-footer">
+      <div class="card-value-display purple" id="kpi-cloud-quota">1,000 GB</div>
+      <div class="card-bottom-line">
         <span>Used: <strong style="color:#38bdf8;" id="kpi-cloud-used">0.00 MB</strong></span>
-        <span class="metric-sub-badge primary" id="kpi-cloud-latency">12.5ms Optimal</span>
+        <span class="mini-chip blue" id="kpi-cloud-latency">12.5ms Link</span>
       </div>
     </article>
   </section>
 
   <!-- =========================================================================
-       3. TWO-COLUMN SYSTEM PANELS: CONNECTED MEC & CLOUD STORAGE EXPLORER
+       3. TWO-COLUMN SYSTEM PANELS: MEC GATEWAY & CLOUD STORAGE EXPLORER
        ========================================================================= -->
-  <div class="system-panels-grid">
+  <div class="system-duo-grid">
 
     <!-- PANEL 1: CONNECTED MEC EDGE GATEWAY -->
-    <section class="panel-card" aria-labelledby="mec-gateway-heading">
+    <section class="system-panel" aria-labelledby="mec-gateway-heading">
       <div>
-        <div class="panel-card-header">
-          <div class="panel-title-group">
-            <div class="panel-icon-box mec">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        <div class="panel-header-line">
+          <div class="panel-heading-left">
+            <div class="panel-glyph mec">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
             </div>
-            <div>
-              <h2 id="mec-gateway-heading" class="panel-title">Connected MEC Edge Gateway</h2>
-              <p class="panel-subtitle">Real-time edge telemetry verified with central Django server</p>
+            <div style="min-width:0;">
+              <h2 id="mec-gateway-heading" class="panel-title-text">Connected MEC Edge Gateway</h2>
+              <p class="panel-sub-text">Real-time edge telemetry verified with central Django server</p>
             </div>
           </div>
-          <div class="panel-header-actions">
-            <span class="status-chip" style="padding:3px 8px;font-size:0.72rem;background:rgba(16,185,129,0.15);color:#34d399;border-color:rgba(16,185,129,0.3);">
-              <span class="pulse-online"></span>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <span class="status-badge-chip" style="padding:3px 8px;font-size:0.72rem;background:rgba(16,185,129,0.15);color:#34d399;border-color:rgba(16,185,129,0.3);">
+              <span class="beacon-dot-live"></span>
               <strong id="mec-hero-status-text">ONLINE</strong>
             </span>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-ping-mec" title="Send live heartbeat ping to MEC gateway">
@@ -743,117 +816,112 @@
         </div>
 
         <!-- 2-Column Info Grid -->
-        <div class="specs-2col">
-          <div class="spec-item">
-            <span class="spec-label">DEVICE IDENTIFIER</span>
-            <span class="spec-value">
+        <div class="info-tiles-grid">
+          <div class="info-tile">
+            <span class="tile-k">DEVICE IDENTIFIER</span>
+            <span class="tile-v">
               <code id="mec-hero-id">MEC-001</code>
-              <span style="font-size:0.75rem;color:#94a3b8;" id="mec-hero-name">Hospital Ward Edge GW</span>
+              <span style="font-size:0.72rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="mec-hero-name">Hospital Ward Edge GW</span>
             </span>
           </div>
 
-          <div class="spec-item">
-            <span class="spec-label">CENTRAL SERVER LINK</span>
-            <span class="spec-value">
+          <div class="info-tile">
+            <span class="tile-k">CENTRAL SERVER LINK</span>
+            <span class="tile-v">
               <code id="mec-hero-server-url">http://127.0.0.1:8000</code>
             </span>
           </div>
 
-          <div class="spec-item">
-            <span class="spec-label">DIAGNOSTIC SOCKET</span>
-            <span class="spec-value">
+          <div class="info-tile">
+            <span class="tile-k">DIAGNOSTIC SOCKET</span>
+            <span class="tile-v">
               <code id="mec-hero-ip-port">127.0.0.1:8001</code>
-              <span class="spec-badge success">Active Port</span>
+              <span class="mini-chip green">Active</span>
             </span>
           </div>
 
-          <div class="spec-item">
-            <span class="spec-label">OPERATING PLATFORM</span>
-            <span class="spec-value" id="mec-hero-os" style="font-size:0.78rem;">
+          <div class="info-tile">
+            <span class="tile-k">OPERATING PLATFORM</span>
+            <span class="tile-v" id="mec-hero-os" style="font-size:0.76rem;">
               Ubuntu 22.04 LTS (Edge RT)
             </span>
           </div>
 
-          <div class="spec-item">
-            <span class="spec-label">PLACEMENT POLICY</span>
-            <span class="spec-value">
-              <span class="spec-badge primary">TRUSTED_EDGE</span>
+          <div class="info-tile">
+            <span class="tile-k">PLACEMENT POLICY</span>
+            <span class="tile-v">
+              <span class="mini-chip blue">TRUSTED_EDGE</span>
               <span style="font-size:0.72rem;color:#94a3b8;">Hospital Only</span>
             </span>
           </div>
 
-          <div class="spec-item">
-            <span class="spec-label">LAST HEARTBEAT</span>
-            <span class="spec-value" id="mec-hero-heartbeat" style="font-size:0.76rem;color:#cbd5e1;">
+          <div class="info-tile">
+            <span class="tile-k">LAST HEARTBEAT</span>
+            <span class="tile-v" id="mec-hero-heartbeat" style="font-size:0.74rem;color:#cbd5e1;">
               Just now (Synchronized)
             </span>
           </div>
         </div>
 
         <!-- 4-Meter Telemetry Gauges -->
-        <div class="telem-meters-grid">
-          <div class="meter-card">
-            <div class="meter-header">
-              <span class="meter-lbl">CPU LOAD</span>
-              <span class="meter-val primary" id="mec-hero-cpu">29.7%</span>
+        <div class="telemetry-row-four">
+          <div class="telem-small-card">
+            <div class="telem-header-line">
+              <span class="telem-tag-lbl">CPU</span>
+              <span class="telem-tag-val blue" id="mec-hero-cpu">29.7%</span>
             </div>
-            <div class="meter-bar-track">
-              <div class="meter-bar-fill primary" id="telem-bar-cpu" style="width: 29.7%;"></div>
-            </div>
-          </div>
-
-          <div class="meter-card">
-            <div class="meter-header">
-              <span class="meter-lbl">MEMORY</span>
-              <span class="meter-val info" id="mec-hero-ram">36.3%</span>
-            </div>
-            <div class="meter-bar-track">
-              <div class="meter-bar-fill info" id="telem-bar-ram" style="width: 36.3%;"></div>
+            <div class="telem-track-line">
+              <div class="telem-fill-line blue" id="telem-bar-cpu" style="width: 29.7%;"></div>
             </div>
           </div>
 
-          <div class="meter-card">
-            <div class="meter-header">
-              <span class="meter-lbl">STORAGE DISK</span>
-              <span class="meter-val success" id="mec-hero-disk">22.0%</span>
+          <div class="telem-small-card">
+            <div class="telem-header-line">
+              <span class="telem-tag-lbl">RAM</span>
+              <span class="telem-tag-val purple" id="mec-hero-ram">36.3%</span>
             </div>
-            <div class="meter-bar-track">
-              <div class="meter-bar-fill success" id="telem-bar-disk" style="width: 22.0%;"></div>
+            <div class="telem-track-line">
+              <div class="telem-fill-line purple" id="telem-bar-ram" style="width: 36.3%;"></div>
             </div>
           </div>
 
-          <div class="meter-card">
-            <div class="meter-header">
-              <span class="meter-lbl">LATENCY</span>
-              <span class="meter-val warning" id="mec-hero-latency">12.5ms</span>
+          <div class="telem-small-card">
+            <div class="telem-header-line">
+              <span class="telem-tag-lbl">DISK</span>
+              <span class="telem-tag-val green" id="mec-hero-disk">22.0%</span>
             </div>
-            <div class="meter-bar-track">
-              <div class="meter-bar-fill warning" id="telem-bar-lat" style="width: 25%;"></div>
+            <div class="telem-track-line">
+              <div class="telem-fill-line green" id="telem-bar-disk" style="width: 22.0%;"></div>
+            </div>
+          </div>
+
+          <div class="telem-small-card">
+            <div class="telem-header-line">
+              <span class="telem-tag-lbl">PING</span>
+              <span class="telem-tag-val amber" id="mec-hero-latency">12.5ms</span>
+            </div>
+            <div class="telem-track-line">
+              <div class="telem-fill-line amber" id="telem-bar-lat" style="width: 25%;"></div>
             </div>
           </div>
         </div>
       </div>
-
-      <div class="panel-footer-row">
-        <span>Gateway Telemetry Active &bull; Energy: <strong style="color:#f8fafc;">1.15 W</strong></span>
-        <a href="{% url 'mec_infrastructure' %}">MEC Infrastructure &rarr;</a>
-      </div>
     </section>
 
     <!-- PANEL 2: CLOUD STORAGE FOLDER EXPLORER -->
-    <section class="panel-card" aria-labelledby="cloud-explorer-heading">
+    <section class="system-panel" aria-labelledby="cloud-explorer-heading">
       <div>
-        <div class="panel-card-header">
-          <div class="panel-title-group">
-            <div class="panel-icon-box cloud">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 7 19h10.5z"/></svg>
+        <div class="panel-header-line">
+          <div class="panel-heading-left">
+            <div class="panel-glyph cloud">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 7 19h10.5z"/></svg>
             </div>
-            <div>
-              <h2 id="cloud-explorer-heading" class="panel-title">Cloud Storage Folder Explorer</h2>
-              <p class="panel-subtitle">Structured multi-tier storage for public and de-identified data</p>
+            <div style="min-width:0;">
+              <h2 id="cloud-explorer-heading" class="panel-title-text">Cloud Storage Folder Explorer</h2>
+              <p class="panel-sub-text">Structured multi-tier storage for public and de-identified data</p>
             </div>
           </div>
-          <div class="panel-header-actions">
+          <div style="flex-shrink:0;">
             <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-cloud" title="Sync cloud directory status">
               🔄 Refresh
             </button>
@@ -861,93 +929,104 @@
         </div>
 
         <!-- Quota Progress Meter -->
-        <div class="cloud-quota-bar">
-          <div class="quota-info-row">
-            <span>ALLOCATED CAPACITY</span>
-            <span><strong id="cloud-used-mb" style="color:#38bdf8;">0.00</strong> MB / 1,000.0 GB <span class="spec-badge">0.0% Used</span></span>
+        <div class="cloud-bar-wrap">
+          <div class="cloud-bar-labels">
+            <span>ALLOCATED CLOUD CAPACITY</span>
+            <span><strong id="cloud-used-mb" style="color:#38bdf8;">0.00</strong> MB / 1,000.0 GB <span class="mini-chip">0.0% Used</span></span>
           </div>
-          <div class="meter-bar-track">
-            <div id="cloud-meter-bar" class="meter-bar-fill info" style="width: 2%;"></div>
+          <div class="telem-track-line">
+            <div id="cloud-meter-bar" class="telem-fill-line purple" style="width: 2%;"></div>
           </div>
         </div>
 
         <!-- Folder Tree View -->
-        <div class="folder-tree-box">
-          <div class="folder-row" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px;">
-            <div class="folder-row-main">
+        <div class="folder-list-wrap">
+          <div class="folder-entry-row" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 7px;">
+            <div class="folder-entry-left">
               <svg viewBox="0 0 24 24" fill="#818cf8"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
-              <span class="folder-path-name">data_storage/cloud_storage/</span>
+              <span class="folder-title-code">data_storage/cloud_storage/</span>
             </div>
-            <span class="spec-badge primary">CLOUD_ALLOWED</span>
+            <span class="mini-chip blue" style="flex-shrink:0;">CLOUD_ALLOWED</span>
           </div>
 
-          <div class="folder-row">
-            <div class="folder-row-main">
+          <div class="folder-entry-row">
+            <div class="folder-entry-left">
               <svg viewBox="0 0 24 24" fill="#38bdf8"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
-              <span class="folder-path-name">datasets/</span>
-              <span class="folder-purpose-text">&mdash; De-identified clinical research records</span>
+              <span class="folder-title-code">datasets/</span>
+              <span class="folder-desc-text">&mdash; De-identified research records</span>
             </div>
-            <span class="spec-badge">Read/Write</span>
+            <span class="mini-chip" style="flex-shrink:0;">Read/Write</span>
           </div>
 
-          <div class="folder-row">
-            <div class="folder-row-main">
+          <div class="folder-entry-row">
+            <div class="folder-entry-left">
               <svg viewBox="0 0 24 24" fill="#34d399"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
-              <span class="folder-path-name">results/</span>
-              <span class="folder-purpose-text">&mdash; Scheduling CSV benchmarks &amp; audit traces</span>
+              <span class="folder-title-code">results/</span>
+              <span class="folder-desc-text">&mdash; Comparative CSV benchmarks</span>
             </div>
-            <span class="spec-badge">Audited</span>
+            <span class="mini-chip" style="flex-shrink:0;">Audited</span>
           </div>
 
-          <div class="folder-row">
-            <div class="folder-row-main">
+          <div class="folder-entry-row">
+            <div class="folder-entry-left">
               <svg viewBox="0 0 24 24" fill="#a78bfa"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
-              <span class="folder-path-name">models/</span>
-              <span class="folder-purpose-text">&mdash; Genetic algorithm chromosome checkpoints</span>
+              <span class="folder-title-code">models/</span>
+              <span class="folder-desc-text">&mdash; GA chromosome checkpoints</span>
             </div>
-            <span class="spec-badge">Model Store</span>
+            <span class="mini-chip" style="flex-shrink:0;">Model Store</span>
           </div>
 
-          <div class="folder-row">
-            <div class="folder-row-main">
+          <div class="folder-entry-row">
+            <div class="folder-entry-left">
               <svg viewBox="0 0 24 24" fill="#fbbf24"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
-              <span class="folder-path-name">manual_uploads/</span>
-              <span class="folder-purpose-text">&mdash; User-uploaded verified datasets</span>
+              <span class="folder-title-code">manual_uploads/</span>
+              <span class="folder-desc-text">&mdash; Verified manual datasets</span>
             </div>
-            <span class="spec-badge" style="color:#fbbf24;background:rgba(245,158,11,0.15);">Manual Only</span>
+            <span class="mini-chip" style="color:#fbbf24;background:rgba(245,158,11,0.15);flex-shrink:0;">Manual Only</span>
           </div>
         </div>
-      </div>
-
-      <div class="panel-footer-row">
-        <span><strong id="cloud-file-count" style="color:#f8fafc;">0</strong> files synchronized &bull; Zero external leakage</span>
-        <a href="{% url 'cloud_storage' %}">Full Cloud Storage &rarr;</a>
       </div>
     </section>
   </div>
 
   <!-- =========================================================================
-       4. MANUAL DATASET INGESTION STUDIO (NO AUTOMATIC SEEDING)
+       4. DEDICATED INFRASTRUCTURE STATUS STRIP (SECTION 7 REQUIREMENT)
        ========================================================================= -->
-  <section class="ingestion-studio-panel" aria-labelledby="manual-ingestion-heading">
-    <div class="studio-header">
+  <section class="infra-status-strip-box" aria-label="Infrastructure Connectivity Status">
+    <div class="infra-strip-left">
+      <span class="beacon-dot-live"></span>
+      <span>Gateway Telemetry Active &bull; Measured Energy: <strong style="color:#f8fafc;">1.15 W</strong> &bull; Stale-Timeout Guard: <strong style="color:#f8fafc;">35s</strong></span>
+      <a href="{% url 'mec_infrastructure' %}" class="infra-strip-link">MEC Infrastructure &rarr;</a>
+    </div>
+    <div class="infra-strip-right">
+      <span class="chip-dot cloud" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#818cf8;"></span>
+      <span>Cloud Storage Synchronized &bull; <strong id="cloud-file-count" style="color:#f8fafc;">0</strong> Files Verified &bull; Zero External Leakage</span>
+      <a href="{% url 'cloud_storage' %}" class="infra-strip-link">Full Cloud Storage &rarr;</a>
+    </div>
+  </section>
+
+  <!-- =========================================================================
+       5. MANUAL DATASET INGESTION STUDIO (NO AUTOMATIC SEEDING)
+       ========================================================================= -->
+  <section class="manual-studio-card" aria-labelledby="manual-ingestion-heading">
+    <div class="studio-head-bar">
       <div>
-        <h2 id="manual-ingestion-heading" class="studio-title">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <h2 id="manual-ingestion-heading" class="studio-head-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Manual Dataset Ingestion Studio
         </h2>
-        <p class="studio-subtitle">
+        <p class="studio-head-sub">
           Upload hospital datasets manually from your workstation. No external datasets are automatically inserted.
         </p>
       </div>
-      <span class="spec-badge" style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);padding:4px 10px;">
-        Policy Guard Enforcement Active
+      <span class="mini-chip" style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);padding:3px 9px;">
+        Policy Guard Active
       </span>
     </div>
 
     <!-- Governance Alert Callout -->
-    <div class="governance-alert">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <div class="governance-callout-box">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <div>
         <strong>Strict Data Governance:</strong> Datasets flagged with <code>LOCAL_ONLY</code> policy cannot be transferred to MEC or Cloud tiers. Datasets flagged with <code>TRUSTED_EDGE</code> cannot be stored in the Cloud tier. Every file receives an authentic SHA-256 cryptographic checksum upon upload.
       </div>
@@ -958,15 +1037,15 @@
       {% csrf_token %}
 
       <!-- 2 Clean Rows of 2 Columns -->
-      <div class="studio-form-grid">
-        <div class="field-group">
-          <label for="ds-name" class="field-label">Dataset Display Name *</label>
-          <input type="text" id="ds-name" name="name" class="field-input" placeholder="e.g., Ward-B Patient Vitals Batch" required>
+      <div class="form-pair-grid">
+        <div class="input-label-unit">
+          <label for="ds-name">Dataset Display Name *</label>
+          <input type="text" id="ds-name" name="name" class="text-box-ctrl" placeholder="e.g., Ward-B Patient Vitals Batch" required>
         </div>
 
-        <div class="field-group">
-          <label for="ds-modality" class="field-label">Modality / Format</label>
-          <select id="ds-modality" name="modality" class="field-select">
+        <div class="input-label-unit">
+          <label for="ds-modality">Modality / Format</label>
+          <select id="ds-modality" name="modality" class="select-box-ctrl">
             <option value="CSV">Clinical CSV / Tabular Vitals</option>
             <option value="IMAGES">Medical Images (JPEG / PNG / DICOM)</option>
             <option value="JSON">Diagnostic JSON / HL7 Records</option>
@@ -975,18 +1054,18 @@
           </select>
         </div>
 
-        <div class="field-group">
-          <label for="ds-policy" class="field-label">Data Privacy Placement Policy *</label>
-          <select id="ds-policy" name="privacy_policy" class="field-select" required>
+        <div class="input-label-unit">
+          <label for="ds-policy">Data Privacy Placement Policy *</label>
+          <select id="ds-policy" name="privacy_policy" class="select-box-ctrl" required>
             <option value="LOCAL_ONLY">🔒 LOCAL_ONLY (Strict Hospital Workstation)</option>
             <option value="TRUSTED_EDGE" selected>⚡ TRUSTED_EDGE (Permitted on Hospital MEC-001)</option>
             <option value="CLOUD_ALLOWED">☁️ CLOUD_ALLOWED (De-identified / Cloud Permitted)</option>
           </select>
         </div>
 
-        <div class="field-group">
-          <label for="ds-destination" class="field-label">Target Storage Destination *</label>
-          <select id="ds-destination" name="target_destination" class="field-select" required>
+        <div class="input-label-unit">
+          <label for="ds-destination">Target Storage Destination *</label>
+          <select id="ds-destination" name="target_destination" class="select-box-ctrl" required>
             <option value="LOCAL_STORAGE">💻 LOCAL_STORAGE (Workstation / 50 GB)</option>
             <option value="MEC_STORAGE" selected>⚡ MEC_STORAGE (Hospital Edge MEC / 200 GB)</option>
             <option value="CLOUD_STORAGE">☁️ CLOUD_STORAGE (Google Drive Tier / 1,000 GB)</option>
@@ -995,28 +1074,28 @@
       </div>
 
       <!-- Drag & Drop Zone -->
-      <div class="studio-dropzone" id="dropzone">
+      <div class="file-dropzone-box" id="dropzone">
         <input type="file" id="ds-file" name="file" style="display: none;" required>
-        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="1.5" style="margin: 0 auto 6px;"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m8 16 4-4 4 4"/></svg>
-        <div class="dropzone-prompt" id="dropzone-text">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="1.5" style="margin: 0 auto 5px;"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m8 16 4-4 4 4"/></svg>
+        <div class="drop-main-text" id="dropzone-text">
           Click to browse or drag and drop dataset file here
         </div>
-        <div class="dropzone-sub">Supports .csv, .json, .png, .jpg, .dcm, .txt, .zip</div>
+        <div class="drop-sub-text">Supports .csv, .json, .png, .jpg, .dcm, .txt, .zip</div>
       </div>
 
-      <div id="policy-violation-alert" class="alert alert-danger" style="display: none; margin-bottom: var(--space-4);"></div>
+      <div id="policy-violation-alert" class="alert alert-danger" style="display: none; margin-bottom: 14px;"></div>
 
-      <div style="display: flex; justify-content: flex-end; gap: var(--space-3);">
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
         <button type="reset" class="btn btn-ghost btn-sm">Clear Form</button>
-        <button type="submit" class="btn btn-primary" id="btn-upload-ds">
+        <button type="submit" class="btn btn-primary btn-sm" id="btn-upload-ds">
           🚀 Upload &amp; Verify Dataset
         </button>
       </div>
     </form>
 
     <!-- Inventory of Uploaded Datasets -->
-    <div class="inventory-table-wrap">
-      <table class="pro-table">
+    <div class="dataset-inventory-table-wrap">
+      <table class="inventory-table">
         <thead>
           <tr>
             <th>Dataset Name</th>
@@ -1031,7 +1110,7 @@
         </thead>
         <tbody id="manual-datasets-tbody">
           <tr>
-            <td colspan="8" style="text-align: center; color: var(--color-text-muted); padding: var(--space-6);">
+            <td colspan="8" style="text-align: center; color: var(--color-text-muted); padding: 18px;">
               No manual datasets uploaded yet. Use the form above to ingest a dataset manually.
             </td>
           </tr>
@@ -1062,7 +1141,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       setText('mec-hero-id', data.device_id || 'MEC-001');
       setText('kpi-active-node-id', data.device_id || 'MEC-001');
-      setText('top-pill-mec', `${data.device_id || 'MEC-001'}:${data.port || 8001}`);
+      setText('header-mec-code', `${data.device_id || 'MEC-001'}:${data.port || 8001}`);
       setText('mec-hero-name', data.system_name || 'Hospital Ward Edge Gateway');
       setText('mec-hero-server-url', data.server_url || 'http://127.0.0.1:8000');
       setText('mec-hero-ip-port', `${data.ip_address || '127.0.0.1'}:${data.port || 8001}`);
@@ -1085,7 +1164,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setText('kpi-avg-ram', `${ram}%`);
       setText('mec-hero-disk', `${disk}%`);
       setText('mec-hero-latency', `${lat}ms`);
-      setText('kpi-cloud-latency', `${lat}ms Optimal`);
+      setText('kpi-cloud-latency', `${lat}ms Link`);
 
       // Progress bars
       const barCpu = document.getElementById('telem-bar-cpu');
@@ -1121,7 +1200,7 @@ document.addEventListener('DOMContentLoaded', () => {
           setText('mec-hero-ram', `${d.ram_percent}%`);
           setText('kpi-avg-ram', `${d.ram_percent}%`);
           setText('mec-hero-latency', `${d.latency_ms}ms`);
-          setText('kpi-cloud-latency', `${d.latency_ms}ms Optimal`);
+          setText('kpi-cloud-latency', `${d.latency_ms}ms Link`);
           setText('mec-hero-heartbeat', d.timestamp);
 
           const barCpu = document.getElementById('telem-bar-cpu');
@@ -1315,7 +1394,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!list.length) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="8" style="text-align: center; color: var(--color-text-muted); padding: var(--space-6);">
+            <td colspan="8" style="text-align: center; color: var(--color-text-muted); padding: 18px;">
               No manual datasets uploaded yet. Use the form above to ingest a dataset manually.
             </td>
           </tr>`;
@@ -1332,12 +1411,12 @@ document.addEventListener('DOMContentLoaded', () => {
               <strong style="color: #f8fafc;">${escapeHtml(ds.name)}</strong><br>
               <code style="font-size: 0.72rem; color: #94a3b8;">${escapeHtml(ds.dataset_id)}</code>
             </td>
-            <td><code style="font-size: 0.78rem;">${escapeHtml(ds.file_name)}</code></td>
+            <td><code style="font-size: 0.76rem;">${escapeHtml(ds.file_name)}</code></td>
             <td style="font-family: var(--font-mono);">${sizeKb} KB</td>
-            <td><span class="spec-badge" style="border: 1px solid ${policyColor}; color: ${policyColor}; font-size: 0.72rem;">${escapeHtml(ds.privacy_policy)}</span></td>
+            <td><span class="mini-chip" style="border: 1px solid ${policyColor}; color: ${policyColor}; font-size: 0.7rem;">${escapeHtml(ds.privacy_policy)}</span></td>
             <td><strong>${escapeHtml(ds.destination)}</strong></td>
-            <td><code title="${escapeHtml(ds.sha256)}" style="font-size: 0.75rem; color: #38bdf8; cursor: pointer;">${escapeHtml(shortHash)}</code></td>
-            <td style="font-size: 0.76rem; color: #94a3b8;">${escapeHtml(ds.created_at)}</td>
+            <td><code title="${escapeHtml(ds.sha256)}" style="font-size: 0.74rem; color: #38bdf8; cursor: pointer;">${escapeHtml(shortHash)}</code></td>
+            <td style="font-size: 0.74rem; color: #94a3b8;">${escapeHtml(ds.created_at)}</td>
             <td style="text-align: right;">
               <button type="button" class="btn btn-ghost btn-sm btn-delete-ds" data-id="${escapeHtml(ds.dataset_id)}" style="color: #ef4444; padding: 2px 6px;" title="Delete dataset">
                 🗑️

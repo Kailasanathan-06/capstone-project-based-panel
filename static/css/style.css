@@ -278,21 +278,39 @@ input, select, textarea { font-family: inherit; }
   min-width: 0; overflow: hidden;
 }
 
-.breadcrumb ol {
-  display: flex; align-items: center; gap: 8px;
-  list-style: none; margin: 0; padding: 0;
+ol.breadcrumb,
+.breadcrumb ol,
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
   font-size: 0.8125rem;
   color: var(--fg-2);
   white-space: nowrap;
   overflow: hidden;
 }
+ol.breadcrumb li,
+.breadcrumb li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+}
+ol.breadcrumb li + li::before,
 .breadcrumb li + li::before {
   content: '/';
-  margin-right: 8px;
+  margin-right: 4px;
   color: var(--fg-3);
+  font-weight: 400;
 }
-.breadcrumb a { color: var(--fg-2); }
+ol.breadcrumb a,
+.breadcrumb a { color: var(--fg-2); text-decoration: none; }
+ol.breadcrumb a:hover,
 .breadcrumb a:hover { color: var(--fg-0); }
+ol.breadcrumb li[aria-current],
 .breadcrumb li[aria-current] { color: var(--fg-0); font-weight: 600; }
 
 .header-right {

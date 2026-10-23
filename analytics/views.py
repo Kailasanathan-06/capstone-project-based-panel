@@ -52,9 +52,12 @@ class AnalyticsViewSet(viewsets.ViewSet):
 
         hour = timezone.now() - timedelta(hours=1)
         beats = Heartbeat.objects.filter(timestamp__gte=hour)
+        if not beats.exists():
+            beats = Heartbeat.objects.all().order_by("-timestamp")[:50]
         agg = beats.aggregate(
             cpu=Avg("cpu_usage"), ram=Avg("ram_usage"), lat=Avg("network_latency"), eng=Avg("energy_estimate")
         )
+
 
         cloud_files = GoogleDriveFile.objects.count()
         cloud_bytes = (

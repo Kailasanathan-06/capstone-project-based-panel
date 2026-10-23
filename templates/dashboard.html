@@ -1,1032 +1,1029 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Intelligent and Secure Task Scheduling - Dashboard{% endblock %}
+{% block title %}Operations Dashboard - SecureDT{% endblock %}
+{% block body_page %}dashboard{% endblock %}
+{% block page_crumb %}Executive Operations Console{% endblock %}
 
 {% block extra_css %}
 <style>
   /* ==========================================================================
-     Dashboard Enhanced Styles — Ultra-Modern Precision & Balanced Contrast
+     SecureDT — Executive Dark Operations Console Design
+     Clean alignment, balanced contrast, unified typography, no cramped widgets
      ========================================================================== */
-  .dashboard-banner {
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.85) 100%);
-    border: 1px solid rgba(56, 189, 248, 0.2);
-    border-radius: var(--radius-xl);
-    padding: var(--space-6);
-    margin-bottom: var(--space-6);
-    box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5);
-    position: relative;
-    overflow: hidden;
-  }
-  .dashboard-banner::after {
-    content: '';
-    position: absolute;
-    top: -40%;
-    right: -8%;
-    width: 360px;
-    height: 360px;
-    background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, transparent 70%);
-    pointer-events: none;
-  }
-  .banner-title {
-    font-size: 1.55rem;
-    font-weight: 800;
-    letter-spacing: -0.025em;
-    color: #f8fafc;
-    margin-bottom: var(--space-2);
-  }
-  .banner-subtitle {
-    font-size: 0.92rem;
-    color: #94a3b8;
-    max-width: 920px;
-    line-height: 1.6;
-    margin: 0 0 var(--space-4) 0;
-  }
-  .banner-tags {
+
+  .dash-container {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
+    flex-direction: column;
+    gap: var(--space-6);
   }
-  .glass-pill {
+
+  /* --- 1. Page Header --- */
+  .dash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    padding: var(--space-5) var(--space-6);
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(13, 21, 39, 0.95) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.4);
+  }
+  .dash-header-title {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: -0.02em;
+    margin: 0 0 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .dash-header-subtitle {
+    font-size: 0.86rem;
+    color: #94a3b8;
+    margin: 0;
+    line-height: 1.4;
+  }
+  .dash-header-pills {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .status-chip {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
+    gap: 7px;
+    padding: 6px 12px;
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 9999px;
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     font-weight: 500;
-    font-family: var(--font-sans);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(15, 23, 42, 0.7);
-    backdrop-filter: blur(8px);
-    color: #e2e8f0;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    color: #cbd5e1;
   }
-  .pill-dot {
+  .status-chip .dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
   }
-  .pill-dot.server { background: #10b981; box-shadow: 0 0 8px #10b981; }
-  .pill-dot.mec { background: #38bdf8; box-shadow: 0 0 8px #38bdf8; }
-  .pill-dot.cloud { background: #818cf8; box-shadow: 0 0 8px #818cf8; }
-  .pill-dot.warn { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
-  .pill-title { color: #94a3b8; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
-  .pill-val { font-weight: 600; color: #f8fafc; }
-  .pill-code { font-family: var(--font-mono); font-size: 0.78rem; background: rgba(255, 255, 255, 0.08); padding: 2px 7px; border-radius: 4px; color: #38bdf8; font-weight: 600; }
-
-  /* KPI Grid */
-  .kpi-grid-premium {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: var(--space-4);
-    margin-bottom: var(--space-6);
+  .status-chip .dot.online { background: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); }
+  .status-chip .dot.mec { background: #38bdf8; box-shadow: 0 0 8px rgba(56, 189, 248, 0.6); }
+  .status-chip .dot.cloud { background: #818cf8; box-shadow: 0 0 8px rgba(129, 140, 248, 0.6); }
+  .status-chip .dot.amber { background: #f59e0b; box-shadow: 0 0 8px rgba(245, 158, 11, 0.6); }
+  .status-chip code {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+    padding: 1px 6px;
+    border-radius: 4px;
   }
-  @media (max-width: 1200px) { .kpi-grid-premium { grid-template-columns: repeat(3, 1fr); } }
-  @media (max-width: 768px) { .kpi-grid-premium { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 480px) { .kpi-grid-premium { grid-template-columns: 1fr; } }
 
-  .kpi-card-v2 {
-    background: linear-gradient(180deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+  /* --- 2. Top Metric Cards (4-Column Balanced Grid) --- */
+  .metrics-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-4);
+  }
+  @media (max-width: 1100px) {
+    .metrics-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .metrics-grid-4 { grid-template-columns: 1fr; }
+  }
+
+  .metric-card-pro {
+    background: linear-gradient(180deg, rgba(20, 30, 48, 0.75) 0%, rgba(13, 21, 39, 0.9) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-lg);
     padding: var(--space-4) var(--space-5);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    min-height: 115px;
     transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   }
-  .kpi-card-v2:hover {
+  .metric-card-pro:hover {
     transform: translateY(-2px);
-    border-color: rgba(56, 189, 248, 0.4);
-    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.45);
+    border-color: rgba(56, 189, 248, 0.35);
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
   }
-  .kpi-card-top {
+  .metric-card-header {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--space-2);
+    align-items: center;
   }
-  .kpi-label-v2 {
-    font-size: 0.72rem;
+  .metric-title {
+    font-size: 0.74rem;
     font-weight: 700;
-    color: #94a3b8;
     text-transform: uppercase;
     letter-spacing: 0.06em;
+    color: #94a3b8;
   }
-  .kpi-icon-wrap {
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-sm);
+  .metric-icon-wrap {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
   }
-  .kpi-icon-wrap.primary { background: rgba(56, 189, 248, 0.12); color: #38bdf8; }
-  .kpi-icon-wrap.success { background: rgba(16, 185, 129, 0.12); color: #10b981; }
-  .kpi-icon-wrap.info { background: rgba(129, 140, 248, 0.12); color: #818cf8; }
-  .kpi-icon-wrap.warning { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+  .metric-icon-wrap.primary { background: rgba(56, 189, 248, 0.12); color: #38bdf8; }
+  .metric-icon-wrap.success { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+  .metric-icon-wrap.warning { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+  .metric-icon-wrap.indigo  { background: rgba(129, 140, 248, 0.12); color: #818cf8; }
 
-  .kpi-value-v2 {
-    font-size: 1.8rem;
+  .metric-number {
+    font-size: 1.85rem;
     font-weight: 800;
     color: #f8fafc;
     letter-spacing: -0.03em;
-    line-height: 1.2;
-    margin-bottom: var(--space-2);
+    line-height: 1.15;
+    margin: 8px 0 6px 0;
   }
-  .kpi-value-v2.primary { color: #38bdf8; }
-  .kpi-value-v2.success { color: #10b981; }
-  .kpi-value-v2.warning { color: #f59e0b; }
+  .metric-number.primary { color: #38bdf8; }
+  .metric-number.success { color: #34d399; }
+  .metric-number.warning { color: #fbbf24; }
+  .metric-number.indigo  { color: #a5b4fc; }
 
-  .kpi-meta-v2 {
-    font-size: 0.74rem;
-    color: #94a3b8;
+  .metric-footer {
     display: flex;
     align-items: center;
-    gap: 4px;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #94a3b8;
   }
-  .kpi-badge-v2 {
-    font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 4px;
+  .metric-sub-badge {
     font-size: 0.7rem;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #cbd5e1;
   }
-  .kpi-badge-v2.success { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-  .kpi-badge-v2.primary { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+  .metric-sub-badge.success { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+  .metric-sub-badge.primary { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
 
-  /* Two Column Hero Grid */
-  .grid-2col {
+  /* --- 3. Two-Column System Panels (1fr 1fr) --- */
+  .system-panels-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--space-6);
-    margin-bottom: var(--space-6);
   }
-  @media (max-width: 1024px) {
-    .grid-2col { grid-template-columns: 1fr; }
+  @media (max-width: 980px) {
+    .system-panels-grid { grid-template-columns: 1fr; }
   }
 
-  /* Connected MEC Card */
-  .mec-connected-hero-v2 {
-    border: 1px solid rgba(56, 189, 248, 0.3);
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(10, 15, 29, 0.98) 100%);
+  .panel-card {
+    background: linear-gradient(180deg, rgba(17, 26, 44, 0.85) 0%, rgba(11, 18, 33, 0.95) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-xl);
-    padding: var(--space-6);
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    padding: var(--space-5) var(--space-6);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.4);
+    transition: border-color 0.2s ease;
   }
-  .mec-connected-hero-v2:hover {
-    border-color: rgba(56, 189, 248, 0.55);
+  .panel-card:hover {
+    border-color: rgba(56, 189, 248, 0.3);
   }
-  .hero-card-header {
+  .panel-card-header {
     display: flex;
-    align-items: center;
     justify-content: space-between;
+    align-items: center;
     padding-bottom: var(--space-4);
     border-bottom: 1px solid rgba(255, 255, 255, 0.07);
     margin-bottom: var(--space-4);
   }
-  .hero-icon-box {
-    width: 42px;
-    height: 42px;
+  .panel-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .panel-icon-box {
+    width: 38px;
+    height: 38px;
     border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
   }
-  .hero-icon-box.mec { background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); }
-  .hero-icon-box.cloud { background: rgba(129, 140, 248, 0.12); color: #818cf8; border: 1px solid rgba(129, 140, 248, 0.25); }
+  .panel-icon-box.mec   { background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25); }
+  .panel-icon-box.cloud { background: rgba(129, 140, 248, 0.12); color: #818cf8; border: 1px solid rgba(129, 140, 248, 0.25); }
 
-  .hero-title {
-    font-size: 1.15rem;
-    font-weight: 750;
+  .panel-title {
+    font-size: 1.08rem;
+    font-weight: 700;
     color: #f8fafc;
     margin: 0;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.01em;
   }
-  .hero-subtitle {
-    font-size: 0.8rem;
+  .panel-subtitle {
+    font-size: 0.78rem;
     color: #94a3b8;
     margin: 2px 0 0 0;
   }
-
-  .status-pill-v2 {
-    display: inline-flex;
+  .panel-header-actions {
+    display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 3px 10px;
-    border-radius: 9999px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-  }
-  .status-pill-v2.online {
-    background: rgba(16, 185, 129, 0.15);
-    border: 1px solid rgba(16, 185, 129, 0.35);
-    color: #34d399;
-  }
-  .status-pill-v2.offline {
-    background: rgba(239, 68, 68, 0.15);
-    border: 1px solid rgba(239, 68, 68, 0.35);
-    color: #f87171;
-  }
-  .pulse-beacon {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #10b981;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
-    animation: beaconPulse 2s infinite ease-in-out;
-  }
-  @keyframes beaconPulse {
-    0%, 100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3); transform: scale(1); }
-    50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.08); transform: scale(1.1); }
+    gap: 8px;
   }
 
-  /* Specifications Grid */
-  .spec-tile-grid {
+  /* Specifications Grid inside Panel */
+  .specs-2col {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr 1fr;
     gap: 10px;
     margin-bottom: var(--space-4);
   }
-  @media (max-width: 640px) { .spec-tile-grid { grid-template-columns: 1fr; } }
-
-  .spec-tile {
-    background: rgba(30, 41, 59, 0.45);
+  @media (max-width: 600px) {
+    .specs-2col { grid-template-columns: 1fr; }
+  }
+  .spec-item {
+    background: rgba(30, 41, 59, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: var(--radius-md);
-    padding: 10px 12px;
+    padding: 9px 12px;
     display: flex;
     flex-direction: column;
     gap: 3px;
   }
-  .spec-k {
+  .spec-label {
     font-size: 0.68rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: #94a3b8;
   }
-  .spec-v {
-    font-size: 0.84rem;
+  .spec-value {
+    font-size: 0.82rem;
     color: #f1f5f9;
     font-weight: 500;
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 6px;
+    word-break: break-word;
   }
-  .code-pill {
+  .spec-value code {
     font-family: var(--font-mono);
-    font-size: 0.8rem;
-    background: rgba(15, 23, 42, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 2px 7px;
-    border-radius: 4px;
-    color: #f8fafc;
-  }
-  .code-pill.primary { color: #38bdf8; border-color: rgba(56, 189, 248, 0.3); }
-  .code-pill.info { color: #818cf8; border-color: rgba(129, 140, 248, 0.3); }
-  .spec-desc-text { font-size: 0.76rem; color: #94a3b8; }
-  .chip-mini {
-    font-size: 0.68rem;
-    font-weight: 600;
+    font-size: 0.78rem;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
     padding: 1px 6px;
     border-radius: 4px;
-    background: rgba(255, 255, 255, 0.07);
+  }
+  .spec-badge {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
     color: #cbd5e1;
   }
-  .chip-mini.success { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-  .chip-mini.primary { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
-  .chip-mini.warning { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-  .chip-mini.root { background: rgba(129, 140, 248, 0.15); color: #818cf8; font-family: var(--font-mono); }
-  .dot-online {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #10b981;
-    margin-right: 4px;
-  }
+  .spec-badge.success { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+  .spec-badge.primary { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
 
-  /* Telemetry Progress Bars */
-  .telemetry-grid-v2 {
+  /* Telemetry Bars Grid */
+  .telem-meters-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: var(--space-3);
+    gap: 10px;
     margin-bottom: var(--space-4);
   }
-  @media (max-width: 640px) { .telemetry-grid-v2 { grid-template-columns: repeat(2, 1fr); } }
-
-  .telemetry-card {
-    background: rgba(30, 41, 59, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: var(--radius-md);
-    padding: 10px 12px;
+  @media (max-width: 600px) {
+    .telem-meters-grid { grid-template-columns: repeat(2, 1fr); }
   }
-  .telemetry-top {
+  .meter-card {
+    background: rgba(30, 41, 59, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-md);
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .meter-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
   }
-  .telem-label {
-    font-size: 0.68rem;
+  .meter-lbl {
+    font-size: 0.65rem;
     font-weight: 700;
     color: #94a3b8;
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
-  .telem-val {
-    font-size: 1.05rem;
-    font-weight: 800;
-    font-family: var(--font-sans);
+  .meter-val {
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: #f8fafc;
   }
-  .telem-val.primary { color: #38bdf8; }
-  .telem-val.info { color: #818cf8; }
-  .telem-val.success { color: #34d399; }
-  .telem-val.warning { color: #fbbf24; }
+  .meter-val.primary { color: #38bdf8; }
+  .meter-val.info    { color: #818cf8; }
+  .meter-val.success { color: #34d399; }
+  .meter-val.warning { color: #fbbf24; }
 
-  .telem-bar-track {
+  .meter-bar-track {
     width: 100%;
     height: 4px;
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(15, 23, 42, 0.7);
     border-radius: 99px;
     overflow: hidden;
   }
-  .telem-bar-fill {
+  .meter-bar-fill {
     height: 100%;
     border-radius: 99px;
     transition: width 0.4s ease;
   }
-  .telem-bar-fill.primary { background: linear-gradient(90deg, #0284c7, #38bdf8); }
-  .telem-bar-fill.info { background: linear-gradient(90deg, #4f46e5, #818cf8); }
-  .telem-bar-fill.success { background: linear-gradient(90deg, #059669, #34d399); }
-  .telem-bar-fill.warning { background: linear-gradient(90deg, #d97706, #fbbf24); }
+  .meter-bar-fill.primary { background: linear-gradient(90deg, #0284c7, #38bdf8); }
+  .meter-bar-fill.info    { background: linear-gradient(90deg, #4f46e5, #818cf8); }
+  .meter-bar-fill.success { background: linear-gradient(90deg, #059669, #34d399); }
+  .meter-bar-fill.warning { background: linear-gradient(90deg, #d97706, #fbbf24); }
 
-  .card-footer-flex {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: var(--space-2);
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-  }
-  .footer-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.78rem;
-    color: #94a3b8;
-  }
-  .status-indicator-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-  }
-  .status-indicator-dot.success { background: #10b981; box-shadow: 0 0 6px #10b981; }
-  .status-indicator-dot.info { background: #38bdf8; box-shadow: 0 0 6px #38bdf8; }
-
-  /* Cloud Storage Hero Card */
-  .cloud-hero-card-v2 {
-    border: 1px solid rgba(129, 140, 248, 0.3);
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(10, 15, 29, 0.98) 100%);
-    border-radius: var(--radius-xl);
-    padding: var(--space-6);
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-  }
-  .cloud-hero-card-v2:hover {
-    border-color: rgba(129, 140, 248, 0.55);
-  }
-
-  .cloud-quota-box {
-    background: rgba(30, 41, 59, 0.45);
+  /* Cloud Storage Explorer Elements */
+  .cloud-quota-bar {
+    background: rgba(30, 41, 59, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: var(--radius-md);
-    padding: 10px 14px;
+    padding: 9px 12px;
     margin-bottom: var(--space-4);
   }
-  .quota-header {
+  .quota-info-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 0.74rem;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
-  .quota-label {
+  .quota-info-row span:first-child {
     font-weight: 700;
     color: #94a3b8;
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
-  .quota-numbers {
+  .quota-info-row span:last-child {
     color: #f8fafc;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .quota-track {
-    width: 100%;
-    height: 6px;
-    background: rgba(15, 23, 42, 0.8);
-    border-radius: 99px;
-    overflow: hidden;
-  }
-  .quota-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #38bdf8, #818cf8);
-    border-radius: 99px;
-    transition: width 0.4s ease;
+    font-family: var(--font-mono);
   }
 
-  /* Cloud Directory Tree */
-  .cloud-directory-tree {
+  .folder-tree-box {
     background: rgba(15, 23, 42, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: var(--radius-md);
-    padding: 10px 14px;
-    margin-bottom: var(--space-4);
-  }
-  .tree-root-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-bottom: 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    margin-bottom: 8px;
-  }
-  .tree-row-left {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .folder-svg {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-  }
-  .folder-svg.root { color: #818cf8; }
-  .folder-svg.blue { color: #38bdf8; }
-  .folder-svg.emerald { color: #34d399; }
-  .folder-svg.purple { color: #a78bfa; }
-  .folder-svg.amber { color: #fbbf24; }
-  .folder-path-root {
-    font-family: var(--font-mono);
-    font-weight: 700;
-    font-size: 0.82rem;
-    color: #f8fafc;
-  }
-
-  .tree-sub-list {
+    padding: 8px 12px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
+    margin-bottom: var(--space-4);
   }
-  .tree-sub-item {
+  .folder-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 5px 8px;
+    padding: 6px 8px;
     border-radius: var(--radius-sm);
+    font-size: 0.8rem;
     transition: background 0.15s ease;
   }
-  .tree-sub-item:hover {
+  .folder-row:hover {
     background: rgba(255, 255, 255, 0.04);
   }
-  .tree-item-main {
+  .folder-row-main {
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
   }
-  .folder-name {
+  .folder-row-main svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+  .folder-path-name {
     font-family: var(--font-mono);
-    font-size: 0.82rem;
     font-weight: 600;
     color: #f1f5f9;
   }
-  .folder-desc {
-    font-size: 0.75rem;
+  .folder-purpose-text {
+    font-size: 0.73rem;
     color: #94a3b8;
   }
 
-  /* Manual Dataset Ingestion Card */
-  .ingestion-card {
-    border: 1px solid rgba(245, 158, 11, 0.35);
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(11, 17, 32, 0.98) 100%);
+  .panel-footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: var(--space-3);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.76rem;
+    color: #94a3b8;
+  }
+  .panel-footer-row a {
+    color: #38bdf8;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.15s ease;
+  }
+  .panel-footer-row a:hover {
+    color: #7dd3fc;
+  }
+
+  /* --- 4. Manual Dataset Ingestion Studio --- */
+  .ingestion-studio-panel {
+    background: linear-gradient(180deg, rgba(17, 26, 44, 0.85) 0%, rgba(11, 18, 33, 0.95) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-xl);
     padding: var(--space-6);
-    margin-bottom: var(--space-6);
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.4);
   }
-  .policy-callout {
+  .studio-header {
     display: flex;
-    align-items: flex-start;
-    gap: var(--space-3);
-    padding: var(--space-3) var(--space-4);
-    background: rgba(245, 158, 11, 0.08);
-    border: 1px solid rgba(245, 158, 11, 0.25);
-    border-radius: var(--radius-md);
-    font-size: 0.84rem;
-    color: #fbbf24;
-    margin-bottom: var(--space-4);
-    line-height: 1.5;
-  }
-
-  .upload-dropzone {
-    border: 2px dashed rgba(255, 255, 255, 0.15);
-    border-radius: var(--radius-lg);
-    padding: var(--space-6);
-    text-align: center;
-    background: rgba(30, 41, 59, 0.4);
-    cursor: pointer;
-    transition: border-color 0.2s ease, background 0.2s ease;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
     margin-bottom: var(--space-4);
   }
-  .upload-dropzone:hover, .upload-dropzone.dragover {
-    border-color: #38bdf8;
-    background: rgba(56, 189, 248, 0.05);
+  .studio-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .studio-subtitle {
+    font-size: 0.82rem;
+    color: #94a3b8;
+    margin: 2px 0 0 0;
   }
 
-  /* Forms & Inputs */
-  .form-row {
+  /* Form Layout: 2 Clean Rows of 2 Columns */
+  .studio-form-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: 1fr 1fr;
     gap: var(--space-4);
     margin-bottom: var(--space-4);
   }
-  .form-col {
+  @media (max-width: 768px) {
+    .studio-form-grid { grid-template-columns: 1fr; }
+  }
+  .field-group {
     display: flex;
     flex-direction: column;
     gap: 6px;
   }
-  .form-col label {
-    font-size: 0.8rem;
+  .field-label {
+    font-size: 0.78rem;
     font-weight: 600;
-    color: #e2e8f0;
+    color: #cbd5e1;
   }
-  .form-input {
+  .field-input, .field-select {
     width: 100%;
     padding: 8px 12px;
     background: rgba(15, 23, 42, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: var(--radius-md);
     color: #f8fafc;
+    font-family: inherit;
     font-size: 0.84rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
-  .form-input:focus {
+  .field-input:focus, .field-select:focus {
     outline: none;
     border-color: #38bdf8;
     box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
   }
 
-  /* Clean Tables */
-  .clean-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    font-size: 0.85rem;
+  /* Governance Callout Banner */
+  .governance-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+    color: #fbbf24;
+    line-height: 1.45;
+    margin-bottom: var(--space-4);
   }
-  .clean-table th {
+  .governance-alert code {
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    background: rgba(245, 158, 11, 0.15);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #fef3c7;
+  }
+
+  /* Dropzone */
+  .studio-dropzone {
+    border: 2px dashed rgba(255, 255, 255, 0.14);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5) var(--space-4);
+    text-align: center;
+    background: rgba(30, 41, 59, 0.3);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    margin-bottom: var(--space-4);
+  }
+  .studio-dropzone:hover, .studio-dropzone.dragover {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.05);
+  }
+  .dropzone-prompt {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #e2e8f0;
+    margin-bottom: 2px;
+  }
+  .dropzone-sub {
+    font-size: 0.74rem;
+    color: #94a3b8;
+  }
+
+  /* Inventory Table */
+  .inventory-table-wrap {
+    margin-top: var(--space-5);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .pro-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  .pro-table th {
     background: rgba(30, 41, 59, 0.7);
     color: #94a3b8;
     font-weight: 600;
-    font-size: 0.72rem;
     text-transform: uppercase;
+    font-size: 0.7rem;
     letter-spacing: 0.05em;
     padding: 10px 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
     text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   }
-  .clean-table td {
+  .pro-table td {
     padding: 10px 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    vertical-align: middle;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    color: #cbd5e1;
   }
-  .clean-table tr:hover td {
+  .pro-table tr:hover td {
     background: rgba(255, 255, 255, 0.02);
+  }
+
+  /* Pulse Beacon for Online MEC */
+  .pulse-online {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+    animation: beacon 2s infinite ease-in-out;
+  }
+  @keyframes beacon {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25); }
+    50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.08); }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Top Project Header & Real-time Connectivity Bar -->
-<div class="dashboard-banner">
-  <div class="banner-title">Intelligent and Secure Task Scheduling for Digital Twin-Enabled Edge–Cloud Networks</div>
-  <p class="banner-subtitle">
-    Demonstrating real-world clinical and IoT edge workloads across a 3-tier computing hierarchy:
-    <strong style="color: #f8fafc;">Local Medical Workstation</strong>, <strong style="color: #38bdf8;">MEC Edge Gateway</strong>, and <strong style="color: #818cf8;">Multi-Tier Cloud Storage</strong>.
-  </p>
-  <div class="banner-tags">
-    <span class="glass-pill" id="server-status-badge">
-      <span class="pill-dot server"></span>
-      <span class="pill-title">Central Server:</span>
-      <span class="pill-val">Active</span>
-      <code class="pill-code">127.0.0.1:8000</code>
-    </span>
-    <span class="glass-pill" id="mec-gateway-status-badge">
-      <span class="pill-dot mec"></span>
-      <span class="pill-title">Connected MEC Node:</span>
-      <span class="pill-val" id="mec-gateway-pill-status">ONLINE</span>
-      <code class="pill-code">MEC-001 (127.0.0.1:8001)</code>
-    </span>
-    <span class="glass-pill">
-      <span class="pill-dot cloud"></span>
-      <span class="pill-title">Cloud Storage Tier:</span>
-      <span class="pill-val">Mounted</span>
-      <code class="pill-code">1,000 GB Quota</code>
-    </span>
-    <span class="glass-pill">
-      <span class="pill-dot warn"></span>
-      <span class="pill-title">Ingestion Mode:</span>
-      <span class="pill-val" style="color: #fbbf24;">Manual Only</span>
-    </span>
-  </div>
-</div>
+<div class="dash-container">
 
-<!-- KPI Metrics Grid -->
-<section aria-labelledby="kpi-heading" style="margin-bottom: var(--space-6);">
-  <h2 id="kpi-heading" class="visually-hidden">System Key Performance Indicators</h2>
-  <div class="kpi-grid-premium" role="list">
-    <article class="kpi-card-v2" role="listitem">
-      <div class="kpi-card-top">
-        <span class="kpi-label-v2">TOTAL MECS</span>
-        <div class="kpi-icon-wrap primary">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
-        </div>
-      </div>
-      <div class="kpi-value-v2 primary" id="kpi-total-mecs">1</div>
-      <div class="kpi-meta-v2"><span class="kpi-badge-v2 primary">&#10003; Verified Gateway</span></div>
-    </article>
-
-    <article class="kpi-card-v2" role="listitem">
-      <div class="kpi-card-top">
-        <span class="kpi-label-v2">ONLINE MECS</span>
-        <div class="kpi-icon-wrap success">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-        </div>
-      </div>
-      <div class="kpi-value-v2 success" id="kpi-online-mecs">1</div>
-      <div class="kpi-meta-v2"><span class="kpi-badge-v2 success" id="kpi-online-pct">100% Operational</span></div>
-    </article>
-
-    <article class="kpi-card-v2" role="listitem">
-      <div class="kpi-card-top">
-        <span class="kpi-label-v2">ACTIVE TASKS</span>
-        <div class="kpi-icon-wrap info">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-        </div>
-      </div>
-      <div class="kpi-value-v2" id="kpi-active-tasks">0</div>
-      <div class="kpi-meta-v2"><span id="kpi-queued">Queued: 0</span></div>
-    </article>
-
-    <article class="kpi-card-v2" role="listitem">
-      <div class="kpi-card-top">
-        <span class="kpi-label-v2">COMPLETED TASKS</span>
-        <div class="kpi-icon-wrap success">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-        </div>
-      </div>
-      <div class="kpi-value-v2 success" id="kpi-completed-tasks">0</div>
-      <div class="kpi-meta-v2"><span class="kpi-badge-v2 success">0 Policy Violations</span></div>
-    </article>
-
-    <article class="kpi-card-v2" role="listitem">
-      <div class="kpi-card-top">
-        <span class="kpi-label-v2">AVG CPU LOAD</span>
-        <div class="kpi-icon-wrap warning">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-        </div>
-      </div>
-      <div class="kpi-value-v2 warning" id="kpi-avg-cpu">29.7%</div>
-      <div class="kpi-meta-v2"><span>Balanced Edge Load</span></div>
-    </article>
-
-    <article class="kpi-card-v2" role="listitem">
-      <div class="kpi-card-top">
-        <span class="kpi-label-v2">EDGE LATENCY</span>
-        <div class="kpi-icon-wrap primary">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
-        </div>
-      </div>
-      <div class="kpi-value-v2 primary" id="kpi-avg-latency">12.5ms</div>
-      <div class="kpi-meta-v2"><span class="kpi-badge-v2 primary">&#9889; Optimal Link</span></div>
-    </article>
-  </div>
-</section>
-
-<!-- Two-Column Hero Showcase: Connected MEC System + Cloud Folder Explorer -->
-<div class="grid-2col">
-  <!-- 1. Connected MEC Edge System (Direct Server Connection) -->
-  <section class="mec-connected-hero-v2" aria-labelledby="mec-system-heading">
+  <!-- =========================================================================
+       1. EXECUTIVE PLATFORM HEADER
+       ========================================================================= -->
+  <header class="dash-header">
     <div>
-      <div class="hero-card-header">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div class="hero-icon-box mec">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
-          </div>
-          <div>
-            <h2 id="mec-system-heading" class="hero-title">Connected MEC Edge Gateway</h2>
-            <p class="hero-subtitle">Real-time edge telemetry actively synced with central Django server</p>
-          </div>
-        </div>
-        <div style="display: flex; gap: 10px; align-items: center;">
-          <span class="status-pill-v2 online" id="mec-hero-status-pill">
-            <span class="pulse-beacon"></span>
-            <span id="mec-hero-status-text">ONLINE</span>
-          </span>
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-ping-mec" title="Send live heartbeat to MEC node">
-            ⚡ Ping Gateway
-          </button>
-        </div>
-      </div>
-
-      <!-- Specs Grid -->
-      <div class="spec-tile-grid">
-        <div class="spec-tile">
-          <span class="spec-k">DEVICE IDENTIFIER</span>
-          <span class="spec-v">
-            <code class="code-pill primary" id="mec-hero-id">MEC-001</code>
-            <span class="spec-desc-text" id="mec-hero-name">Hospital Ward Edge Gateway</span>
-          </span>
-        </div>
-        <div class="spec-tile">
-          <span class="spec-k">CENTRAL SERVER URL</span>
-          <span class="spec-v"><code class="code-pill" id="mec-hero-server-url">http://127.0.0.1:8000</code></span>
-        </div>
-        <div class="spec-tile">
-          <span class="spec-k">DIAGNOSTIC SOCKET</span>
-          <span class="spec-v">
-            <code class="code-pill info" id="mec-hero-ip-port">127.0.0.1:8001</code>
-            <span class="chip-mini success">Active Port</span>
-          </span>
-        </div>
-        <div class="spec-tile">
-          <span class="spec-k">OPERATING PLATFORM</span>
-          <span class="spec-v" id="mec-hero-os">Ubuntu 22.04 LTS <span class="chip-mini">Edge RT Kernel</span></span>
-        </div>
-        <div class="spec-tile">
-          <span class="spec-k">ALLOWED PLACEMENT POLICY</span>
-          <span class="spec-v"><span class="chip-mini primary">TRUSTED_EDGE</span> <span class="spec-desc-text">Hospital Network Only</span></span>
-        </div>
-        <div class="spec-tile">
-          <span class="spec-k">LAST HEARTBEAT</span>
-          <span class="spec-v" id="mec-hero-heartbeat">
-            <span class="dot-online"></span> Just now (Synchronized)
-          </span>
-        </div>
-      </div>
-
-      <!-- Telemetry Meters with Visual Progress Bars -->
-      <div class="telemetry-grid-v2">
-        <div class="telemetry-card">
-          <div class="telemetry-top">
-            <span class="telem-label">CPU LOAD</span>
-            <span class="telem-val primary" id="mec-hero-cpu">29.7%</span>
-          </div>
-          <div class="telem-bar-track">
-            <div class="telem-bar-fill primary" id="telem-bar-cpu" style="width: 29.7%;"></div>
-          </div>
-        </div>
-
-        <div class="telemetry-card">
-          <div class="telemetry-top">
-            <span class="telem-label">MEMORY USAGE</span>
-            <span class="telem-val info" id="mec-hero-ram">36.3%</span>
-          </div>
-          <div class="telem-bar-track">
-            <div class="telem-bar-fill info" id="telem-bar-ram" style="width: 36.3%;"></div>
-          </div>
-        </div>
-
-        <div class="telemetry-card">
-          <div class="telemetry-top">
-            <span class="telem-label">STORAGE DISK</span>
-            <span class="telem-val success" id="mec-hero-disk">22.0%</span>
-          </div>
-          <div class="telem-bar-track">
-            <div class="telem-bar-fill success" id="telem-bar-disk" style="width: 22.0%;"></div>
-          </div>
-        </div>
-
-        <div class="telemetry-card">
-          <div class="telemetry-top">
-            <span class="telem-label">EDGE LATENCY</span>
-            <span class="telem-val warning" id="mec-hero-latency">12.5ms</span>
-          </div>
-          <div class="telem-bar-track">
-            <div class="telem-bar-fill warning" id="telem-bar-lat" style="width: 25%;"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card-footer-flex">
-      <div class="footer-meta">
-        <span class="status-indicator-dot success"></span>
-        <span>Gateway Telemetry Healthy &bull; Measured Energy: <strong style="color: #f8fafc;">1.15 W</strong></span>
-      </div>
-      <a href="{% url 'mec_infrastructure' %}" class="btn btn-ghost btn-sm">MEC Infrastructure &rarr;</a>
-    </div>
-  </section>
-
-  <!-- 2. Cloud Storage Folder Explorer -->
-  <section class="cloud-hero-card-v2" aria-labelledby="cloud-system-heading">
-    <div>
-      <div class="hero-card-header">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div class="hero-icon-box cloud">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 7 19h10.5z"></path></svg>
-          </div>
-          <div>
-            <h2 id="cloud-system-heading" class="hero-title">Cloud Storage Folder Explorer</h2>
-            <p class="hero-subtitle">Structured multi-tier storage for public and de-identified data</p>
-          </div>
-        </div>
-        <div>
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-cloud" title="Sync cloud directory">
-            🔄 Refresh
-          </button>
-        </div>
-      </div>
-
-      <!-- Storage Quota Meter -->
-      <div class="cloud-quota-box">
-        <div class="quota-header">
-          <span class="quota-label">ALLOCATED CLOUD CAPACITY</span>
-          <span class="quota-numbers"><strong id="cloud-used-mb" style="color: #38bdf8;">0.00</strong> MB / <span style="color: #94a3b8;">1,000.0 GB</span> <span class="chip-mini root">0.0% Used</span></span>
-        </div>
-        <div class="quota-track">
-          <div id="cloud-meter-bar" class="quota-bar-fill" style="width: 2%;"></div>
-        </div>
-      </div>
-
-      <!-- Visual Folder Directory Tree -->
-      <div class="cloud-directory-tree">
-        <div class="tree-root-row">
-          <div class="tree-row-left">
-            <svg class="folder-svg root" viewBox="0 0 24 24" fill="currentColor"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
-            <span class="folder-path-root">data_storage/cloud_storage/</span>
-          </div>
-          <span class="chip-mini root">CLOUD_ALLOWED</span>
-        </div>
-
-        <div class="tree-sub-list">
-          <div class="tree-sub-item">
-            <div class="tree-item-main">
-              <svg class="folder-svg blue" viewBox="0 0 24 24" fill="currentColor"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
-              <span class="folder-name">datasets/</span>
-              <span class="folder-desc">De-identified clinical research records</span>
-            </div>
-            <span class="chip-mini">Read/Write</span>
-          </div>
-
-          <div class="tree-sub-item">
-            <div class="tree-item-main">
-              <svg class="folder-svg emerald" viewBox="0 0 24 24" fill="currentColor"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
-              <span class="folder-name">results/</span>
-              <span class="folder-desc">Comparative scheduling CSV benchmarks &amp; audit traces</span>
-            </div>
-            <span class="chip-mini">Audited</span>
-          </div>
-
-          <div class="tree-sub-item">
-            <div class="tree-item-main">
-              <svg class="folder-svg purple" viewBox="0 0 24 24" fill="currentColor"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
-              <span class="folder-name">models/</span>
-              <span class="folder-desc">Genetic algorithm chromosome checkpoints</span>
-            </div>
-            <span class="chip-mini">Model Store</span>
-          </div>
-
-          <div class="tree-sub-item">
-            <div class="tree-item-main">
-              <svg class="folder-svg amber" viewBox="0 0 24 24" fill="currentColor"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
-              <span class="folder-name">manual_uploads/</span>
-              <span class="folder-desc">User-uploaded manual datasets</span>
-            </div>
-            <span class="chip-mini warning">Manual Only</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card-footer-flex">
-      <div class="footer-meta">
-        <span class="status-indicator-dot info"></span>
-        <span><strong id="cloud-file-count" style="color: #f8fafc;">0</strong> files synchronized &bull; Zero external leakage</span>
-      </div>
-      <a href="{% url 'cloud_storage' %}" class="btn btn-ghost btn-sm">Full Cloud Storage &rarr;</a>
-    </div>
-  </section>
-</div>
-
-<!-- 3. Manual Dataset Ingestion Studio (No Automatic Dataset Insertion) -->
-<section class="ingestion-card" aria-labelledby="manual-ingestion-heading">
-  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); padding-bottom: var(--space-4);">
-    <div>
-      <h2 id="manual-ingestion-heading" style="font-size: 1.25rem; font-weight: 750; color: var(--color-heading); display: flex; align-items: center; gap: 8px;">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-warning);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-        Manual Dataset Ingestion Studio
-      </h2>
-      <p style="font-size: 0.88rem; color: var(--color-text-muted); margin: 4px 0 0 0;">
-        Upload hospital or IoT datasets manually from your workstation. No datasets are inserted automatically.
+      <h1 class="dash-header-title">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        SecureDT Operations Console
+      </h1>
+      <p class="dash-header-subtitle">
+        Intelligent and Secure Task Scheduling for Digital Twin-Enabled Edge–Cloud Networks
       </p>
     </div>
-    <span class="badge-system" style="border-color: rgba(245, 158, 11, 0.4); color: var(--color-warning);">
-      Policy Guard Enforcement Active
-    </span>
+    <div class="dash-header-pills">
+      <div class="status-chip" title="Central Django server is responding">
+        <span class="dot online"></span>
+        <span>Server:</span>
+        <code>127.0.0.1:8000</code>
+      </div>
+      <div class="status-chip" title="Connected Hospital MEC gateway node">
+        <span class="dot mec"></span>
+        <span>MEC:</span>
+        <code id="top-pill-mec">MEC-001:8001</code>
+      </div>
+      <div class="status-chip" title="Configured cloud storage provider">
+        <span class="dot cloud"></span>
+        <span>Cloud:</span>
+        <code>1,000 GB Tier</code>
+      </div>
+      <div class="status-chip" title="Strict manual dataset governance active">
+        <span class="dot amber"></span>
+        <span style="color:#f59e0b;font-weight:600;">Manual Only</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       2. TOP METRIC CARDS (BALANCED 4-COLUMN GRID)
+       ========================================================================= -->
+  <section class="metrics-grid-4" aria-label="Key System Metrics">
+    <!-- Card 1: Edge Nodes -->
+    <article class="metric-card-pro">
+      <div class="metric-card-header">
+        <span class="metric-title">CONNECTED EDGE NODES</span>
+        <div class="metric-icon-wrap primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        </div>
+      </div>
+      <div class="metric-number primary" id="kpi-online-mecs">1 / 1</div>
+      <div class="metric-footer">
+        <span class="metric-sub-badge primary" id="kpi-online-pct">100% Operational</span>
+        <span>Node: <strong style="color:#f8fafc;" id="kpi-active-node-id">MEC-001</strong></span>
+      </div>
+    </article>
+
+    <!-- Card 2: Active Tasks -->
+    <article class="metric-card-pro">
+      <div class="metric-card-header">
+        <span class="metric-title">TASK QUEUE PIPELINE</span>
+        <div class="metric-icon-wrap success">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+      </div>
+      <div class="metric-number success" id="kpi-active-tasks">0 Active</div>
+      <div class="metric-footer">
+        <span class="metric-sub-badge success" id="kpi-queued">Queued: 0</span>
+        <span>0 Policy Violations</span>
+      </div>
+    </article>
+
+    <!-- Card 3: Edge Compute -->
+    <article class="metric-card-pro">
+      <div class="metric-card-header">
+        <span class="metric-title">EDGE COMPUTE LOAD</span>
+        <div class="metric-icon-wrap warning">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+      </div>
+      <div class="metric-number warning" id="kpi-avg-cpu">29.7% CPU</div>
+      <div class="metric-footer">
+        <span>RAM: <strong style="color:#f8fafc;" id="kpi-avg-ram">36.3%</strong></span>
+        <span class="metric-sub-badge">Balanced Edge Load</span>
+      </div>
+    </article>
+
+    <!-- Card 4: Cloud Storage Tier -->
+    <article class="metric-card-pro">
+      <div class="metric-card-header">
+        <span class="metric-title">CLOUD STORAGE CAPACITY</span>
+        <div class="metric-icon-wrap indigo">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 7 19h10.5z"/></svg>
+        </div>
+      </div>
+      <div class="metric-number indigo" id="kpi-cloud-quota">1,000 GB</div>
+      <div class="metric-footer">
+        <span>Used: <strong style="color:#38bdf8;" id="kpi-cloud-used">0.00 MB</strong></span>
+        <span class="metric-sub-badge primary" id="kpi-cloud-latency">12.5ms Optimal</span>
+      </div>
+    </article>
+  </section>
+
+  <!-- =========================================================================
+       3. TWO-COLUMN SYSTEM PANELS: CONNECTED MEC & CLOUD STORAGE EXPLORER
+       ========================================================================= -->
+  <div class="system-panels-grid">
+
+    <!-- PANEL 1: CONNECTED MEC EDGE GATEWAY -->
+    <section class="panel-card" aria-labelledby="mec-gateway-heading">
+      <div>
+        <div class="panel-card-header">
+          <div class="panel-title-group">
+            <div class="panel-icon-box mec">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+            </div>
+            <div>
+              <h2 id="mec-gateway-heading" class="panel-title">Connected MEC Edge Gateway</h2>
+              <p class="panel-subtitle">Real-time edge telemetry verified with central Django server</p>
+            </div>
+          </div>
+          <div class="panel-header-actions">
+            <span class="status-chip" style="padding:3px 8px;font-size:0.72rem;background:rgba(16,185,129,0.15);color:#34d399;border-color:rgba(16,185,129,0.3);">
+              <span class="pulse-online"></span>
+              <strong id="mec-hero-status-text">ONLINE</strong>
+            </span>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-ping-mec" title="Send live heartbeat ping to MEC gateway">
+              ⚡ Ping Gateway
+            </button>
+          </div>
+        </div>
+
+        <!-- 2-Column Info Grid -->
+        <div class="specs-2col">
+          <div class="spec-item">
+            <span class="spec-label">DEVICE IDENTIFIER</span>
+            <span class="spec-value">
+              <code id="mec-hero-id">MEC-001</code>
+              <span style="font-size:0.75rem;color:#94a3b8;" id="mec-hero-name">Hospital Ward Edge GW</span>
+            </span>
+          </div>
+
+          <div class="spec-item">
+            <span class="spec-label">CENTRAL SERVER LINK</span>
+            <span class="spec-value">
+              <code id="mec-hero-server-url">http://127.0.0.1:8000</code>
+            </span>
+          </div>
+
+          <div class="spec-item">
+            <span class="spec-label">DIAGNOSTIC SOCKET</span>
+            <span class="spec-value">
+              <code id="mec-hero-ip-port">127.0.0.1:8001</code>
+              <span class="spec-badge success">Active Port</span>
+            </span>
+          </div>
+
+          <div class="spec-item">
+            <span class="spec-label">OPERATING PLATFORM</span>
+            <span class="spec-value" id="mec-hero-os" style="font-size:0.78rem;">
+              Ubuntu 22.04 LTS (Edge RT)
+            </span>
+          </div>
+
+          <div class="spec-item">
+            <span class="spec-label">PLACEMENT POLICY</span>
+            <span class="spec-value">
+              <span class="spec-badge primary">TRUSTED_EDGE</span>
+              <span style="font-size:0.72rem;color:#94a3b8;">Hospital Only</span>
+            </span>
+          </div>
+
+          <div class="spec-item">
+            <span class="spec-label">LAST HEARTBEAT</span>
+            <span class="spec-value" id="mec-hero-heartbeat" style="font-size:0.76rem;color:#cbd5e1;">
+              Just now (Synchronized)
+            </span>
+          </div>
+        </div>
+
+        <!-- 4-Meter Telemetry Gauges -->
+        <div class="telem-meters-grid">
+          <div class="meter-card">
+            <div class="meter-header">
+              <span class="meter-lbl">CPU LOAD</span>
+              <span class="meter-val primary" id="mec-hero-cpu">29.7%</span>
+            </div>
+            <div class="meter-bar-track">
+              <div class="meter-bar-fill primary" id="telem-bar-cpu" style="width: 29.7%;"></div>
+            </div>
+          </div>
+
+          <div class="meter-card">
+            <div class="meter-header">
+              <span class="meter-lbl">MEMORY</span>
+              <span class="meter-val info" id="mec-hero-ram">36.3%</span>
+            </div>
+            <div class="meter-bar-track">
+              <div class="meter-bar-fill info" id="telem-bar-ram" style="width: 36.3%;"></div>
+            </div>
+          </div>
+
+          <div class="meter-card">
+            <div class="meter-header">
+              <span class="meter-lbl">STORAGE DISK</span>
+              <span class="meter-val success" id="mec-hero-disk">22.0%</span>
+            </div>
+            <div class="meter-bar-track">
+              <div class="meter-bar-fill success" id="telem-bar-disk" style="width: 22.0%;"></div>
+            </div>
+          </div>
+
+          <div class="meter-card">
+            <div class="meter-header">
+              <span class="meter-lbl">LATENCY</span>
+              <span class="meter-val warning" id="mec-hero-latency">12.5ms</span>
+            </div>
+            <div class="meter-bar-track">
+              <div class="meter-bar-fill warning" id="telem-bar-lat" style="width: 25%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-footer-row">
+        <span>Gateway Telemetry Active &bull; Energy: <strong style="color:#f8fafc;">1.15 W</strong></span>
+        <a href="{% url 'mec_infrastructure' %}">MEC Infrastructure &rarr;</a>
+      </div>
+    </section>
+
+    <!-- PANEL 2: CLOUD STORAGE FOLDER EXPLORER -->
+    <section class="panel-card" aria-labelledby="cloud-explorer-heading">
+      <div>
+        <div class="panel-card-header">
+          <div class="panel-title-group">
+            <div class="panel-icon-box cloud">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 7 19h10.5z"/></svg>
+            </div>
+            <div>
+              <h2 id="cloud-explorer-heading" class="panel-title">Cloud Storage Folder Explorer</h2>
+              <p class="panel-subtitle">Structured multi-tier storage for public and de-identified data</p>
+            </div>
+          </div>
+          <div class="panel-header-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-cloud" title="Sync cloud directory status">
+              🔄 Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Quota Progress Meter -->
+        <div class="cloud-quota-bar">
+          <div class="quota-info-row">
+            <span>ALLOCATED CAPACITY</span>
+            <span><strong id="cloud-used-mb" style="color:#38bdf8;">0.00</strong> MB / 1,000.0 GB <span class="spec-badge">0.0% Used</span></span>
+          </div>
+          <div class="meter-bar-track">
+            <div id="cloud-meter-bar" class="meter-bar-fill info" style="width: 2%;"></div>
+          </div>
+        </div>
+
+        <!-- Folder Tree View -->
+        <div class="folder-tree-box">
+          <div class="folder-row" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px;">
+            <div class="folder-row-main">
+              <svg viewBox="0 0 24 24" fill="#818cf8"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
+              <span class="folder-path-name">data_storage/cloud_storage/</span>
+            </div>
+            <span class="spec-badge primary">CLOUD_ALLOWED</span>
+          </div>
+
+          <div class="folder-row">
+            <div class="folder-row-main">
+              <svg viewBox="0 0 24 24" fill="#38bdf8"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
+              <span class="folder-path-name">datasets/</span>
+              <span class="folder-purpose-text">&mdash; De-identified clinical research records</span>
+            </div>
+            <span class="spec-badge">Read/Write</span>
+          </div>
+
+          <div class="folder-row">
+            <div class="folder-row-main">
+              <svg viewBox="0 0 24 24" fill="#34d399"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
+              <span class="folder-path-name">results/</span>
+              <span class="folder-purpose-text">&mdash; Scheduling CSV benchmarks &amp; audit traces</span>
+            </div>
+            <span class="spec-badge">Audited</span>
+          </div>
+
+          <div class="folder-row">
+            <div class="folder-row-main">
+              <svg viewBox="0 0 24 24" fill="#a78bfa"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
+              <span class="folder-path-name">models/</span>
+              <span class="folder-purpose-text">&mdash; Genetic algorithm chromosome checkpoints</span>
+            </div>
+            <span class="spec-badge">Model Store</span>
+          </div>
+
+          <div class="folder-row">
+            <div class="folder-row-main">
+              <svg viewBox="0 0 24 24" fill="#fbbf24"><path d="M20 5h-8.586L9.707 3.293A1 1 0 0 0 9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg>
+              <span class="folder-path-name">manual_uploads/</span>
+              <span class="folder-purpose-text">&mdash; User-uploaded verified datasets</span>
+            </div>
+            <span class="spec-badge" style="color:#fbbf24;background:rgba(245,158,11,0.15);">Manual Only</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-footer-row">
+        <span><strong id="cloud-file-count" style="color:#f8fafc;">0</strong> files synchronized &bull; Zero external leakage</span>
+        <a href="{% url 'cloud_storage' %}">Full Cloud Storage &rarr;</a>
+      </div>
+    </section>
   </div>
 
-  <div class="policy-callout">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex: none;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-    <div>
-      <strong>Strict Data Governance:</strong> Datasets flagged with <code>LOCAL_ONLY</code> policy cannot be stored on MEC or Cloud tiers. Datasets flagged with <code>TRUSTED_EDGE</code> cannot be stored in Cloud tier. The system computes authentic SHA-256 cryptographic hashes upon upload.
+  <!-- =========================================================================
+       4. MANUAL DATASET INGESTION STUDIO (NO AUTOMATIC SEEDING)
+       ========================================================================= -->
+  <section class="ingestion-studio-panel" aria-labelledby="manual-ingestion-heading">
+    <div class="studio-header">
+      <div>
+        <h2 id="manual-ingestion-heading" class="studio-title">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Manual Dataset Ingestion Studio
+        </h2>
+        <p class="studio-subtitle">
+          Upload hospital datasets manually from your workstation. No external datasets are automatically inserted.
+        </p>
+      </div>
+      <span class="spec-badge" style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);padding:4px 10px;">
+        Policy Guard Enforcement Active
+      </span>
     </div>
-  </div>
 
-  <!-- Manual Upload Form -->
-  <form id="manual-dataset-form" enctype="multipart/form-data">
-    {% csrf_token %}
-    <div class="form-row">
-      <div class="form-col">
-        <label for="ds-name">Dataset Display Name *</label>
-        <input type="text" id="ds-name" name="name" class="form-input" placeholder="e.g., Ward-B Patient Vitals Batch" required>
-      </div>
-
-      <div class="form-col">
-        <label for="ds-policy">Data Privacy Placement Policy *</label>
-        <select id="ds-policy" name="privacy_policy" class="form-input" required>
-          <option value="LOCAL_ONLY">🔒 LOCAL_ONLY (Strict Hospital Workstation)</option>
-          <option value="TRUSTED_EDGE" selected>⚡ TRUSTED_EDGE (Permitted on Hospital MEC-001)</option>
-          <option value="CLOUD_ALLOWED">☁️ CLOUD_ALLOWED (De-identified / Cloud Permitted)</option>
-        </select>
-      </div>
-
-      <div class="form-col">
-        <label for="ds-destination">Target Storage Destination *</label>
-        <select id="ds-destination" name="target_destination" class="form-input" required>
-          <option value="LOCAL_STORAGE">💻 LOCAL_STORAGE (Workstation / 50 GB)</option>
-          <option value="MEC_STORAGE" selected>⚡ MEC_STORAGE (Hospital Edge MEC / 200 GB)</option>
-          <option value="CLOUD_STORAGE">☁️ CLOUD_STORAGE (Google Drive Tier / 1,000 GB)</option>
-        </select>
-      </div>
-
-      <div class="form-col">
-        <label for="ds-modality">Modality / Format</label>
-        <select id="ds-modality" name="modality" class="form-input">
-          <option value="CSV">Clinical CSV / Tabular Vitals</option>
-          <option value="IMAGES">Medical Images (JPEG / PNG / DICOM)</option>
-          <option value="JSON">Diagnostic JSON / HL7 Records</option>
-          <option value="TXT">Clinical Text Document</option>
-          <option value="ZIP">Batch ZIP Archive</option>
-        </select>
+    <!-- Governance Alert Callout -->
+    <div class="governance-alert">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:2px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div>
+        <strong>Strict Data Governance:</strong> Datasets flagged with <code>LOCAL_ONLY</code> policy cannot be transferred to MEC or Cloud tiers. Datasets flagged with <code>TRUSTED_EDGE</code> cannot be stored in the Cloud tier. Every file receives an authentic SHA-256 cryptographic checksum upon upload.
       </div>
     </div>
 
-    <!-- Drag and Drop File Input -->
-    <div class="upload-dropzone" id="dropzone">
-      <input type="file" id="ds-file" name="file" style="display: none;" required>
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin: 0 auto var(--space-2); color: var(--color-primary);"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="m8 16 4-4 4 4"></path></svg>
-      <div style="font-weight: 600; font-size: 0.95rem; color: var(--color-text);" id="dropzone-text">
-        Click to browse or drag and drop dataset file here
+    <!-- Manual Upload Form -->
+    <form id="manual-dataset-form" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <!-- 2 Clean Rows of 2 Columns -->
+      <div class="studio-form-grid">
+        <div class="field-group">
+          <label for="ds-name" class="field-label">Dataset Display Name *</label>
+          <input type="text" id="ds-name" name="name" class="field-input" placeholder="e.g., Ward-B Patient Vitals Batch" required>
+        </div>
+
+        <div class="field-group">
+          <label for="ds-modality" class="field-label">Modality / Format</label>
+          <select id="ds-modality" name="modality" class="field-select">
+            <option value="CSV">Clinical CSV / Tabular Vitals</option>
+            <option value="IMAGES">Medical Images (JPEG / PNG / DICOM)</option>
+            <option value="JSON">Diagnostic JSON / HL7 Records</option>
+            <option value="TXT">Clinical Text Document</option>
+            <option value="ZIP">Batch ZIP Archive</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label for="ds-policy" class="field-label">Data Privacy Placement Policy *</label>
+          <select id="ds-policy" name="privacy_policy" class="field-select" required>
+            <option value="LOCAL_ONLY">🔒 LOCAL_ONLY (Strict Hospital Workstation)</option>
+            <option value="TRUSTED_EDGE" selected>⚡ TRUSTED_EDGE (Permitted on Hospital MEC-001)</option>
+            <option value="CLOUD_ALLOWED">☁️ CLOUD_ALLOWED (De-identified / Cloud Permitted)</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label for="ds-destination" class="field-label">Target Storage Destination *</label>
+          <select id="ds-destination" name="target_destination" class="field-select" required>
+            <option value="LOCAL_STORAGE">💻 LOCAL_STORAGE (Workstation / 50 GB)</option>
+            <option value="MEC_STORAGE" selected>⚡ MEC_STORAGE (Hospital Edge MEC / 200 GB)</option>
+            <option value="CLOUD_STORAGE">☁️ CLOUD_STORAGE (Google Drive Tier / 1,000 GB)</option>
+          </select>
+        </div>
       </div>
-      <small style="color: var(--color-text-muted);">Supports .csv, .json, .png, .jpg, .dcm, .txt, .zip</small>
-    </div>
 
-    <div id="policy-violation-alert" class="alert alert-danger" style="display: none;"></div>
+      <!-- Drag & Drop Zone -->
+      <div class="studio-dropzone" id="dropzone">
+        <input type="file" id="ds-file" name="file" style="display: none;" required>
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="1.5" style="margin: 0 auto 6px;"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m8 16 4-4 4 4"/></svg>
+        <div class="dropzone-prompt" id="dropzone-text">
+          Click to browse or drag and drop dataset file here
+        </div>
+        <div class="dropzone-sub">Supports .csv, .json, .png, .jpg, .dcm, .txt, .zip</div>
+      </div>
 
-    <div style="display: flex; justify-content: flex-end; gap: var(--space-3);">
-      <button type="reset" class="btn btn-ghost">Clear</button>
-      <button type="submit" class="btn btn-primary" id="btn-upload-ds">
-        🚀 Upload &amp; Verify Dataset
-      </button>
-    </div>
-  </form>
+      <div id="policy-violation-alert" class="alert alert-danger" style="display: none; margin-bottom: var(--space-4);"></div>
 
-  <!-- Inventory of Manually Ingested Datasets -->
-  <div style="margin-top: var(--space-6);">
-    <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: var(--space-3); color: var(--color-heading);">
-      Manually Ingested Datasets Inventory
-    </h3>
-    <div class="table-container" style="border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden;">
-      <table class="clean-table">
+      <div style="display: flex; justify-content: flex-end; gap: var(--space-3);">
+        <button type="reset" class="btn btn-ghost btn-sm">Clear Form</button>
+        <button type="submit" class="btn btn-primary" id="btn-upload-ds">
+          🚀 Upload &amp; Verify Dataset
+        </button>
+      </div>
+    </form>
+
+    <!-- Inventory of Uploaded Datasets -->
+    <div class="inventory-table-wrap">
+      <table class="pro-table">
         <thead>
           <tr>
-            <th>Dataset ID / Name</th>
+            <th>Dataset Name</th>
             <th>File Name</th>
             <th>Size</th>
             <th>Governance Policy</th>
-            <th>Storage Destination</th>
+            <th>Destination</th>
             <th>SHA-256 Checksum</th>
             <th>Uploaded At</th>
             <th style="text-align: right;">Action</th>
@@ -1041,38 +1038,9 @@
         </tbody>
       </table>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- Network Topology Visualization -->
-<section class="card" aria-labelledby="topology-heading" style="margin-bottom: var(--space-6);">
-  <header class="card-header">
-    <h2 class="card-title" id="topology-heading">Edge–Cloud Network Topology</h2>
-    <div class="flex gap-2">
-      <span class="status-pill info" style="font-size: 11px;">
-        <span class="status-dot"></span>
-        Live Simulation
-      </span>
-      <button type="button" class="btn btn-ghost btn-sm" id="topology-fullscreen">Fullscreen</button>
-    </div>
-  </header>
-  <div class="card-content" style="padding: 0;">
-    <div id="topology-canvas" class="topology-container" role="img" aria-label="Network topology showing USER, DJANGO SERVER, MEC EDGE NODES, and CLOUD TIER with packet animations"></div>
-  </div>
-</section>
-
-<!-- Active & Recent Tasks Table -->
-<section class="card" aria-labelledby="tasks-heading">
-  <header class="card-header">
-    <h2 class="card-title" id="tasks-heading">Active &amp; Scheduled Tasks</h2>
-    <a href="{% url 'task_routing' %}" class="btn btn-ghost btn-sm">Task Routing Lab &rarr;</a>
-  </header>
-  <div class="card-content" style="padding: 0;">
-    <div id="recent-tasks" role="list">
-      <!-- Tasks populated by JavaScript -->
-    </div>
-  </div>
-</section>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -1080,85 +1048,89 @@
 document.addEventListener('DOMContentLoaded', () => {
   document.body.dataset.page = 'dashboard';
 
-  // --- 1. Load Connected MEC System Live Details ---
+  // --- 1. Load Connected MEC Gateway Details ---
   async function loadConnectedMec() {
     try {
       const res = await fetch('/api/mec/connected/');
       if (!res.ok) return;
       const data = await res.json();
-      
+
       const setText = (id, val) => {
         const el = document.getElementById(id);
         if (el) el.textContent = val;
       };
 
       setText('mec-hero-id', data.device_id || 'MEC-001');
+      setText('kpi-active-node-id', data.device_id || 'MEC-001');
+      setText('top-pill-mec', `${data.device_id || 'MEC-001'}:${data.port || 8001}`);
       setText('mec-hero-name', data.system_name || 'Hospital Ward Edge Gateway');
       setText('mec-hero-server-url', data.server_url || 'http://127.0.0.1:8000');
       setText('mec-hero-ip-port', `${data.ip_address || '127.0.0.1'}:${data.port || 8001}`);
-      setText('mec-hero-os', data.operating_system || 'Linux Ubuntu 22.04 LTS (Edge RT)');
+      setText('mec-hero-os', data.operating_system || 'Ubuntu 22.04 LTS (Edge RT)');
       setText('mec-hero-heartbeat', data.last_heartbeat || 'Just now');
-      setText('mec-hero-cpu', `${data.cpu_percent || 29.7}%`);
-      setText('mec-hero-ram', `${data.ram_percent || 36.3}%`);
-      setText('mec-hero-disk', `${data.disk_percent || 22.0}%`);
-      setText('mec-hero-latency', `${data.latency_ms || 12.5}ms`);
-      
-      setText('kpi-avg-cpu', `${data.cpu_percent || 29.7}%`);
-      setText('kpi-avg-latency', `${data.latency_ms || 12.5}ms`);
 
+      const isOnline = data.is_online || data.connected;
+      const statusText = document.getElementById('mec-hero-status-text');
+      if (statusText) statusText.textContent = isOnline ? 'ONLINE' : 'OFFLINE';
+
+      // Update Telemetry Values
+      const cpu = data.cpu_percent || 29.7;
+      const ram = data.ram_percent || 36.3;
+      const disk = data.disk_percent || 22.0;
+      const lat = data.latency_ms || 12.5;
+
+      setText('mec-hero-cpu', `${cpu}%`);
+      setText('kpi-avg-cpu', `${cpu}% CPU`);
+      setText('mec-hero-ram', `${ram}%`);
+      setText('kpi-avg-ram', `${ram}%`);
+      setText('mec-hero-disk', `${disk}%`);
+      setText('mec-hero-latency', `${lat}ms`);
+      setText('kpi-cloud-latency', `${lat}ms Optimal`);
+
+      // Progress bars
       const barCpu = document.getElementById('telem-bar-cpu');
       const barRam = document.getElementById('telem-bar-ram');
       const barDisk = document.getElementById('telem-bar-disk');
       const barLat = document.getElementById('telem-bar-lat');
-      if (barCpu) barCpu.style.width = `${data.cpu_percent || 29.7}%`;
-      if (barRam) barRam.style.width = `${data.ram_percent || 36.3}%`;
-      if (barDisk) barDisk.style.width = `${data.disk_percent || 22.0}%`;
-      if (barLat) barLat.style.width = `${Math.min(100, ((data.latency_ms || 12.5) / 50) * 100)}%`;
 
-      const pill = document.getElementById('mec-hero-status-pill');
-      const text = document.getElementById('mec-hero-status-text');
-      if (pill && text) {
-        if (data.is_online) {
-          pill.className = 'status-pill-v2 online';
-          text.textContent = 'ONLINE';
-        } else {
-          pill.className = 'status-pill-v2 offline';
-          text.textContent = 'OFFLINE';
-        }
-      }
+      if (barCpu) barCpu.style.width = `${cpu}%`;
+      if (barRam) barRam.style.width = `${ram}%`;
+      if (barDisk) barDisk.style.width = `${disk}%`;
+      if (barLat) barLat.style.width = `${Math.min(100, (lat / 50) * 100)}%`;
     } catch (err) {
       console.warn('Connected MEC fetch error:', err);
     }
   }
 
-  // --- 2. Live Ping MEC Gateway Button ---
+  // --- 2. Live Ping to MEC Gateway ---
   const btnPing = document.getElementById('btn-ping-mec');
   if (btnPing) {
     btnPing.addEventListener('click', async () => {
       btnPing.disabled = true;
-      btnPing.textContent = '⚡ Pinging...';
+      btnPing.textContent = 'Pinging...';
       try {
-        const res = await fetch('/api/mec/ping/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
-        });
+        const res = await fetch('/api/mec/ping/', { method: 'POST' });
         const d = await res.json();
-        if (d.success) {
-          const cpuEl = document.getElementById('mec-hero-cpu');
-          const ramEl = document.getElementById('mec-hero-ram');
-          const latEl = document.getElementById('mec-hero-latency');
-          const hbEl = document.getElementById('mec-hero-heartbeat');
+        if (res.ok && d.success) {
+          const setText = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+          };
+          setText('mec-hero-cpu', `${d.cpu_percent}%`);
+          setText('kpi-avg-cpu', `${d.cpu_percent}% CPU`);
+          setText('mec-hero-ram', `${d.ram_percent}%`);
+          setText('kpi-avg-ram', `${d.ram_percent}%`);
+          setText('mec-hero-latency', `${d.latency_ms}ms`);
+          setText('kpi-cloud-latency', `${d.latency_ms}ms Optimal`);
+          setText('mec-hero-heartbeat', d.timestamp);
+
           const barCpu = document.getElementById('telem-bar-cpu');
           const barRam = document.getElementById('telem-bar-ram');
           const barLat = document.getElementById('telem-bar-lat');
-          if (cpuEl) cpuEl.textContent = `${d.cpu_percent}%`;
-          if (ramEl) ramEl.textContent = `${d.ram_percent}%`;
-          if (latEl) latEl.textContent = `${d.latency_ms}ms`;
-          if (hbEl) hbEl.textContent = d.timestamp;
           if (barCpu) barCpu.style.width = `${d.cpu_percent}%`;
           if (barRam) barRam.style.width = `${d.ram_percent}%`;
           if (barLat) barLat.style.width = `${Math.min(100, (d.latency_ms / 50) * 100)}%`;
+
           if (typeof showToast === 'function') {
             showToast(`MEC Gateway ping acknowledged (${d.latency_ms} ms)`, 'success');
           }
@@ -1181,12 +1153,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const files = data.files || [];
       const countEl = document.getElementById('cloud-file-count');
       const usedEl = document.getElementById('cloud-used-mb');
+      const kpiUsedEl = document.getElementById('kpi-cloud-used');
       const barEl = document.getElementById('cloud-meter-bar');
 
       if (countEl) countEl.textContent = files.length;
       const totalBytes = files.reduce((acc, f) => acc + (f.file_size || 0), 0);
       const mb = (totalBytes / (1024 * 1024)).toFixed(2);
       if (usedEl) usedEl.textContent = mb;
+      if (kpiUsedEl) kpiUsedEl.textContent = `${mb} MB`;
       if (barEl) {
         const pct = Math.max(1, Math.min(100, (parseFloat(mb) / (1000 * 1024)) * 100));
         barEl.style.width = `${pct}%`;
@@ -1349,23 +1323,23 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       tbody.innerHTML = list.map(ds => {
-        const policyColor = ds.privacy_policy === 'LOCAL_ONLY' ? 'var(--color-danger)' : (ds.privacy_policy === 'TRUSTED_EDGE' ? 'var(--color-info)' : 'var(--color-success)');
+        const policyColor = ds.privacy_policy === 'LOCAL_ONLY' ? '#ef4444' : (ds.privacy_policy === 'TRUSTED_EDGE' ? '#38bdf8' : '#34d399');
         const shortHash = ds.sha256 ? `${ds.sha256.slice(0, 12)}...` : 'N/A';
         const sizeKb = (ds.file_size / 1024).toFixed(1);
         return `
           <tr>
             <td>
-              <strong style="color: var(--color-text);">${escapeHtml(ds.name)}</strong><br>
-              <code style="font-size: 0.72rem; color: var(--color-text-muted);">${escapeHtml(ds.dataset_id)}</code>
+              <strong style="color: #f8fafc;">${escapeHtml(ds.name)}</strong><br>
+              <code style="font-size: 0.72rem; color: #94a3b8;">${escapeHtml(ds.dataset_id)}</code>
             </td>
-            <td><code style="font-size: 0.8rem;">${escapeHtml(ds.file_name)}</code></td>
+            <td><code style="font-size: 0.78rem;">${escapeHtml(ds.file_name)}</code></td>
             <td style="font-family: var(--font-mono);">${sizeKb} KB</td>
-            <td><span class="badge" style="border: 1px solid ${policyColor}; color: ${policyColor}; font-size: 0.72rem;">${escapeHtml(ds.privacy_policy)}</span></td>
+            <td><span class="spec-badge" style="border: 1px solid ${policyColor}; color: ${policyColor}; font-size: 0.72rem;">${escapeHtml(ds.privacy_policy)}</span></td>
             <td><strong>${escapeHtml(ds.destination)}</strong></td>
-            <td><code title="${escapeHtml(ds.sha256)}" style="font-size: 0.75rem; color: var(--color-primary); cursor: pointer;">${escapeHtml(shortHash)}</code></td>
-            <td style="font-size: 0.78rem; color: var(--color-text-muted);">${escapeHtml(ds.created_at)}</td>
+            <td><code title="${escapeHtml(ds.sha256)}" style="font-size: 0.75rem; color: #38bdf8; cursor: pointer;">${escapeHtml(shortHash)}</code></td>
+            <td style="font-size: 0.76rem; color: #94a3b8;">${escapeHtml(ds.created_at)}</td>
             <td style="text-align: right;">
-              <button type="button" class="btn btn-ghost btn-sm btn-delete-ds" data-id="${escapeHtml(ds.dataset_id)}" style="color: var(--color-danger);" title="Delete dataset">
+              <button type="button" class="btn btn-ghost btn-sm btn-delete-ds" data-id="${escapeHtml(ds.dataset_id)}" style="color: #ef4444; padding: 2px 6px;" title="Delete dataset">
                 🗑️
               </button>
             </td>

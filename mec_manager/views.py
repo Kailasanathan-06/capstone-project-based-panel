@@ -274,6 +274,9 @@ class MECHeartbeatViewSet(viewsets.ViewSet):
     authentication_classes = [SessionAuthentication, TokenAuthentication]
     permission_classes = [AllowAny]
 
+    def get_permissions(self):
+        return [AllowAny()]
+
     def list(self, request):
         mec_id = request.query_params.get("mec_id", "")
         if not mec_id:

@@ -2,149 +2,120 @@
 {% load static %}
 
 {% block title %}Cloud Storage Tier - SecureDT{% endblock %}
+{% block body_page %}cloud_storage{% endblock %}
+{% block page_crumb %}Cloud Storage{% endblock %}
 
 {% block extra_css %}
 <style>
-  .cloud-header-banner {
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 100%);
-    border: 1px solid rgba(6, 182, 212, 0.35);
-    border-radius: var(--radius-xl);
-    padding: var(--space-6);
-    margin-bottom: var(--space-6);
-    box-shadow: var(--shadow-md);
-  }
-  .cloud-folder-card {
-    background: var(--color-bg-card);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: var(--space-5);
-    transition: var(--tr-fast);
-  }
-  .cloud-folder-card:hover {
-    border-color: var(--color-info);
-    transform: translateY(-2px);
-  }
-  .folder-icon-large {
-    font-size: 2rem;
-    margin-bottom: var(--space-2);
-  }
-  .folder-stats {
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
-    font-family: var(--font-mono);
-  }
+.cloud-banner{background:linear-gradient(135deg,rgba(15,23,42,.95),rgba(30,41,59,.9));border:1px solid rgba(6,182,212,.3);border-radius:var(--radius-xl);padding:var(--space-6);margin-bottom:var(--space-6);}
+.cloud-folder-card{background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-5);transition:all .25s;cursor:pointer;}
+.cloud-folder-card:hover{border-color:var(--color-info);transform:translateY(-2px);box-shadow:var(--shadow-md);}
+.folder-icon{width:48px;height:48px;border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center;margin-bottom:var(--space-3);}
+.folder-stats{font-size:.78rem;color:var(--color-text-muted);font-family:var(--font-mono);margin-top:var(--space-2);}
+.quota-bar{width:100%;height:8px;background:var(--color-bg-elevated);border-radius:99px;overflow:hidden;margin-top:6px;}
+.quota-fill{height:100%;background:linear-gradient(90deg,var(--color-info),var(--color-primary));border-radius:99px;transition:width .6s ease;}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="cloud-header-banner">
-  <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: var(--space-4);">
+<!-- Cloud Header Banner -->
+<div class="cloud-banner">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:var(--space-4);">
     <div>
-      <h1 class="page-title" style="display: flex; align-items: center; gap: 10px;">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-info);"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 7 19h10.5z"></path></svg>
+      <h1 class="page-title" style="display:flex;align-items:center;gap:10px;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-info);"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 7 19h10.5z"/></svg>
         Cloud Storage Tier &amp; Folder Explorer
       </h1>
-      <p class="page-subtitle" style="margin-top: 4px;">
-        Google Drive &amp; Off-Premise Storage Destination &middot; Tier Policy: <strong style="color: var(--color-info);">CLOUD_ALLOWED</strong> only
+      <p class="page-subtitle" style="margin-top:4px;">
+        Off-Premise Storage Destination &middot; Tier Policy: <strong style="color:var(--color-info);">CLOUD_ALLOWED</strong> tasks only
       </p>
     </div>
-    <div style="display: flex; gap: var(--space-2);">
-      <button class="btn btn-secondary btn-sm" id="btn-cloud-quota">📊 Audit Quota</button>
-      <button class="btn btn-primary btn-sm" id="btn-cloud-sync">🔄 Sync Folders</button>
+    <div class="flex gap-2">
+      <button class="btn btn-secondary btn-sm" id="btn-cloud-quota">Audit Quota</button>
+      <button class="btn btn-primary btn-sm" id="btn-cloud-sync">
+        <svg class="icon" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
+        Sync Folders
+      </button>
     </div>
   </div>
-
-  <!-- Quota Meter -->
-  <div style="margin-top: var(--space-4); max-width: 600px;">
-    <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 6px;">
-      <span style="color: var(--color-text-muted);">Allocated Cloud Quota:</span>
-      <span style="font-family: var(--font-mono); font-weight: 600;"><span id="cloud-meter-val">0.0</span> MB / 1,000.0 GB (0.01% utilized)</span>
+  <div style="margin-top:var(--space-4);max-width:580px;">
+    <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:6px;">
+      <span style="color:var(--color-text-muted);">Allocated Cloud Quota:</span>
+      <span style="font-family:var(--font-mono);font-weight:600;"><span id="cloud-meter-val">0.0</span> MB / 1,000.0 GB</span>
     </div>
-    <div style="width: 100%; height: 8px; background: var(--color-bg-elevated); border-radius: 99px; overflow: hidden;">
-      <div id="cloud-meter-fill" style="width: 1%; height: 100%; background: linear-gradient(90deg, var(--color-info), var(--color-primary));"></div>
-    </div>
+    <div class="quota-bar"><div class="quota-fill" id="cloud-meter-fill" style="width:0.01%;"></div></div>
   </div>
 </div>
 
 <!-- KPI Cards -->
-<div class="kpi-grid" style="margin-bottom: var(--space-6);">
-  <article class="kpi-card"><span class="kpi-label">Total Files</span><span class="kpi-value primary" id="cloud-total-files">0</span></article>
-  <article class="kpi-card"><span class="kpi-label">Storage Consumed</span><span class="kpi-value info" id="cloud-total-size">0.0 MB</span></article>
-  <article class="kpi-card"><span class="kpi-label">Datasets Stored</span><span class="kpi-value success" id="cloud-datasets">0</span></article>
-  <article class="kpi-card"><span class="kpi-label">Results &amp; Traces</span><span class="kpi-value primary" id="cloud-results">0</span></article>
-  <article class="kpi-card"><span class="kpi-label">GA Models</span><span class="kpi-value warning" id="cloud-models">0</span></article>
-  <article class="kpi-card"><span class="kpi-label">Storage Capacity</span><span class="kpi-value success" id="cloud-free-space">1,000 GB</span></article>
+<div class="kpi-grid" style="margin-bottom:var(--space-6);">
+  <article class="kpi-card"><span class="kpi-label">Total Files</span><span class="kpi-value primary" id="cloud-total-files">0</span><div class="kpi-meta"><span class="kpi-trend">Synchronized</span></div></article>
+  <article class="kpi-card"><span class="kpi-label">Storage Consumed</span><span class="kpi-value info" id="cloud-total-size">0.0 MB</span><div class="kpi-meta"><span class="kpi-trend">of 1 TB quota</span></div></article>
+  <article class="kpi-card"><span class="kpi-label">Datasets Stored</span><span class="kpi-value success" id="cloud-datasets">0</span><div class="kpi-meta"><span class="kpi-trend">Clinical datasets</span></div></article>
+  <article class="kpi-card"><span class="kpi-label">Results &amp; Traces</span><span class="kpi-value primary" id="cloud-results">0</span><div class="kpi-meta"><span class="kpi-trend">Benchmark exports</span></div></article>
+  <article class="kpi-card"><span class="kpi-label">GA Models</span><span class="kpi-value warning" id="cloud-models">0</span><div class="kpi-meta"><span class="kpi-trend">Checkpoints</span></div></article>
+  <article class="kpi-card"><span class="kpi-label">Storage Capacity</span><span class="kpi-value success" id="cloud-free-space">1,000 GB</span><div class="kpi-meta"><span class="kpi-trend">Total quota</span></div></article>
 </div>
 
-<!-- Structured Cloud Folders Grid -->
-<h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: var(--space-4); color: var(--color-heading);">
-  Structured Cloud Storage Directories
+<!-- Cloud Folder Structure -->
+<h2 style="font-size:1rem;font-weight:700;margin-bottom:var(--space-4);color:var(--color-heading);">
+  Cloud Storage Directories
 </h2>
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-4); margin-bottom: var(--space-6);">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--space-4);margin-bottom:var(--space-6);">
   <div class="cloud-folder-card">
-    <div class="folder-icon-large" style="color: var(--color-primary);">📁</div>
-    <h3 style="font-size: 1rem; font-weight: 650; margin-bottom: 4px;">datasets/</h3>
-    <p style="font-size: 0.82rem; color: var(--color-text-muted); margin-bottom: var(--space-3);">
-      De-identified clinical research &amp; IoT datasets permitted for off-premise replication.
-    </p>
-    <div class="folder-stats">Policy: <span style="color: var(--color-info);">CLOUD_ALLOWED</span></div>
+    <div class="folder-icon" style="background:rgba(56,189,248,.12);">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    </div>
+    <h3 style="font-size:.95rem;font-weight:700;margin-bottom:4px;">datasets/</h3>
+    <p style="font-size:.82rem;color:var(--color-text-muted);">De-identified clinical research and IoT datasets permitted for off-premise replication.</p>
+    <div class="folder-stats">Policy: <span style="color:var(--color-info);">CLOUD_ALLOWED</span></div>
   </div>
-
   <div class="cloud-folder-card">
-    <div class="folder-icon-large" style="color: var(--color-success);">📁</div>
-    <h3 style="font-size: 1rem; font-weight: 650; margin-bottom: 4px;">results/</h3>
-    <p style="font-size: 0.82rem; color: var(--color-text-muted); margin-bottom: var(--space-3);">
-      Exported 14-column comparative benchmark CSV files and scheduler performance traces.
-    </p>
+    <div class="folder-icon" style="background:rgba(16,185,129,.12);">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    </div>
+    <h3 style="font-size:.95rem;font-weight:700;margin-bottom:4px;">results/</h3>
+    <p style="font-size:.82rem;color:var(--color-text-muted);">Exported 14-column comparative benchmark CSV files and scheduler performance traces.</p>
     <div class="folder-stats">Access: Public Verified</div>
   </div>
-
   <div class="cloud-folder-card">
-    <div class="folder-icon-large" style="color: var(--color-warning);">📁</div>
-    <h3 style="font-size: 1rem; font-weight: 650; margin-bottom: 4px;">models/</h3>
-    <p style="font-size: 0.82rem; color: var(--color-text-muted); margin-bottom: var(--space-3);">
-      Genetic Algorithm chromosome checkpoints and AI intelligence weights.
-    </p>
+    <div class="folder-icon" style="background:rgba(245,158,11,.12);">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    </div>
+    <h3 style="font-size:.95rem;font-weight:700;margin-bottom:4px;">models/</h3>
+    <p style="font-size:.82rem;color:var(--color-text-muted);">Genetic Algorithm chromosome checkpoints and AI intelligence model weights.</p>
     <div class="folder-stats">Sync: Bidirectional</div>
   </div>
-
   <div class="cloud-folder-card">
-    <div class="folder-icon-large" style="color: var(--color-danger);">📁</div>
-    <h3 style="font-size: 1rem; font-weight: 650; margin-bottom: 4px;">manual_uploads/</h3>
-    <p style="font-size: 0.82rem; color: var(--color-text-muted); margin-bottom: var(--space-3);">
-      User-uploaded manual datasets assigned to the Cloud storage tier.
-    </p>
-    <div class="folder-stats">Ingestion: Manual Only</div>
+    <div class="folder-icon" style="background:rgba(239,68,68,.12);">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-danger)" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    </div>
+    <h3 style="font-size:.95rem;font-weight:700;margin-bottom:4px;">manual_uploads/</h3>
+    <p style="font-size:.82rem;color:var(--color-text-muted);">User-uploaded manual datasets assigned to the Cloud storage tier.</p>
+    <div class="folder-stats">Ingestion: <span style="color:var(--color-warning);">Manual Only</span></div>
   </div>
 </div>
 
-<!-- Cloud Storage File Explorer Table -->
-<section class="card" aria-labelledby="files-heading">
-  <header class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-    <h2 class="card-title" id="files-heading">Synchronized Cloud Files Explorer</h2>
-    <span class="badge" style="font-size: 0.75rem; border: 1px solid var(--color-border); color: var(--color-text-muted);">
-      Direct Stream &amp; Download Available
-    </span>
+<!-- File Explorer Table -->
+<section class="card" aria-labelledby="files-h">
+  <header class="card-header">
+    <h2 class="card-title" id="files-h">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 7 19h10.5z"/></svg>
+      Synchronized Cloud Files
+    </h2>
+    <span class="badge badge-ghost">Direct Stream &amp; Download</span>
   </header>
-  <div class="card-content" style="padding: 0;">
+  <div class="card-content" style="padding:0;">
     <div class="table-container">
       <table class="table">
         <thead>
           <tr>
-            <th>File Name</th>
-            <th>Folder / Category</th>
-            <th>Size</th>
-            <th>Governance Policy</th>
-            <th>Uploaded / Synchronized</th>
-            <th style="text-align: right;">Action</th>
+            <th>File Name</th><th>Folder / Category</th><th>Size</th>
+            <th>Governance Policy</th><th>Uploaded / Synchronized</th><th style="text-align:right;">Action</th>
           </tr>
         </thead>
         <tbody id="cloud-files-body">
-          <tr>
-            <td colspan="6" style="text-align: center; color: var(--color-text-muted); padding: var(--space-8);">
-              Loading synchronized cloud files...
-            </td>
-          </tr>
+          <tr><td colspan="6" style="text-align:center;color:var(--color-text-muted);padding:var(--space-8);">Loading synchronized cloud files...</td></tr>
         </tbody>
       </table>
     </div>
@@ -155,88 +126,61 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  document.body.dataset.page = 'cloud_storage';
+  function formatBytes(b) {
+    if (!b||b===0) return '0 B';
+    const k=1024, sz=['B','KB','MB','GB'], i=Math.floor(Math.log(b)/Math.log(k));
+    return parseFloat((b/Math.pow(k,i)).toFixed(2))+' '+sz[i];
+  }
+  function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
 
   async function loadCloudFiles() {
-    const tbody = document.getElementById('cloud-files-body');
+    const tbody=document.getElementById('cloud-files-body');
     try {
-      const res = await fetch('/api/cloud/files/');
-      if (!res.ok) throw new Error('Cloud API returned status ' + res.status);
-      const data = await res.json();
-      const files = data.files || [];
+      const res=await fetch('/api/cloud/files/');
+      if (!res.ok) throw new Error('Status '+res.status);
+      const data=await res.json();
+      const files=data.files||[];
 
-      // Update KPI counters
-      document.getElementById('cloud-total-files').textContent = files.length;
-      const totalBytes = files.reduce((acc, f) => acc + (f.file_size || 0), 0);
-      const mb = (totalBytes / (1024 * 1024)).toFixed(2);
-      document.getElementById('cloud-total-size').textContent = `${mb} MB`;
-      document.getElementById('cloud-meter-val').textContent = mb;
-      document.getElementById('cloud-datasets').textContent = files.filter(f => f.result_type === 'dataset').length;
-      document.getElementById('cloud-results').textContent = files.filter(f => f.result_type === 'result').length;
-      document.getElementById('cloud-models').textContent = files.filter(f => f.result_type === 'model').length;
+      document.getElementById('cloud-total-files').textContent=files.length;
+      const totalBytes=files.reduce((a,f)=>a+(f.file_size||0),0);
+      const mb=(totalBytes/(1024*1024)).toFixed(2);
+      document.getElementById('cloud-total-size').textContent=mb+' MB';
+      document.getElementById('cloud-meter-val').textContent=mb;
+      document.getElementById('cloud-meter-fill').style.width=Math.min((totalBytes/(1024*1024*1024*1000))*100,100).toFixed(4)+'%';
+      document.getElementById('cloud-datasets').textContent=files.filter(f=>f.result_type==='dataset').length;
+      document.getElementById('cloud-results').textContent=files.filter(f=>f.result_type==='result').length;
+      document.getElementById('cloud-models').textContent=files.filter(f=>f.result_type==='model').length;
 
       if (!files.length) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="6" style="text-align:center; color: var(--color-text-muted); padding: var(--space-8);">
-              No files currently placed in Cloud Storage tier. Use the Manual Dataset Ingestion Studio or export benchmark results to replicate files to cloud_storage.
-            </td>
-          </tr>`;
+        tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--color-text-muted);padding:var(--space-8);">No files in Cloud Storage tier. Use the Dataset Manager or export benchmark results to replicate files to cloud storage.</td></tr>';
         return;
       }
-
-      tbody.innerHTML = files.map(f => `
-        <tr>
-          <td><code class="font-mono" style="color: var(--color-text);">${escapeHtml(f.file_name)}</code></td>
-          <td><span class="badge" style="background: var(--color-bg-elevated); color: var(--color-info);">${escapeHtml(f.folder_path || f.result_type || 'cloud_storage')}</span></td>
-          <td style="font-family: var(--font-mono);">${formatBytes(f.file_size)}</td>
-          <td><span class="badge" style="border: 1px solid var(--color-info); color: var(--color-info); font-size: 0.72rem;">CLOUD_ALLOWED</span></td>
-          <td style="font-size: 0.8rem; color: var(--color-text-muted);">${f.upload_timestamp ? f.upload_timestamp.slice(0, 19).replace('T', ' ') : 'Synchronized'}</td>
-          <td style="text-align: right;">
-            <a class="btn btn-ghost btn-sm" href="/api/cloud/download/${escapeHtml(f.file_id)}/" style="color: var(--color-primary);">Download</a>
-          </td>
-        </tr>`).join('');
-    } catch (err) {
-      console.warn('Cloud files error:', err);
-      if (tbody) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="6" style="text-align:center; color: var(--color-danger); padding: var(--space-4);">
-              Unable to load cloud storage files: ${escapeHtml(err.message)}
-            </td>
-          </tr>`;
-      }
+      tbody.innerHTML=files.map(f=>
+        '<tr>'+
+          '<td><code class="font-mono" style="font-size:.8rem;">'+esc(f.file_name)+'</code></td>'+
+          '<td><span class="badge" style="background:var(--color-bg-elevated);color:var(--color-info);">'+esc(f.folder_path||f.result_type||'cloud')+'</span></td>'+
+          '<td style="font-family:var(--font-mono);font-size:var(--font-size-sm);">'+formatBytes(f.file_size)+'</td>'+
+          '<td><span class="badge" style="border:1px solid var(--color-info);color:var(--color-info);font-size:.7rem;">CLOUD_ALLOWED</span></td>'+
+          '<td style="font-size:.8rem;color:var(--color-text-muted);">'+(f.upload_timestamp?f.upload_timestamp.slice(0,19).replace('T',' '):'Synchronized')+'</td>'+
+          '<td style="text-align:right;"><a class="btn btn-ghost btn-sm" href="/api/cloud/download/'+esc(f.file_id)+'/" style="color:var(--color-primary);">Download</a></td>'+
+        '</tr>'
+      ).join('');
+    } catch(err) {
+      if (tbody) tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--color-danger);padding:var(--space-4);">Unable to load cloud files: '+esc(err.message)+'</td></tr>';
     }
   }
 
-  function formatBytes(bytes) {
-    if (!bytes || bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
-
-  function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  const btnSync = document.getElementById('btn-cloud-sync');
-  if (btnSync) btnSync.addEventListener('click', loadCloudFiles);
-
-  const btnQuota = document.getElementById('btn-cloud-quota');
-  if (btnQuota) {
-    btnQuota.addEventListener('click', async () => {
-      try {
-        const res = await fetch('/api/cloud/status/');
-        const s = await res.json();
-        if (typeof showToast === 'function') {
-          showToast(`Cloud Mode: ${s.mode || 'SIMULATION'} | Capacity: 1,000 GB Quota`, 'info');
-        }
-      } catch (e) {}
-    });
-  }
+  document.getElementById('btn-cloud-sync')?.addEventListener('click', loadCloudFiles);
+  document.getElementById('btn-cloud-quota')?.addEventListener('click', async () => {
+    try {
+      const res=await fetch('/api/cloud/status/');
+      const s=await res.json();
+      SecureDT.showToast('Cloud Mode: '+(s.mode||'SIMULATION')+' | Capacity: 1,000 GB', 'info');
+    } catch(e) {}
+  });
 
   loadCloudFiles();
 });

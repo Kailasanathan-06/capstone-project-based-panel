@@ -22,10 +22,7 @@ class DevAutoLoginMiddleware:
             # Check if user is not already authenticated
             user = getattr(request, "user", None)
             if not user or not user.is_authenticated:
-                is_api_path = request.path.startswith("/api/")
-                # If visiting an HTML page or session already initialized from browser
-                has_session = hasattr(request, "session") and (request.session.session_key or not is_api_path)
-                if has_session:
+                if hasattr(request, "session"):
                     try:
                         admin_user = User.objects.filter(username="admin").first()
                         if not admin_user:
@@ -36,8 +33,12 @@ class DevAutoLoginMiddleware:
                             )
                         if admin_user:
                             login(request, admin_user)
+                            request.user = admin_user
+                            if not request.session.session_key:
+                                request.session.save()
                     except Exception:
                         pass
 
         response = self.get_response(request)
         return response
+

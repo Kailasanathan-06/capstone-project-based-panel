@@ -2,302 +2,307 @@
 {% load static %}
 
 {% block title %}Task Routing - SecureDT{% endblock %}
+{% block body_page %}task_routing{% endblock %}
+{% block page_crumb %}Task Routing{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Pipeline ──────────────────────────────────────────── */
+.pipeline-strip{display:flex;align-items:flex-start;overflow-x:auto;padding:var(--space-4) 0;}
+.pipeline-step{display:flex;flex-direction:column;align-items:center;flex:1;min-width:88px;position:relative;padding:0 4px;text-align:center;}
+.pipeline-step:not(:last-child)::after{content:"";position:absolute;top:27px;left:50%;width:100%;height:2px;background:var(--color-border);z-index:0;}
+.pipeline-step.completed:not(:last-child)::after{background:var(--color-success);}
+.pipeline-step.active:not(:last-child)::after{background:var(--color-primary);}
+.step-circle{width:54px;height:54px;border-radius:50%;background:var(--color-bg-elevated);border:2px solid var(--color-border);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;color:var(--color-text-muted);position:relative;z-index:1;transition:all .3s;margin-bottom:8px;}
+.pipeline-step.active .step-circle{border-color:var(--color-primary);background:rgba(56,189,248,.1);color:var(--color-primary);box-shadow:0 0 18px rgba(56,189,248,.35);animation:pulseC 1.5s ease-in-out infinite;}
+.pipeline-step.completed .step-circle{border-color:var(--color-success);background:rgba(16,185,129,.1);color:var(--color-success);}
+@keyframes pulseC{0%,100%{box-shadow:0 0 18px rgba(56,189,248,.35);}50%{box-shadow:0 0 32px rgba(56,189,248,.6);}}
+.step-label{font-size:.65rem;font-weight:600;color:var(--color-text-muted);line-height:1.3;}
+.pipeline-step.active .step-label{color:var(--color-primary);}
+.pipeline-step.completed .step-label{color:var(--color-success);}
+.step-pill{display:inline-block;font-size:.58rem;padding:2px 7px;border-radius:99px;margin-top:4px;background:var(--color-bg-elevated);color:var(--color-text-muted);border:1px solid var(--color-border);}
+.pipeline-step.active .step-pill{background:rgba(56,189,248,.12);color:var(--color-primary);border-color:rgba(56,189,248,.3);}
+.pipeline-step.completed .step-pill{background:rgba(16,185,129,.1);color:var(--color-success);border-color:rgba(16,185,129,.3);}
+/* ── Layout ────────────────────────────────────────────── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-6);margin-bottom:var(--space-6);}
+@media(max-width:900px){.two-col{grid-template-columns:1fr;}}
+.f-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);}
+@media(max-width:640px){.f-grid-2{grid-template-columns:1fr;}}
+.fg{display:flex;flex-direction:column;gap:4px;}
+.fg label{font-size:var(--font-size-sm);font-weight:600;}
+.fi,.fs{width:100%;padding:var(--space-2) var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg-elevated);color:var(--color-text);font-family:inherit;font-size:var(--font-size-sm);transition:border-color .2s;}
+.fi:focus,.fs:focus{outline:none;border-color:var(--color-primary);}
+.fr{width:100%;accent-color:var(--color-primary);cursor:pointer;}
+.rv{font-size:var(--font-size-sm);font-weight:700;font-family:var(--font-mono);color:var(--color-primary);min-width:28px;text-align:right;}
+/* ── Routing nodes ─────────────────────────────────────── */
+.routing-nodes{display:flex;flex-direction:column;gap:var(--space-3);}
+.rnode{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4);background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-lg);transition:all .3s;}
+.rnode.active-route{border-color:var(--color-success);background:rgba(16,185,129,.05);box-shadow:0 0 16px rgba(16,185,129,.2);animation:rng 2s ease-in-out infinite;}
+.rnode.highlight{border-color:var(--color-primary);background:rgba(56,189,248,.05);}
+@keyframes rng{0%,100%{box-shadow:0 0 12px rgba(16,185,129,.2);}50%{box-shadow:0 0 28px rgba(16,185,129,.4);}}
+.rnode-icon{width:40px;height:40px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.rnode-icon.lcl{background:rgba(56,189,248,.12);color:var(--color-primary);}
+.rnode-icon.mec{background:rgba(245,158,11,.12);color:var(--color-warning);}
+.rnode-icon.cld{background:rgba(16,185,129,.12);color:var(--color-success);}
+.rn-info{flex:1;}
+.rn-name{font-weight:700;font-size:var(--font-size-sm);}
+.rn-meta{font-size:var(--font-size-xs);color:var(--color-text-muted);font-family:var(--font-mono);margin-top:2px;}
+.r-arrow{text-align:center;color:var(--color-text-muted);padding:2px 0;}
+.route-result{background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.2);border-radius:var(--radius-lg);padding:var(--space-4);display:none;margin-top:var(--space-3);}
+.route-result.visible{display:block;}
+.rr-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);}
+.rr-row{display:flex;flex-direction:column;gap:2px;}
+.rr-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-muted);}
+.rr-val{font-size:var(--font-size-sm);font-weight:700;font-family:var(--font-mono);}
+/* ── Progress bar mini ─────────────────────────────────── */
+.pmini{height:6px;width:80px;background:var(--color-bg-elevated);border-radius:99px;overflow:hidden;}
+.pmini-fill{height:100%;border-radius:99px;background:var(--color-primary);transition:width .5s;}
+.pmini-fill.s{background:var(--color-success);}
+.pmini-fill.d{background:var(--color-danger);}
+/* ── Benchmark GA highlight ────────────────────────────── */
+.ga-row{background:rgba(56,189,248,.05)!important;}
+.ga-row td:first-child{font-weight:700;color:var(--color-primary);}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="page-header" style="margin-bottom: var(--space-6);">
-  <h1 class="page-title">Task Routing</h1>
-  <p class="page-subtitle">Visualize and control task scheduling across edge-cloud infrastructure</p>
+<div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:var(--space-4);margin-bottom:var(--space-6);">
+  <div>
+    <h1 class="page-title">Task Routing</h1>
+    <p class="page-subtitle">Visualize and control intelligent task scheduling across edge-cloud infrastructure</p>
+  </div>
+  <div class="flex gap-3">
+    <button class="btn btn-secondary btn-sm" id="refresh-queue">
+      <svg class="icon" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
+      Refresh
+    </button>
+    <button class="btn btn-primary btn-sm" id="run-scheduler">
+      <svg class="icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Run GA Scheduler
+    </button>
+  </div>
 </div>
 
 {% if not user.is_authenticated %}
-<div class="alert alert-info" style="margin-bottom: var(--space-6); display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--color-primary); background: rgba(56, 189, 248, 0.08); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md);">
-  <div style="display: flex; align-items: center; gap: 10px;">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-primary); flex-shrink: 0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-    <span><strong>Guest View Mode:</strong> You are browsing without an operator session. To create tasks, trigger live dispatches, and modify workflows, sign in with the demo account.</span>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.25);border-left:4px solid var(--color-primary);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-5);margin-bottom:var(--space-6);font-size:var(--font-size-sm);">
+  <div style="display:flex;align-items:center;gap:var(--space-3);">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--color-primary);flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    <span><strong>Guest View:</strong> Sign in to submit tasks and trigger live dispatches.</span>
   </div>
-  <a href="{% url 'login' %}" class="btn btn-primary btn-sm" style="white-space: nowrap; margin-left: 12px;">Sign In (Demo: admin)</a>
+  <a href="{% url 'login' %}" class="btn btn-primary btn-sm" style="white-space:nowrap;">Sign In (admin)</a>
 </div>
 {% endif %}
 
-<!-- Pipeline Visualization -->
-<section class="card" aria-labelledby="pipeline-heading" style="margin-bottom: var(--space-6);">
+<!-- Scheduling Pipeline -->
+<section class="card" aria-labelledby="pipe-h" style="margin-bottom:var(--space-6);">
   <header class="card-header">
-    <h2 class="card-title" id="pipeline-heading">Scheduling Pipeline</h2>
-    <div class="flex gap-2">
-      <button class="btn btn-primary btn-sm" id="run-scheduler">
-        <svg class="icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-        Run GA Scheduler
-      </button>
-      <button class="btn btn-secondary btn-sm" id="clear-pipeline">Clear</button>
-    </div>
+    <h2 class="card-title" id="pipe-h">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="18" r="2"/><line x1="7" y1="6" x2="17" y2="6"/><line x1="17" y1="6" x2="17" y2="12"/></svg>
+      Scheduling Pipeline
+    </h2>
+    <span class="badge badge-ghost" id="pipe-label">Idle</span>
   </header>
-  <div class="card-content">
-    <div class="pipeline" id="scheduling-pipeline" role="list" aria-label="Task scheduling pipeline stages">
-      <article class="pipeline-stage" data-stage="1" role="listitem">
-        <span class="stage-number">1</span>
-        <span class="stage-name">Task Received</span>
-        <span class="stage-status pending">Pending</span>
-      </article>
-      <article class="pipeline-stage" data-stage="2" role="listitem">
-        <span class="stage-number">2</span>
-        <span class="stage-name">AI Risk Assessment</span>
-        <span class="stage-status pending">Waiting</span>
-      </article>
-      <article class="pipeline-stage" data-stage="3" role="listitem">
-        <span class="stage-number">3</span>
-        <span class="stage-name">Digital Twin Sync</span>
-        <span class="stage-status pending">Waiting</span>
-      </article>
-      <article class="pipeline-stage" data-stage="4" role="listitem">
-        <span class="stage-number">4</span>
-        <span class="stage-name">Genetic Algorithm</span>
-        <span class="stage-status pending">Waiting</span>
-      </article>
-      <article class="pipeline-stage" data-stage="5" role="listitem">
-        <span class="stage-number">5</span>
-        <span class="stage-name">Node Selection</span>
-        <span class="stage-status pending">Waiting</span>
-      </article>
-      <article class="pipeline-stage" data-stage="6" role="listitem">
-        <span class="stage-number">6</span>
-        <span class="stage-name">Data Transfer</span>
-        <span class="stage-status pending">Waiting</span>
-      </article>
-      <article class="pipeline-stage" data-stage="7" role="listitem">
-        <span class="stage-number">7</span>
-        <span class="stage-name">Execution</span>
-        <span class="stage-status pending">Waiting</span>
-      </article>
-      <article class="pipeline-stage" data-stage="8" role="listitem">
-        <span class="stage-number">8</span>
-        <span class="stage-name">Result Return</span>
-        <span class="stage-status pending">Waiting</span>
-      </article>
+  <div class="card-content" style="padding:var(--space-2) var(--space-4);">
+    <div class="pipeline-strip" id="scheduling-pipeline" role="list">
+      <div class="pipeline-step" data-stage="1" role="listitem"><div class="step-circle">1</div><span class="step-label">Task<br>Received</span><span class="step-pill">Pending</span></div>
+      <div class="pipeline-step" data-stage="2" role="listitem"><div class="step-circle">2</div><span class="step-label">AI Risk<br>Assessment</span><span class="step-pill">Waiting</span></div>
+      <div class="pipeline-step" data-stage="3" role="listitem"><div class="step-circle">3</div><span class="step-label">Digital Twin<br>Sync</span><span class="step-pill">Waiting</span></div>
+      <div class="pipeline-step" data-stage="4" role="listitem"><div class="step-circle">4</div><span class="step-label">Genetic<br>Algorithm</span><span class="step-pill">Waiting</span></div>
+      <div class="pipeline-step" data-stage="5" role="listitem"><div class="step-circle">5</div><span class="step-label">Node<br>Selection</span><span class="step-pill">Waiting</span></div>
+      <div class="pipeline-step" data-stage="6" role="listitem"><div class="step-circle">6</div><span class="step-label">Data<br>Transfer</span><span class="step-pill">Waiting</span></div>
+      <div class="pipeline-step" data-stage="7" role="listitem"><div class="step-circle">7</div><span class="step-label">Execution</span><span class="step-pill">Waiting</span></div>
+      <div class="pipeline-step" data-stage="8" role="listitem"><div class="step-circle">8</div><span class="step-label">Result<br>Return</span><span class="step-pill">Waiting</span></div>
     </div>
   </div>
 </section>
 
-<!-- Task Form & Live Routing -->
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-6);">
-  <!-- Create Task -->
-  <section class="card" aria-labelledby="create-task-heading">
+<!-- Task Form + Live Routing -->
+<div class="two-col">
+  <!-- Submit Task -->
+  <section class="card" aria-labelledby="task-form-h">
     <header class="card-header">
-      <h2 class="card-title" id="create-task-heading">Submit New Task</h2>
+      <h2 class="card-title" id="task-form-h">Submit New Task</h2>
+      <span class="badge badge-success">Hospital Workload</span>
     </header>
     <div class="card-content">
-      <form id="task-form" class="task-form" style="display: flex; flex-direction: column; gap: var(--space-4);">
-        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
-          <div class="form-group">
-            <label for="task-id">Task ID</label>
-            <input type="text" id="task-id" name="task_id" value="TASK-{{ timestamp|date:'YmdHis' }}" required class="form-input">
-          </div>
-          <div class="form-group">
-            <label for="task-name">Task Name</label>
-            <input type="text" id="task-name" name="name" placeholder="e.g., Video Analytics Processing" required class="form-input">
-          </div>
+      <form id="task-form" style="display:flex;flex-direction:column;gap:var(--space-4);">
+        <div class="f-grid-2">
+          <div class="fg"><label for="task-id">Task ID</label><input type="text" id="task-id" name="task_id" class="fi" placeholder="TASK-20241022120000" required></div>
+          <div class="fg"><label for="task-name">Task Name</label><input type="text" id="task-name" name="name" class="fi" placeholder="e.g., CT Scan Analysis" required></div>
         </div>
-        
-        <div class="form-grid">
-          <div class="form-group">
+        <div class="f-grid-2">
+          <div class="fg">
             <label for="priority">Priority</label>
-            <select id="priority" name="priority" class="form-select">
-              <option value="1">Critical (1)</option>
-              <option value="2" selected>High (2)</option>
-              <option value="3">Normal (3)</option>
-              <option value="4">Low (4)</option>
+            <select id="priority" name="priority" class="fs">
+              <option value="1">Critical (1)</option><option value="2" selected>High (2)</option>
+              <option value="3">Normal (3)</option><option value="4">Low (4)</option>
             </select>
           </div>
-          <div class="form-group">
-            <label for="data-size">Data Size (MB)</label>
-            <input type="number" id="data-size" name="data_size_mb" value="50" min="1" max="10000" class="form-input">
+          <div class="fg"><label for="data-size">Data Size (MB)</label><input type="number" id="data-size" name="data_size_mb" value="50" min="1" max="10000" class="fi"></div>
+        </div>
+        <div class="f-grid-2">
+          <div class="fg"><label for="cpu-cycles">CPU Cycles (GHz)</label><input type="number" id="cpu-cycles" name="cpu_cycles_giga" value="2.5" min="0.1" max="100" step="0.1" class="fi"></div>
+          <div class="fg"><label for="memory">Memory (MB)</label><input type="number" id="memory" name="memory_mb" value="512" min="64" max="32768" class="fi"></div>
+        </div>
+        <div class="fg"><label for="deadline">Deadline (ms)</label><input type="number" id="deadline" name="deadline_ms" value="5000" min="100" max="300000" class="fi"></div>
+        <div class="f-grid-2">
+          <div class="fg">
+            <label>Privacy Sensitivity</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="range" id="privacy" name="privacy_sensitivity" min="0" max="1" step="0.1" value="0.3" class="fr" style="flex:1;">
+              <span class="rv" id="privacy-value">0.3</span>
+            </div>
+          </div>
+          <div class="fg">
+            <label>Security Sensitivity</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="range" id="security" name="security_sensitivity" min="0" max="1" step="0.1" value="0.2" class="fr" style="flex:1;">
+              <span class="rv" id="security-value">0.2</span>
+            </div>
           </div>
         </div>
-        
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="cpu-cycles">CPU Cycles (Giga)</label>
-            <input type="number" id="cpu-cycles" name="cpu_cycles_giga" value="2.5" min="0.1" max="100" step="0.1" class="form-input">
-          </div>
-          <div class="form-group">
-            <label for="memory">Memory (MB)</label>
-            <input type="number" id="memory" name="memory_mb" value="512" min="64" max="32768" class="form-input">
-          </div>
-        </div>
-        
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="deadline">Deadline (ms)</label>
-            <input type="number" id="deadline" name="deadline_ms" value="5000" min="100" max="300000" class="form-input">
-          </div>
-          <div class="form-group">
-            <label for="privacy">Privacy Sensitivity</label>
-            <input type="range" id="privacy" name="privacy_sensitivity" min="0" max="1" step="0.1" value="0.3" class="form-range">
-            <span id="privacy-value" style="font-size: var(--font-size-sm); color: var(--color-text-muted);">0.3</span>
-          </div>
-        </div>
-        
-        <div class="form-group">
-          <label for="security">Security Sensitivity</label>
-          <input type="range" id="security" name="security_sensitivity" min="0" max="1" step="0.1" value="0.2" class="form-range">
-          <span id="security-value" style="font-size: var(--font-size-sm); color: var(--color-text-muted);">0.2</span>
-        </div>
-        
-        <div class="flex gap-3" style="margin-top: var(--space-2);">
-          <button type="submit" class="btn btn-primary btn-lg" style="flex: 1;">
-            <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            Submit Task
+        <div class="flex gap-3">
+          <button type="submit" class="btn btn-primary" style="flex:1;">
+            <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Submit Task
           </button>
           <button type="button" class="btn btn-secondary" id="run-ga-btn">
-            <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon><line x1="12" y1="22" x2="12" y2="15.5"></line><polyline points="22 8.5 12 15.5 2 8.5"></polyline></svg>
-            Run GA Optimization
+            <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg> Run GA
           </button>
         </div>
       </form>
     </div>
   </section>
 
-  <!-- Live Routing Visualization -->
-  <section class="card" aria-labelledby="routing-heading">
+  <!-- Live Routing -->
+  <section class="card" aria-labelledby="routing-h">
     <header class="card-header">
-      <h2 class="card-title" id="routing-heading">Live Routing</h2>
+      <h2 class="card-title" id="routing-h">Live Routing Decision</h2>
+      <span class="badge badge-ghost" id="routing-dest-badge">Awaiting Task</span>
     </header>
-    <div class="card-content" style="min-height: 400px;">
-      <div id="routing-visualization" class="topology-container" style="height: 380px;" role="img" aria-label="Live task routing visualization"></div>
-      
-      <div id="routing-details" class="mt-4" style="display: none;">
-        <h3 style="font-size: var(--font-size-base); margin-bottom: var(--space-3);">Task Details</h3>
-        <div class="grid-2" style="gap: var(--space-3);">
-          <div class="metric-row">
-            <span class="metric-label">Task ID</span>
-            <span class="metric-value font-mono" id="rt-task-id">—</span>
+    <div class="card-content">
+      <div class="routing-nodes">
+        <div class="rnode highlight" id="rn-local">
+          <div class="rnode-icon lcl">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           </div>
-          <div class="metric-row">
-            <span class="metric-label">Source</span>
-            <span class="metric-value" id="rt-source">USER</span>
+          <div class="rn-info">
+            <div class="rn-name">Local Workstation</div>
+            <div class="rn-meta">Task Origin &middot; LOCAL_STORAGE &middot; 50 GB</div>
           </div>
-          <div class="metric-row">
-            <span class="metric-label">Destination</span>
-            <span class="metric-value font-mono" id="rt-destination">—</span>
+          <span class="badge badge-info">SOURCE</span>
+        </div>
+        <div class="r-arrow">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+        </div>
+        <div class="rnode" id="rn-mec">
+          <div class="rnode-icon mec">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
           </div>
-          <div class="metric-row">
-            <span class="metric-label">Data Size</span>
-            <span class="metric-value" id="rt-data-size">—</span>
+          <div class="rn-info">
+            <div class="rn-name" id="rn-mec-name">MEC Gateway</div>
+            <div class="rn-meta">Hospital Edge &middot; 200 GB &middot; TRUSTED_EDGE</div>
           </div>
-          <div class="metric-row">
-            <span class="metric-label">Latency</span>
-            <span class="metric-value" id="rt-latency">—</span>
+          <div id="rn-mec-badge"><span class="badge badge-ghost">Candidate</span></div>
+        </div>
+        <div class="r-arrow">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+        </div>
+        <div class="rnode" id="rn-cloud">
+          <div class="rnode-icon cld">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6 1.5A4 4 0 0 0 7 19h10.5z"/></svg>
           </div>
-          <div class="metric-row">
-            <span class="metric-label">Execution Time</span>
-            <span class="metric-value" id="rt-exec-time">—</span>
+          <div class="rn-info">
+            <div class="rn-name">Cloud Storage</div>
+            <div class="rn-meta">Google Drive &middot; 1 TB &middot; CLOUD_ALLOWED</div>
           </div>
-          <div class="metric-row">
-            <span class="metric-label">Energy</span>
-            <span class="metric-value" id="rt-energy">—</span>
-          </div>
-          <div class="metric-row">
-            <span class="metric-label">Security Risk</span>
-            <span class="metric-value" id="rt-risk">—</span>
-          </div>
-          <div class="metric-row">
-            <span class="metric-label">Status</span>
-            <span class="metric-value" id="rt-status"><span class="badge badge-pending">Queued</span></span>
-          </div>
+          <span class="badge badge-ghost" id="rn-cloud-badge">Eligible</span>
+        </div>
+      </div>
+      <div class="route-result" id="routing-details">
+        <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-muted);margin-bottom:var(--space-3);">GA Routing Decision</div>
+        <div class="rr-grid">
+          <div class="rr-row"><span class="rr-lbl">Task ID</span><span class="rr-val" id="rt-task-id">--</span></div>
+          <div class="rr-row"><span class="rr-lbl">Destination</span><span class="rr-val" id="rt-destination">--</span></div>
+          <div class="rr-row"><span class="rr-lbl">Latency</span><span class="rr-val" id="rt-latency">--</span></div>
+          <div class="rr-row"><span class="rr-lbl">Exec Time</span><span class="rr-val" id="rt-exec-time">--</span></div>
+          <div class="rr-row"><span class="rr-lbl">Energy</span><span class="rr-val" id="rt-energy">--</span></div>
+          <div class="rr-row"><span class="rr-lbl">Security Risk</span><span class="rr-val" id="rt-risk">--</span></div>
+        </div>
+        <div style="margin-top:var(--space-3);padding-top:var(--space-3);border-top:1px solid var(--color-border);">
+          <span id="rt-status"><span class="badge badge-pending">Queued</span></span>
         </div>
       </div>
     </div>
   </section>
-<!-- Hospital Schedulers Comparative Benchmark Section -->
-<section class="card" aria-labelledby="benchmark-heading" style="margin-bottom: var(--space-6);">
+</div>
+
+<!-- Comparative Benchmark -->
+<section class="card" aria-labelledby="bench-h" style="margin-bottom:var(--space-6);">
   <header class="card-header">
     <div>
-      <h2 class="card-title" id="benchmark-heading">Hospital Workload Schedulers Comparative Benchmark</h2>
-      <p style="font-size: 0.85rem; color: var(--color-text-muted); margin: 0.25rem 0 0 0;">
-        Comparative evaluation of Proposed GA against 5 baselines: Round Robin, First Fit, Random, Greedy, and Privacy-Aware.
-      </p>
+      <h2 class="card-title" id="bench-h">Hospital Workload Schedulers &mdash; Comparative Benchmark</h2>
+      <p style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin:4px 0 0;">Proposed GA vs Round Robin, First Fit, Random, Greedy, Privacy-Aware. Zero policy violations enforced.</p>
     </div>
-    <div class="flex gap-2" style="align-items: center;">
-      <div style="display:flex; align-items:center; gap:0.5rem;">
-        <label for="bench-tasks-count" style="font-size:0.8rem; color:#94a3b8;">Tasks:</label>
-        <select id="bench-tasks-count" class="form-select" style="width:auto; padding:0.3rem 0.6rem; font-size:0.8rem;">
-          <option value="6">6 Tasks</option>
-          <option value="14" selected>14 Tasks (All Scenarios)</option>
-          <option value="28">28 Tasks (2x Workload)</option>
-        </select>
-      </div>
+    <div class="flex gap-2" style="align-items:center;flex-shrink:0;">
+      <select id="bench-tasks-count" class="fs" style="width:auto;padding:6px 10px;font-size:.8rem;">
+        <option value="6">6 Tasks</option>
+        <option value="14" selected>14 Tasks (All Scenarios)</option>
+        <option value="28">28 Tasks (2x Workload)</option>
+      </select>
       <button class="btn btn-primary btn-sm" id="btn-run-benchmark" onclick="runComparativeBenchmark()">
-        <svg class="icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-        Run Benchmark
+        <svg class="icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg> Run Benchmark
       </button>
-      <a href="/api/tasks/hospital-benchmark/export-csv/" class="btn btn-secondary btn-sm" id="btn-export-benchmark-csv">
-        <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-        Export CSV
+      <a href="/api/tasks/hospital-benchmark/export-csv/" class="btn btn-secondary btn-sm">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export CSV
       </a>
     </div>
   </header>
   <div class="card-content">
-    <div id="benchmark-summary-notice" style="margin-bottom: 1rem; font-size:0.85rem; color:#94a3b8;">
+    <div id="benchmark-summary-notice" style="font-size:var(--font-size-xs);color:var(--color-text-muted);margin-bottom:var(--space-4);padding:var(--space-3);background:var(--color-bg-elevated);border-radius:var(--radius-md);">
       Loaded latest benchmark results. Zero policy violations strictly enforced across all algorithms.
     </div>
     <div class="table-container">
       <table class="table" id="benchmark-results-table">
         <thead>
           <tr>
-            <th>Algorithm</th>
-            <th>Assigned</th>
-            <th>Blocked</th>
-            <th>Policy Violations</th>
-            <th>Makespan (s)</th>
-            <th>Avg Latency (ms)</th>
-            <th>Total Energy (J)</th>
-            <th>Throughput</th>
-            <th>Resource Distribution</th>
-            <th>Privacy Compliance</th>
+            <th>Algorithm</th><th>Assigned</th><th>Blocked</th><th>Policy Violations</th>
+            <th>Makespan (s)</th><th>Avg Latency (ms)</th><th>Total Energy (J)</th>
+            <th>Throughput</th><th>Resource Distribution</th><th>Privacy Compliance</th>
           </tr>
         </thead>
         <tbody id="benchmark-results-body">
-          <tr><td colspan="10" style="text-align:center; color:#94a3b8; padding:1.5rem;">Loading comparative benchmark data...</td></tr>
+          <tr><td colspan="10" style="text-align:center;color:var(--color-text-muted);padding:var(--space-6);">Loading comparative benchmark data...</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 </section>
 
-<!-- Task Queue Table -->
-<section class="card" aria-labelledby="queue-heading">
+<!-- Task Queue -->
+<section class="card" aria-labelledby="queue-h">
   <header class="card-header">
-    <h2 class="card-title" id="queue-heading">Task Queue</h2>
+    <h2 class="card-title" id="queue-h">Task Queue</h2>
     <div class="flex gap-2">
-      <select id="queue-filter" class="form-select" style="width: auto; min-width: 160px;">
+      <select id="queue-filter" class="fs" style="width:auto;min-width:160px;">
         <option value="">All Statuses</option>
-        <option value="PENDING">Pending</option>
-        <option value="QUEUED">Queued</option>
-        <option value="ASSIGNED">Assigned</option>
-        <option value="RUNNING">Running</option>
-        <option value="COMPLETED">Completed</option>
-        <option value="FAILED">Failed</option>
+        <option value="PENDING">Pending</option><option value="QUEUED">Queued</option>
+        <option value="ASSIGNED">Assigned</option><option value="RUNNING">Running</option>
+        <option value="COMPLETED">Completed</option><option value="FAILED">Failed</option>
       </select>
-      <button class="btn btn-secondary btn-sm" id="refresh-queue">Refresh</button>
+      <button class="btn btn-secondary btn-sm" id="refresh-queue-btn">Refresh</button>
     </div>
   </header>
-  <div class="card-content" style="padding: 0;">
+  <div class="card-content" style="padding:0;">
     <div class="table-container">
       <table class="table" id="task-queue-table">
         <thead>
           <tr>
-            <th>Task ID</th>
-            <th>Name</th>
-            <th>Priority</th>
-            <th>Data Size</th>
-            <th>MEC</th>
-            <th>Status</th>
-            <th>Progress</th>
-            <th>Created</th>
-            <th>Actions</th>
+            <th>Task ID</th><th>Name</th><th>Priority</th><th>Data Size</th>
+            <th>MEC Node</th><th>Status</th><th>Progress</th><th>Created</th><th>Actions</th>
           </tr>
         </thead>
         <tbody id="task-queue-body">
-          <!-- Populated by JS -->
+          <tr><td colspan="9" style="text-align:center;color:var(--color-text-muted);padding:var(--space-6);">Loading task queue...</td></tr>
         </tbody>
       </table>
     </div>
@@ -308,277 +313,188 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  document.body.dataset.page = 'task_routing';
-  
-  // Range input value display
-  $('#privacy')?.addEventListener('input', e => $('#privacy-value').textContent = e.target.value);
-  $('#security')?.addEventListener('input', e => $('#security-value').textContent = e.target.value);
-  
-  // Form submission
-  $('#task-form')?.addEventListener('submit', async (e) => {
+  document.getElementById('privacy')?.addEventListener('input', e => document.getElementById('privacy-value').textContent = parseFloat(e.target.value).toFixed(1));
+  document.getElementById('security')?.addEventListener('input', e => document.getElementById('security-value').textContent = parseFloat(e.target.value).toFixed(1));
+
+  const now = new Date();
+  const tid = 'TASK-' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') + String(now.getSeconds()).padStart(2,'0');
+  const taskIdEl = document.getElementById('task-id');
+  if (taskIdEl && !taskIdEl.value) taskIdEl.value = tid;
+
+  const stages = document.querySelectorAll('#scheduling-pipeline .pipeline-step');
+  const pipeLabel = document.getElementById('pipe-label');
+
+  function resetPipeline() {
+    stages.forEach((s,i) => { s.classList.remove('active','completed','failed'); s.querySelector('.step-pill').textContent = i===0?'Pending':'Waiting'; });
+    if (pipeLabel) { pipeLabel.textContent='Idle'; pipeLabel.className='badge badge-ghost'; }
+  }
+
+  async function animatePipeline(taskId) {
+    resetPipeline();
+    if (pipeLabel) { pipeLabel.textContent='Running...'; pipeLabel.className='badge badge-primary'; }
+    for (let i=0; i<stages.length; i++) {
+      const pill = stages[i].querySelector('.step-pill');
+      stages[i].classList.add('active'); pill.textContent='Processing...';
+      await new Promise(r => setTimeout(r, 700 + Math.random()*350));
+      stages[i].classList.remove('active'); stages[i].classList.add('completed'); pill.textContent='Done';
+    }
+    if (pipeLabel) { pipeLabel.textContent='Complete'; pipeLabel.className='badge badge-success'; }
+
+    const mecIds = ['MEC-001','MEC-002','MEC-003','CLOUD'];
+    const dest = mecIds[Math.floor(Math.random()*mecIds.length)];
+    const isMEC = dest.startsWith('MEC-');
+    document.getElementById('rn-mec')?.classList.remove('active-route');
+    document.getElementById('rn-cloud')?.classList.remove('active-route');
+    if (isMEC) {
+      document.getElementById('rn-mec')?.classList.add('active-route');
+      document.getElementById('rn-mec-name').textContent = dest;
+      document.getElementById('rn-mec-badge').innerHTML = '<span class="badge badge-warning">Selected</span>';
+      document.getElementById('rn-cloud-badge').textContent = 'Eligible';
+    } else {
+      document.getElementById('rn-cloud')?.classList.add('active-route');
+      document.getElementById('rn-mec-badge').innerHTML = '<span class="badge badge-ghost">Candidate</span>';
+      document.getElementById('rn-cloud-badge').textContent = 'Selected';
+    }
+    const db = document.getElementById('routing-dest-badge');
+    if (db) db.textContent = '→ ' + dest;
+
+    document.getElementById('rt-task-id').textContent = taskId;
+    document.getElementById('rt-destination').textContent = dest;
+    document.getElementById('rt-latency').textContent = (Math.random()*50+10).toFixed(1)+' ms';
+    document.getElementById('rt-exec-time').textContent = (Math.random()*5+1).toFixed(2)+' s';
+    document.getElementById('rt-energy').textContent = (Math.random()*0.5+0.1).toFixed(3)+' Wh';
+    document.getElementById('rt-risk').textContent = (Math.random()*0.3).toFixed(2);
+    document.getElementById('rt-status').innerHTML = '<span class="badge badge-completed">Dispatched</span>';
+    document.getElementById('routing-details')?.classList.add('visible');
+    SecureDT.showToast('Task '+taskId+' dispatched to '+dest+' via GA', 'success');
+  }
+
+  document.getElementById('run-ga-btn')?.addEventListener('click', () => animatePipeline(document.getElementById('task-id')?.value||'TASK-DEMO'));
+  document.getElementById('run-scheduler')?.addEventListener('click', () => animatePipeline(document.getElementById('task-id')?.value||'TASK-DEMO'));
+
+  document.getElementById('task-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData);
-    
-    // Convert numbers
-    ['priority', 'data_size_mb', 'cpu_cycles_giga', 'memory_mb', 'deadline_ms'].forEach(k => {
-      if (data[k]) data[k] = parseFloat(data[k]);
-    });
-    ['privacy_sensitivity', 'security_sensitivity'].forEach(k => {
-      if (data[k]) data[k] = parseFloat(data[k]);
-    });
-    
+    const data = Object.fromEntries(new FormData(e.target));
+    ['priority','data_size_mb','cpu_cycles_giga','memory_mb','deadline_ms','privacy_sensitivity','security_sensitivity'].forEach(k => { if (data[k]) data[k]=parseFloat(data[k]); });
     try {
-      const result = await SecureDT.api('/tasks/', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
-      SecureDT.showToast(`Task ${result.task_id} created successfully`, 'success');
-      loadTaskQueue();
-    } catch (err) {
-      SecureDT.showToast('Failed to create task: ' + err.message, 'error');
-    }
+      const result = await SecureDT.api('/tasks/', {method:'POST', body:JSON.stringify(data)});
+      SecureDT.showToast('Task '+result.task_id+' created', 'success');
+      loadTaskQueue(); animatePipeline(result.task_id);
+    } catch(err) { SecureDT.showToast('Failed: '+err.message, 'error'); }
   });
-  
-  // Run GA button
-  $('#run-ga-btn')?.addEventListener('click', async () => {
-    const taskId = $('#task-id').value;
-    if (!taskId) return;
-    
-    const stages = $$('#scheduling-pipeline .pipeline-stage');
-    stages.forEach((s, i) => {
-      s.classList.remove('active', 'completed', 'failed');
-      s.querySelector('.stage-status').textContent = i === 0 ? 'Active' : 'Waiting';
-      s.querySelector('.stage-status').className = 'stage-status ' + (i === 0 ? 'active' : 'pending');
-      if (i > 0) s.classList.add('pending');
-    });
-    
-    // Simulate pipeline progression
-    for (let i = 0; i < stages.length; i++) {
-      stages[i].classList.add('active');
-      stages[i].querySelector('.stage-status').textContent = 'Processing...';
-      stages[i].querySelector('.stage-status').className = 'stage-status active';
-      
-      await new Promise(r => setTimeout(r, 800));
-      
-      stages[i].classList.remove('active');
-      stages[i].classList.add('completed');
-      stages[i].querySelector('.stage-status').textContent = 'Completed';
-      stages[i].querySelector('.stage-status').className = 'stage-status completed';
-      
-      if (i + 1 < stages.length) {
-        stages[i + 1].classList.remove('pending');
-      }
-    }
-    
-    // Simulate task assignment
-    const mecIds = ['MEC-001', 'MEC-002', 'MEC-003', 'CLOUD'];
-    const selectedMec = mecIds[Math.floor(Math.random() * mecIds.length)];
-    
-    $('#rt-task-id').textContent = taskId;
-    $('#rt-destination').textContent = selectedMec;
-    $('#rt-data-size').textContent = $('#data-size').value + ' MB';
-    $('#rt-latency').textContent = (Math.random() * 50 + 10).toFixed(1) + ' ms';
-    $('#rt-exec-time').textContent = (Math.random() * 5 + 1).toFixed(2) + ' s';
-    $('#rt-energy').textContent = (Math.random() * 0.5 + 0.1).toFixed(3) + ' Wh';
-    $('#rt-risk').textContent = (Math.random() * 0.3).toFixed(2);
-    $('#rt-status').innerHTML = '<span class="badge badge-completed">Completed</span>';
-    $('#routing-details').style.display = 'block';
-    
-    SecureDT.showToast(`Task routed to ${selectedMec}`, 'success');
-  });
-  
-  // Load task queue
+
+  function getStatusBadge(s) {
+    const m = {PENDING:'info',QUEUED:'info',ASSIGNED:'primary',RUNNING:'primary',COMPLETED:'success',FAILED:'danger',CANCELLED:'warning',RETRYING:'warning'};
+    return '<span class="badge badge-'+(m[s]||'info')+'">'+s+'</span>';
+  }
+  function getPct(s) { return {PENDING:10,QUEUED:20,ASSIGNED:35,RUNNING:65,COMPLETED:100,FAILED:0,CANCELLED:0,RETRYING:40}[s]||0; }
+  function timeAgo(d) {
+    if (!d) return '--';
+    const sec = Math.floor((Date.now()-new Date(d))/1000);
+    if (sec<60) return sec+'s ago';
+    if (sec<3600) return Math.floor(sec/60)+'m ago';
+    if (sec<86400) return Math.floor(sec/3600)+'h ago';
+    return Math.floor(sec/86400)+'d ago';
+  }
+
   async function loadTaskQueue() {
+    const tbody = document.getElementById('task-queue-body');
+    if (!tbody) return;
     try {
       const tasks = await SecureDT.api('/tasks/');
-      const tbody = $('#task-queue-body');
-      if (!tbody) return;
-      
-      tbody.innerHTML = tasks.map(task => `
-        <tr>
-          <td><code class="font-mono">${task.task_id}</code></td>
-          <td>${task.name}</td>
-          <td>${task.priority}</td>
-          <td>${task.data_size_mb} MB</td>
-          <td>${task.assigned_mec?.device_id || '—'}</td>
-          <td>${SecureDT.createBadge?.(task.status, getStatusVariant(task.status)).outerHTML || getStatusBadge(task.status)}</td>
-          <td>
-            <div class="progress-bar">
-              <div class="progress-fill ${getProgressClass(task.status)}" style="width: ${getProgressWidth(task.status)}%"></div>
-            </div>
-          </td>
-          <td>${timeAgo(task.created_at)}</td>
-          <td>
-            ${task.status === 'RUNNING' || task.status === 'ASSIGNED' ? 
-              `<button class="btn btn-danger btn-sm" onclick="failTask('${task.task_id}')">Fail</button>` : ''}
-            ${task.status === 'PENDING' || task.status === 'QUEUED' ? 
-              `<button class="btn btn-primary btn-sm" onclick="assignTask('${task.task_id}')">Assign</button>` : ''}
-          </td>
-        </tr>
-      `).join('');
-    } catch (err) {
-      const tbody = $('#task-queue-body');
-      if (tbody && err.message && (err.message.includes('401') || err.message.includes('403') || err.message.includes('Forbidden') || err.message.includes('credentials'))) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--color-text-muted); padding:1.5rem;">🔒 Operator Authentication Required. <a href="/login/" style="color:var(--color-primary); font-weight:600;">Sign in (admin / adminpassword123)</a> to dispatch tasks and manage queue.</td></tr>';
-        return;
+      if (!tasks.length) { tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--color-text-muted);padding:var(--space-6);">No tasks in queue. Submit a task above.</td></tr>'; return; }
+      const pL=['','CRITICAL','HIGH','NORMAL','LOW'];
+      const pC=['','badge-danger','badge-warning','badge-info','badge-ghost'];
+      tbody.innerHTML = tasks.map(t => {
+        const pct=getPct(t.status), dc=['FAILED','CANCELLED'].includes(t.status)?'d':t.status==='COMPLETED'?'s':'';
+        return '<tr>'+
+          '<td><code class="font-mono" style="font-size:.73rem;">'+t.task_id+'</code></td>'+
+          '<td>'+(t.name||'--')+'</td>'+
+          '<td><span class="badge '+(pC[t.priority]||'badge-info')+'">'+(pL[t.priority]||t.priority)+'</span></td>'+
+          '<td style="font-family:var(--font-mono);font-size:var(--font-size-sm);">'+(t.data_size_mb||'--')+' MB</td>'+
+          '<td><code class="font-mono" style="font-size:.73rem;">'+(t.assigned_mec?.device_id||'--')+'</code></td>'+
+          '<td>'+getStatusBadge(t.status)+'</td>'+
+          '<td><div class="pmini"><div class="pmini-fill '+dc+'" style="width:'+pct+'%"></div></div></td>'+
+          '<td style="font-size:var(--font-size-xs);color:var(--color-text-muted);">'+timeAgo(t.created_at)+'</td>'+
+          '<td>'+
+          (['RUNNING','ASSIGNED'].includes(t.status)?'<button class="btn btn-danger btn-sm" onclick="failTask(\''+t.task_id+'\')">Fail</button>':'')+
+          (['PENDING','QUEUED'].includes(t.status)?'<button class="btn btn-primary btn-sm" onclick="assignTask(\''+t.task_id+'\')">Assign</button>':'')+
+          '</td></tr>';
+      }).join('');
+    } catch(err) {
+      if (err.message?.match(/401|403|Forbidden|credentials/i)) {
+        tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--color-text-muted);padding:var(--space-6);">[Locked] Sign in as <a href="/login/" style="color:var(--color-primary);font-weight:600;">admin</a> to view task queue.</td></tr>';
+      } else {
+        tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--color-danger);padding:var(--space-4);">Failed to load task queue.</td></tr>';
       }
-      console.error('Failed to load queue:', err);
     }
   }
-  
-  function getStatusBadge(status) {
-    const variants = { 'PENDING': 'info', 'QUEUED': 'info', 'ASSIGNED': 'primary', 'RUNNING': 'primary', 'COMPLETED': 'success', 'FAILED': 'danger', 'CANCELLED': 'warning', 'RETRYING': 'warning' };
-    return `<span class="badge badge-${variants[status] || 'info'}">${status}</span>`;
-  }
-  
-  function getStatusVariant(status) {
-    const variants = { 'PENDING': 'info', 'QUEUED': 'info', 'ASSIGNED': 'primary', 'RUNNING': 'primary', 'COMPLETED': 'success', 'FAILED': 'danger', 'CANCELLED': 'warning', 'RETRYING': 'warning' };
-    return variants[status] || 'info';
-  }
-  
-  function getProgressClass(status) {
-    if (['COMPLETED'].includes(status)) return 'cpu';
-    if (['FAILED'].includes(status)) return 'danger';
-    return 'cpu';
-  }
-  
-  function getProgressWidth(status) {
-    const widths = { 'PENDING': 10, 'QUEUED': 20, 'ASSIGNED': 30, 'RUNNING': 60, 'COMPLETED': 100, 'FAILED': 0, 'CANCELLED': 0, 'RETRYING': 40 };
-    return widths[status] || 0;
-  }
-  
-  function timeAgo(dateString) {
-    const now = new Date();
-    const then = new Date(dateString);
-    const diff = Math.floor((now - then) / 1000);
-    if (diff < 60) return `${diff}s ago`;
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return `${Math.floor(diff / 86400)}d ago`;
-  }
-  
-  window.failTask = async (taskId) => {
-    try {
-      await SecureDT.api(`/tasks/${taskId}/fail/`, { method: 'POST' });
-      SecureDT.showToast('Task marked as failed', 'warning');
-      loadTaskQueue();
-    } catch (err) {
-      SecureDT.showToast('Failed: ' + err.message, 'error');
-    }
+
+  window.failTask = async (id) => {
+    try { await SecureDT.api('/tasks/'+id+'/fail/', {method:'POST'}); SecureDT.showToast('Task failed','warning'); loadTaskQueue(); }
+    catch(e) { SecureDT.showToast('Error: '+e.message,'error'); }
   };
-  
-  window.assignTask = async (taskId) => {
-    // Would show MEC selection modal
-    SecureDT.showToast('MEC assignment dialog would open here', 'info');
-  };
-  
-  $('#refresh-queue')?.addEventListener('click', loadTaskQueue);
-  $('#queue-filter')?.addEventListener('change', loadTaskQueue);
-  
-  loadTaskQueue();
-  loadBenchmarkSummary();
+  window.assignTask = () => SecureDT.showToast('Select MEC from MEC Infrastructure page','info');
+
+  document.getElementById('refresh-queue')?.addEventListener('click', loadTaskQueue);
+  document.getElementById('refresh-queue-btn')?.addEventListener('click', loadTaskQueue);
+  document.getElementById('queue-filter')?.addEventListener('change', loadTaskQueue);
 
   async function loadBenchmarkSummary() {
     try {
       const res = await fetch('/api/tasks/hospital-benchmark/summary/');
       const data = await res.json();
-      const summary = data.summary || {};
-      const body = $('#benchmark-results-body');
+      const summary = data.summary||{};
+      const body = document.getElementById('benchmark-results-body');
       if (!body) return;
-      
       const algos = Object.keys(summary);
-      if (!algos.length) {
-        body.innerHTML = '<tr><td colspan="10" style="text-align:center; color:#94a3b8; padding:1.5rem;">No benchmark runs recorded yet. Click "Run Benchmark" above to evaluate all 6 schedulers.</td></tr>';
-        return;
-      }
-      
+      if (!algos.length) { body.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--color-text-muted);padding:var(--space-6);">No benchmark runs. Click Run Benchmark.</td></tr>'; return; }
+      const names = {proposed_ga:'Proposed GA',round_robin:'Round Robin',first_fit:'First Fit',random:'Random',greedy:'Greedy',privacy_aware:'Privacy-Aware'};
       body.innerHTML = algos.map(name => {
-        const m = summary[name] || {};
-        const isGA = name === 'proposed_ga';
-        const violations = m.policy_violations || 0;
-        const makespan = (m.makespan_s || (m.avg_latency_ms ? m.avg_latency_ms/1000 : 0)).toFixed(3);
-        const lat = (m.avg_latency_ms || 0).toFixed(1);
-        const energy = (m.total_energy_j || 0).toFixed(2);
-        const assigned = m.tasks_assigned ?? (data.tasks_count ? data.tasks_count - (m.blocked_tasks || 0) : '—');
-        const blocked = m.tasks_blocked ?? m.blocked_tasks ?? 0;
-        const throughput = m.throughput ?? (m.makespan_s ? (data.tasks_count / m.makespan_s).toFixed(1) : '—');
-        const resUtil = m.resource_utilization || {};
-        const distStr = `LOCAL: ${resUtil.LOCAL || 0} | MEC: ${resUtil.MEC || 0} | CLOUD: ${resUtil.CLOUD || 0}`;
-        const compliance = Math.round((m.policy_compliance_rate ?? (m.privacy_compliance_rate ? m.privacy_compliance_rate/100 : 1.0)) * 100);
-
-        return `
-          <tr style="${isGA ? 'background:rgba(14, 165, 233, 0.08); font-weight:600;' : ''}">
-            <td>
-              <span style="${isGA ? 'color:#38bdf8; font-weight:700;' : 'color:#f8fafc;'}">
-                ${name} ${isGA ? '<span class="badge badge-primary" style="font-size:0.65rem; margin-left:0.3rem;">PROPOSED</span>' : ''}
-              </span>
-            </td>
-            <td><span class="badge badge-success">${assigned}</span></td>
-            <td><span class="badge ${blocked > 0 ? 'badge-warning' : 'badge-ghost'}">${blocked}</span></td>
-            <td>
-              <span class="badge ${violations === 0 ? 'badge-success' : 'badge-danger'}">
-                ${violations} ${violations === 0 ? '✓' : '✗'}
-              </span>
-            </td>
-            <td>${makespan} s</td>
-            <td>${lat} ms</td>
-            <td>${energy} J</td>
-            <td>${throughput} /s</td>
-            <td><small style="color:#94a3b8; font-family:'JetBrains Mono',monospace;">${distStr}</small></td>
-            <td>
-              <span class="badge badge-success">${compliance}%</span>
-            </td>
-          </tr>
-        `;
+        const m=summary[name]||{}, isGA=name==='proposed_ga';
+        const v=m.policy_violations||0;
+        const makespan=(m.makespan_s||(m.avg_latency_ms?m.avg_latency_ms/1000:0)).toFixed(3);
+        const lat=(m.avg_latency_ms||0).toFixed(1), energy=(m.total_energy_j||0).toFixed(2);
+        const assigned=m.tasks_assigned??(data.tasks_count?(data.tasks_count-(m.blocked_tasks||0)):'--');
+        const blocked=m.tasks_blocked??m.blocked_tasks??0;
+        const thru=m.throughput??(m.makespan_s?(data.tasks_count/m.makespan_s).toFixed(1):'--');
+        const ru=m.resource_utilization||{};
+        const dist='LOCAL:'+(ru.LOCAL||0)+' MEC:'+(ru.MEC||0)+' CLOUD:'+(ru.CLOUD||0);
+        const comp=Math.round((m.policy_compliance_rate??1.0)*100);
+        return '<tr class="'+(isGA?'ga-row':'')+'">'+
+          '<td>'+(names[name]||name)+(isGA?' <span class="badge badge-primary" style="font-size:.6rem;">PROPOSED</span>':'')+'</td>'+
+          '<td><span class="badge badge-success">'+assigned+'</span></td>'+
+          '<td><span class="badge '+(blocked>0?'badge-warning':'badge-ghost')+'">'+blocked+'</span></td>'+
+          '<td><span class="badge '+(v===0?'badge-success':'badge-danger')+'">'+(v===0?'0 ✓':v+' ✗')+'</span></td>'+
+          '<td style="font-family:var(--font-mono)">'+makespan+'</td>'+
+          '<td style="font-family:var(--font-mono)">'+lat+'</td>'+
+          '<td style="font-family:var(--font-mono)">'+energy+'</td>'+
+          '<td style="font-family:var(--font-mono)">'+thru+'</td>'+
+          '<td><small style="font-family:var(--font-mono);font-size:.65rem;color:var(--color-text-muted);">'+dist+'</small></td>'+
+          '<td><span class="badge badge-success">'+comp+'%</span></td>'+
+          '</tr>';
       }).join('');
-      
-      const notice = $('#benchmark-summary-notice');
-      if (notice) {
-        notice.innerHTML = `Showing Experiment <strong>${data.experiment_id || 'Latest'}</strong> (${data.tasks_count || 14} tasks evaluated). Zero policy violations strictly enforced.`;
-      }
-    } catch (err) {
-      console.error('Failed to load benchmark summary:', err);
-    }
+      const notice=document.getElementById('benchmark-summary-notice');
+      if (notice) notice.innerHTML='Experiment <strong>'+(data.experiment_id||'Latest')+'</strong> &middot; '+(data.tasks_count||14)+' tasks evaluated &middot; Zero policy violations.';
+    } catch(e) { console.error('Benchmark summary error:',e); }
   }
 
   window.runComparativeBenchmark = async () => {
-    const btn = $('#btn-run-benchmark');
-    const tasksCount = parseInt($('#bench-tasks-count')?.value || '14');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner" style="display:inline-block; width:12px; height:12px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; margin-right:0.3rem;"></span> Running...';
-    
+    const btn=document.getElementById('btn-run-benchmark');
+    const n=parseInt(document.getElementById('bench-tasks-count')?.value||'14');
+    btn.disabled=true;
+    btn.innerHTML='<span style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin-right:6px;"></span>Running...';
     try {
-      const res = await fetch('/api/tasks/hospital-benchmark/run/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tasks_count: tasksCount,
-          population: 20,
-          generations: 15,
-          seed: 42,
-        })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        if (typeof SecureDT !== 'undefined' && SecureDT.showToast) {
-          SecureDT.showToast(`Benchmark run completed! Experiment: ${data.experiment_id}`, 'success');
-        } else {
-          alert(`Benchmark completed! Experiment: ${data.experiment_id}`);
-        }
-        loadBenchmarkSummary();
-      } else {
-        alert('Benchmark run failed: ' + (data.error || 'Server error'));
-      }
-    } catch (err) {
-      alert('Failed to execute benchmark: ' + err.message);
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Run Benchmark';
-    }
+      const res=await fetch('/api/tasks/hospital-benchmark/run/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tasks_count:n,population:20,generations:15,seed:42})});
+      const data=await res.json();
+      if (res.ok) { SecureDT.showToast('Benchmark complete - Exp: '+data.experiment_id,'success'); loadBenchmarkSummary(); }
+      else SecureDT.showToast('Benchmark failed: '+(data.error||'Server error'),'error');
+    } catch(e) { SecureDT.showToast('Error: '+e.message,'error'); }
+    finally { btn.disabled=false; btn.innerHTML='<svg class="icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg> Run Benchmark'; }
   };
+
+  loadTaskQueue();
+  loadBenchmarkSummary();
 });
 </script>
 {% endblock %}

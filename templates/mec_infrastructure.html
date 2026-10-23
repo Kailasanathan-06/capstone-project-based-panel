@@ -2,363 +2,314 @@
 {% load static %}
 
 {% block title %}MEC Infrastructure - SecureDT{% endblock %}
+{% block body_page %}mec_infrastructure{% endblock %}
+{% block page_crumb %}MEC Infrastructure{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Modal */
+.modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;}
+.modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);}
+.modal-content{position:relative;background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-xl);padding:var(--space-6);width:100%;max-width:520px;margin:var(--space-4);box-shadow:var(--shadow-lg);animation:slideUp .2s ease;}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4);padding-bottom:var(--space-4);border-bottom:1px solid var(--color-border);}
+.modal-header h2{font-size:1rem;font-weight:700;margin:0;}
+.modal-close{background:none;border:none;color:var(--color-text-muted);font-size:1.5rem;cursor:pointer;line-height:1;padding:var(--space-1);}
+.modal-close:hover{color:var(--color-text);}
+.modal-footer{padding-top:var(--space-4);border-top:1px solid var(--color-border);display:flex;justify-content:flex-end;gap:var(--space-2);}
+/* Form */
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:var(--space-4);}
+.fg label{font-size:var(--font-size-sm);font-weight:600;}
+.fg small{font-size:var(--font-size-xs);color:var(--color-text-muted);}
+.fi,.fs{width:100%;padding:var(--space-2) var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg-elevated);color:var(--color-text);font-family:inherit;font-size:var(--font-size-sm);transition:border-color .2s;}
+.fi:focus,.fs:focus{outline:none;border-color:var(--color-primary);}
+/* MEC Grid */
+.mec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:var(--space-4);padding:var(--space-4);}
+.mec-card{background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-xl);padding:var(--space-5);transition:all .25s;position:relative;overflow:hidden;}
+.mec-card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--color-primary),var(--color-info));opacity:0;transition:opacity .25s;}
+.mec-card:hover{border-color:var(--color-primary);box-shadow:var(--shadow-md);}
+.mec-card:hover::before{opacity:1;}
+.mec-card.offline{opacity:.65;border-color:rgba(239,68,68,.3);}
+.mec-card.offline::before{background:linear-gradient(90deg,var(--color-danger),rgba(239,68,68,.5));}
+.mec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4);}
+.mec-id{font-size:.95rem;font-weight:800;font-family:var(--font-mono);color:var(--color-text);}
+.mec-status-dot{width:10px;height:10px;border-radius:50%;background:var(--color-success);box-shadow:0 0 8px var(--color-success);animation:blink 2s ease-in-out infinite;}
+.mec-card.offline .mec-status-dot{background:var(--color-danger);box-shadow:none;animation:none;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.4;}}
+.mec-metrics-row{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-2);margin-bottom:var(--space-3);}
+.mec-metric{text-align:center;background:var(--color-bg-card);border-radius:var(--radius-md);padding:var(--space-2);}
+.mec-metric-val{font-size:1.1rem;font-weight:800;font-family:var(--font-mono);color:var(--color-text);}
+.mec-metric-lbl{font-size:.62rem;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+/* Progress bars */
+.mec-progress-group{display:flex;flex-direction:column;gap:var(--space-2);margin-bottom:var(--space-3);}
+.mec-bar-row{display:flex;align-items:center;gap:var(--space-2);}
+.mec-bar-lbl{font-size:.65rem;color:var(--color-text-muted);width:32px;text-align:right;flex-shrink:0;}
+.mec-bar-track{flex:1;height:5px;background:var(--color-bg-card);border-radius:99px;overflow:hidden;}
+.mec-bar-fill{height:100%;border-radius:99px;transition:width .6s ease;}
+.mec-bar-fill.cpu-bar{background:linear-gradient(90deg,var(--color-primary),var(--color-info));}
+.mec-bar-fill.ram-bar{background:linear-gradient(90deg,var(--color-warning),var(--color-success));}
+.mec-bar-fill.disk-bar{background:linear-gradient(90deg,var(--color-info),var(--color-primary));}
+.mec-bar-val{font-size:.65rem;font-family:var(--font-mono);color:var(--color-text-muted);width:30px;}
+.mec-footer{display:flex;gap:var(--space-2);padding-top:var(--space-3);border-top:1px solid var(--color-border);}
+.mec-last-seen{font-size:.7rem;color:var(--color-text-muted);font-family:var(--font-mono);padding-top:var(--space-2);}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="page-header" style="margin-bottom: var(--space-6);">
-  <h1 class="page-title">MEC Infrastructure</h1>
-  <p class="page-subtitle">Monitor and manage your edge computing nodes</p>
+<div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:var(--space-4);margin-bottom:var(--space-6);">
+  <div>
+    <h1 class="page-title">MEC Infrastructure</h1>
+    <p class="page-subtitle">Monitor and manage edge computing nodes connected to the hospital network</p>
+  </div>
+  <div class="flex gap-3">
+    <button class="btn btn-secondary btn-sm" id="refresh-mecs-btn">
+      <svg class="icon" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
+      Refresh
+    </button>
+    <button class="btn btn-primary btn-sm" id="register-mec-btn">
+      <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Register MEC
+    </button>
+  </div>
 </div>
 
-<!-- Summary Cards -->
-<section aria-labelledby="mec-summary-heading" style="margin-bottom: var(--space-6);">
-  <h2 id="mec-summary-heading" class="visually-hidden">MEC Summary</h2>
+<!-- KPI Summary -->
+<section aria-labelledby="mec-kpi-h" style="margin-bottom:var(--space-6);">
+  <h2 id="mec-kpi-h" class="visually-hidden">MEC Summary</h2>
   <div class="kpi-grid" role="list">
     <article class="kpi-card" role="listitem">
       <span class="kpi-label">Total MECs</span>
-      <span class="kpi-value primary" id="total-mecs">—</span>
+      <span class="kpi-value primary" id="total-mecs">--</span>
       <div class="kpi-meta"><span class="kpi-trend">Registered nodes</span></div>
     </article>
     <article class="kpi-card" role="listitem">
       <span class="kpi-label">Online</span>
-      <span class="kpi-value success" id="online-mecs">—</span>
-      <div class="kpi-meta"><span id="online-pct" class="kpi-trend up">—</span></div>
+      <span class="kpi-value success" id="online-mecs">--</span>
+      <div class="kpi-meta"><span id="online-pct" class="kpi-trend up">-- uptime</span></div>
     </article>
     <article class="kpi-card" role="listitem">
       <span class="kpi-label">Offline</span>
-      <span class="kpi-value danger" id="offline-mecs">—</span>
+      <span class="kpi-value danger" id="offline-mecs">--</span>
       <div class="kpi-meta"><span class="kpi-trend">Need attention</span></div>
     </article>
     <article class="kpi-card" role="listitem">
-      <span class="kpi-label">Avg CPU</span>
-      <span class="kpi-value warning" id="avg-cpu">—</span>
+      <span class="kpi-label">Avg CPU Load</span>
+      <span class="kpi-value warning" id="avg-cpu">--%</span>
       <div class="kpi-meta"><span class="kpi-trend">Across all MECs</span></div>
     </article>
     <article class="kpi-card" role="listitem">
-      <span class="kpi-label">Avg RAM</span>
-      <span class="kpi-value info" id="avg-ram">—</span>
+      <span class="kpi-label">Avg RAM Load</span>
+      <span class="kpi-value info" id="avg-ram">--%</span>
       <div class="kpi-meta"><span class="kpi-trend">Across all MECs</span></div>
     </article>
     <article class="kpi-card" role="listitem">
-      <span class="kpi-label">Total Tasks</span>
-      <span class="kpi-value primary" id="total-tasks-running">—</span>
+      <span class="kpi-label">Tasks Running</span>
+      <span class="kpi-value primary" id="total-tasks-running">--</span>
       <div class="kpi-meta"><span class="kpi-trend">Currently executing</span></div>
     </article>
   </div>
 </section>
 
-<!-- MEC Grid -->
-<section class="card" aria-labelledby="mec-grid-heading">
+<!-- MEC Cards Grid -->
+<section class="card" aria-labelledby="mec-grid-h">
   <header class="card-header">
-    <h2 class="card-title" id="mec-grid-heading">MEC Nodes</h2>
-    <div class="flex gap-2">
-      <button class="btn btn-primary" id="register-mec-btn">
-        <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        Register MEC
-      </button>
-      <button class="btn btn-secondary" id="refresh-mecs-btn">Refresh</button>
-    </div>
+    <h2 class="card-title" id="mec-grid-h">
+      <svg class="icon" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+      MEC Nodes
+    </h2>
+    <span class="badge badge-ghost" id="mec-count-badge">Loading...</span>
   </header>
-  <div class="card-content" style="padding: 0;">
-    <div id="mec-grid" class="mec-grid" style="padding: var(--space-4);" role="list">
-      <!-- MEC cards rendered by JS -->
+  <div class="card-content" style="padding:0;">
+    <div id="mec-grid" class="mec-grid" role="list">
+      <div style="grid-column:1/-1;text-align:center;color:var(--color-text-muted);padding:var(--space-12);">
+        Loading MEC agents...
+      </div>
     </div>
   </div>
 </section>
 
 <!-- Register MEC Modal -->
-<div id="register-mec-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" style="display: none;">
+<div id="register-mec-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="reg-modal-title" style="display:none;">
   <div class="modal-backdrop" tabindex="-1"></div>
-  <div class="modal-content" style="max-width: 500px;">
-    <header class="modal-header">
-      <h2 id="modal-title">Register New MEC Agent</h2>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="reg-modal-title">Register New MEC Agent</h2>
       <button class="modal-close" aria-label="Close">&times;</button>
-    </header>
-    <form id="register-mec-form" class="modal-body" style="display: flex; flex-direction: column; gap: var(--space-4);">
-      <div class="form-group">
+    </div>
+    <form id="register-mec-form">
+      <div class="fg">
         <label for="mec-server-url">Django Server URL</label>
-        <input type="url" id="mec-server-url" name="server_url" value="http://127.0.0.1:8000" required class="form-input">
-        <small style="color: var(--color-text-muted);">The MEC agent will connect to this URL</small>
+        <input type="url" id="mec-server-url" name="server_url" value="http://127.0.0.1:8000" required class="fi">
+        <small>The MEC agent will connect to this URL to register and send heartbeats.</small>
       </div>
-      <div class="form-group">
+      <div class="fg">
         <label for="mec-pairing-code">Pairing Code</label>
-        <input type="text" id="mec-pairing-code" name="pairing_code" placeholder="Enter pairing code from admin" required class="form-input">
+        <input type="text" id="mec-pairing-code" name="pairing_code" placeholder="Enter pairing code from admin panel" required class="fi">
       </div>
-      <div class="form-group">
+      <div class="fg">
         <label for="mec-system-name">System Name (optional)</label>
-        <input type="text" id="mec-system-name" name="system_name" placeholder="e.g., EDGE-PC-01" class="form-input">
+        <input type="text" id="mec-system-name" name="system_name" placeholder="e.g., HOSPITAL-EDGE-01" class="fi">
       </div>
-      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2);">
-        <button type="button" class="btn btn-secondary modal-close">Cancel</button>
-        <button type="submit" class="btn btn-primary">Register MEC</button>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary modal-close-btn">Cancel</button>
+        <button type="submit" class="btn btn-primary">Register MEC Agent</button>
       </div>
     </form>
   </div>
 </div>
 
 <!-- MEC Detail Modal -->
-<div id="mec-detail-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title" style="display: none;">
+<div id="mec-detail-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title" style="display:none;">
   <div class="modal-backdrop" tabindex="-1"></div>
-  <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
-    <header class="modal-header">
-      <h2 id="detail-modal-title">MEC Details</h2>
+  <div class="modal-content" style="max-width:640px;max-height:80vh;overflow-y:auto;">
+    <div class="modal-header">
+      <h2 id="detail-modal-title">MEC Node Details</h2>
       <button class="modal-close" aria-label="Close">&times;</button>
-    </header>
-    <div class="modal-body" id="mec-detail-content">
-      <!-- Populated by JS -->
+    </div>
+    <div id="mec-detail-content" style="padding-top:var(--space-2);">
+      Loading...
     </div>
   </div>
 </div>
 {% endblock %}
 
-{% block extra_css %}
-<style>
-  .modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; }
-  .modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }
-  .modal-content { position: relative; background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: var(--radius-xl); padding: var(--space-6); width: 100%; max-width: 500px; margin: var(--space-4); box-shadow: var(--shadow-lg); animation: slideUp 0.2s ease; }
-  @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4); padding-bottom: var(--space-4); border-bottom: 1px solid var(--color-border); }
-  .modal-close { background: none; border: none; color: var(--color-text-muted); font-size: 1.5rem; cursor: pointer; line-height: 1; padding: var(--space-1); }
-  .modal-close:hover { color: var(--color-text); }
-  .modal-footer { padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
-  .form-input, .form-select, .form-range { width: 100%; padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); color: var(--color-text); font-family: inherit; font-size: var(--font-size-sm); }
-  .form-input:focus, .form-select:focus { outline: none; border-color: var(--color-primary); }
-  .form-group { display: flex; flex-direction: column; gap: var(--space-1); }
-  .form-group label { font-size: var(--font-size-sm); font-weight: 500; color: var(--color-text); }
-  .form-group small { font-size: var(--font-size-xs); }
-</style>
-{% endblock %}
-
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  document.body.dataset.page = 'mec_infrastructure';
-  
-  // Modal handling
-  const registerModal = $('#register-mec-modal');
-  const detailModal = $('#mec-detail-modal');
-  
-  function openModal(modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
-  function closeModal(modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
-  
-  $('#register-mec-btn')?.addEventListener('click', () => openModal(registerModal));
-  $$('.modal-close, .modal-backdrop').forEach(el => {
-    el.addEventListener('click', () => { closeModal(registerModal); closeModal(detailModal); });
+  const regModal = document.getElementById('register-mec-modal');
+  const detModal = document.getElementById('mec-detail-modal');
+
+  function openModal(m) { m.style.display='flex'; document.body.style.overflow='hidden'; }
+  function closeModal(m) { m.style.display='none'; document.body.style.overflow=''; }
+
+  document.getElementById('register-mec-btn')?.addEventListener('click', () => openModal(regModal));
+  document.querySelectorAll('.modal-backdrop, .modal-close, .modal-close-btn').forEach(el => {
+    el.addEventListener('click', () => { closeModal(regModal); closeModal(detModal); });
   });
-  
-  // Register MEC form
-  $('#register-mec-form')?.addEventListener('submit', async (e) => {
+
+  document.getElementById('register-mec-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData);
-    
+    const data = Object.fromEntries(new FormData(e.target));
     try {
-      const result = await SecureDT.api('/mec/register/', {
-        method: 'POST',
-        body: JSON.stringify(data)
-      });
-      SecureDT.showToast(`MEC ${result.device_id} registered successfully`, 'success');
-      closeModal(registerModal);
-      e.target.reset();
-      loadMECs();
-    } catch (err) {
-      SecureDT.showToast('Registration failed: ' + err.message, 'error');
-    }
+      const result = await SecureDT.api('/mec/register/', {method:'POST', body:JSON.stringify(data)});
+      SecureDT.showToast('MEC ' + result.device_id + ' registered successfully', 'success');
+      closeModal(regModal); e.target.reset(); loadMECs();
+    } catch(err) { SecureDT.showToast('Registration failed: ' + err.message, 'error'); }
   });
-  
-  // Load MECs
+
+  function timeAgo(d) {
+    if (!d) return 'Never';
+    const sec=Math.floor((Date.now()-new Date(d))/1000);
+    if (sec<60) return sec+'s ago';
+    if (sec<3600) return Math.floor(sec/60)+'m ago';
+    if (sec<86400) return Math.floor(sec/3600)+'h ago';
+    return Math.floor(sec/86400)+'d ago';
+  }
+
+  function updateSummary(mecs) {
+    const total=mecs.length, online=mecs.filter(m=>m.is_online).length;
+    document.getElementById('total-mecs').textContent=total;
+    document.getElementById('online-mecs').textContent=online;
+    document.getElementById('offline-mecs').textContent=total-online;
+    document.getElementById('online-pct').textContent=total?Math.round(online/total*100)+'% uptime':'0%';
+    const avgCpu=mecs.reduce((s,m)=>s+(m.cpu||0),0)/(total||1);
+    const avgRam=mecs.reduce((s,m)=>s+(m.ram||0),0)/(total||1);
+    document.getElementById('avg-cpu').textContent=avgCpu.toFixed(1)+'%';
+    document.getElementById('avg-ram').textContent=avgRam.toFixed(1)+'%';
+    document.getElementById('total-tasks-running').textContent=mecs.reduce((s,m)=>s+(m.task_count||0),0);
+    const badge=document.getElementById('mec-count-badge');
+    if (badge) badge.textContent=total+' Node'+(total!==1?'s':'')+' Registered';
+  }
+
+  function renderMECGrid(mecs) {
+    const container=document.getElementById('mec-grid');
+    if (!container) return;
+    if (!mecs.length) {
+      container.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--color-text-muted);padding:var(--space-12);"><p>No MEC agents registered yet.</p><button class="btn btn-primary" style="margin-top:var(--space-4);" onclick="document.getElementById('register-mec-btn').click()">Register First MEC</button></div>';
+      return;
+    }
+    container.innerHTML = mecs.map(mec => {
+      const cpu=mec.cpu||0, ram=mec.ram||0, disk=mec.disk||0;
+      const cpuColor=cpu>80?'var(--color-danger)':cpu>60?'var(--color-warning)':'var(--color-success)';
+      const ramColor=ram>85?'var(--color-danger)':ram>65?'var(--color-warning)':'var(--color-primary)';
+      return '<article class="mec-card '+(mec.is_online?'':'offline')+'" role="listitem" data-mec-id="'+mec.device_id+'">'+
+        '<div class="mec-header">'+
+          '<div style="display:flex;align-items:center;gap:var(--space-2);">'+
+            '<div class="mec-status-dot"></div>'+
+            '<span class="mec-id">'+mec.device_id+'</span>'+
+          '</div>'+
+          (mec.is_online?'<span class="badge badge-success" style="font-size:.65rem;">ONLINE</span>':'<span class="badge badge-danger" style="font-size:.65rem;">OFFLINE</span>')+
+        '</div>'+
+        '<div class="mec-metrics-row">'+
+          '<div class="mec-metric"><div class="mec-metric-val" style="color:'+cpuColor+'">'+cpu+'%</div><div class="mec-metric-lbl">CPU</div></div>'+
+          '<div class="mec-metric"><div class="mec-metric-val" style="color:'+ramColor+'">'+ram+'%</div><div class="mec-metric-lbl">RAM</div></div>'+
+          '<div class="mec-metric"><div class="mec-metric-val">'+(mec.latency||0)+'<small style="font-size:.6rem;">ms</small></div><div class="mec-metric-lbl">Latency</div></div>'+
+        '</div>'+
+        '<div class="mec-progress-group">'+
+          '<div class="mec-bar-row"><span class="mec-bar-lbl">CPU</span><div class="mec-bar-track"><div class="mec-bar-fill cpu-bar" style="width:'+cpu+'%"></div></div><span class="mec-bar-val">'+cpu+'%</span></div>'+
+          '<div class="mec-bar-row"><span class="mec-bar-lbl">RAM</span><div class="mec-bar-track"><div class="mec-bar-fill ram-bar" style="width:'+ram+'%"></div></div><span class="mec-bar-val">'+ram+'%</span></div>'+
+          '<div class="mec-bar-row"><span class="mec-bar-lbl">Disk</span><div class="mec-bar-track"><div class="mec-bar-fill disk-bar" style="width:'+disk+'%"></div></div><span class="mec-bar-val">'+disk+'%</span></div>'+
+        '</div>'+
+        (mec.current_task?'<div style="background:var(--color-bg-card);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-3);font-size:var(--font-size-xs);"><span style="color:var(--color-text-muted);">Current Task: </span><code style="color:var(--color-primary);">'+mec.current_task+'</code></div>':'')+
+        '<div class="mec-last-seen">'+(mec.is_online?'Last heartbeat: Just now':'Last seen: '+timeAgo(mec.last_seen))+(mec.hostname?' | Host: '+mec.hostname:'')+'</div>'+
+        '<div class="mec-footer">'+
+          '<button class="btn btn-secondary btn-sm" style="flex:1;" onclick="showMECDetail(''+mec.device_id+'')">'+
+            '<svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Details'+
+          '</button>'+
+          (!mec.is_online?'<button class="btn btn-danger btn-sm" onclick="revokeMEC(''+mec.device_id+'')">Revoke</button>':'')+
+        '</div>'+
+      '</article>';
+    }).join('');
+  }
+
   async function loadMECs() {
     try {
       const mecs = await SecureDT.api('/mec/');
       renderMECGrid(mecs);
       updateSummary(mecs);
-    } catch (err) {
-      console.error('Failed to load MECs:', err);
-    }
+    } catch(err) { console.error('Failed to load MECs:', err); }
   }
-  
-  function updateSummary(mecs) {
-    const total = mecs.length;
-    const online = mecs.filter(m => m.is_online).length;
-    const offline = total - online;
-    const avgCpu = mecs.reduce((sum, m) => sum + (m.cpu || 0), 0) / (total || 1);
-    const avgRam = mecs.reduce((sum, m) => sum + (m.ram || 0), 0) / (total || 1);
-    const runningTasks = mecs.reduce((sum, m) => sum + (m.task_count || 0), 0);
-    
-    $('#total-mecs').textContent = total;
-    $('#online-mecs').textContent = online;
-    $('#offline-mecs').textContent = offline;
-    $('#online-pct').textContent = total ? `${Math.round(online/total*100)}%` : '0%';
-    $('#avg-cpu').textContent = avgCpu.toFixed(1) + '%';
-    $('#avg-ram').textContent = avgRam.toFixed(1) + '%';
-    $('#total-tasks-running').textContent = runningTasks;
-  }
-  
-  function renderMECGrid(mecs) {
-    const container = $('#mec-grid');
-    if (!container) return;
-    
-    if (mecs.length === 0) {
-      container.innerHTML = `
-        <div class="empty-state" style="grid-column: 1/-1; padding: var(--space-12);">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
-          <p>No MEC agents registered</p>
-          <button class="btn btn-primary mt-4" id="register-first-mec">Register First MEC</button>
-        </div>
-      `;
-      $('#register-first-mec')?.addEventListener('click', () => openModal(registerModal));
-      return;
-    }
-    
-    container.innerHTML = mecs.map(mec => `
-      <article class="mec-card ${mec.is_online ? '' : 'offline'}" role="listitem" data-mec-id="${mec.device_id}">
-        <header class="mec-header">
-          <h3 class="mec-id">${mec.device_id}</h3>
-          <div class="mec-status">
-            ${mec.is_online ? '<span class="badge badge-online">Online</span>' : '<span class="badge badge-offline">Offline</span>'}
-          </div>
-        </header>
-        
-        <div class="mec-metrics">
-          <div class="mec-metric">
-            <div class="mec-metric-value">${mec.cpu || 0}%</div>
-            <div class="mec-metric-label">CPU</div>
-          </div>
-          <div class="mec-metric">
-            <div class="mec-metric-value">${mec.ram || 0}%</div>
-            <div class="mec-metric-label">RAM</div>
-          </div>
-          <div class="mec-metric">
-            <div class="mec-metric-value">${mec.latency || 0}ms</div>
-            <div class="mec-metric-label">Latency</div>
-          </div>
-        </div>
-        
-        <div class="mec-metrics" style="border-top: none; padding-top: var(--space-2);">
-          <div class="mec-metric">
-            <div class="mec-metric-value">${mec.disk || 0}%</div>
-            <div class="mec-metric-label">Disk</div>
-          </div>
-          <div class="mec-metric">
-            <div class="mec-metric-value">${(mec.energy || 0).toFixed(3)}</div>
-            <div class="mec-metric-label">Energy (Wh)</div>
-          </div>
-          <div class="mec-metric">
-            <div class="mec-metric-value">${mec.task_count || 0}</div>
-            <div class="mec-metric-label">Tasks</div>
-          </div>
-        </div>
-        
-        ${mec.current_task ? `
-          <div class="mec-current-task">
-            <div class="mec-current-task-label">Current Task</div>
-            <code class="font-mono">${mec.current_task}</code>
-          </div>
-        ` : ''}
-        
-        <div class="mec-last-seen">
-          ${mec.is_online ? 'Last heartbeat: Just now' : `Last seen: ${timeAgo(mec.last_seen)}`}
-          ${mec.hostname ? ` | Host: ${mec.hostname}` : ''}
-        </div>
-        
-        <div style="display: flex; gap: var(--space-2); margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border);">
-          <button class="btn btn-secondary btn-sm flex-1" onclick="showMECDetail('${mec.device_id}')">
-            <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-            Details
-          </button>
-          ${!mec.is_online ? `
-            <button class="btn btn-danger btn-sm" onclick="revokeMEC('${mec.device_id}')">
-              <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-              Revoke
-            </button>
-          ` : ''}
-        </div>
-      </article>
-    `).join('');
-  }
-  
-  function timeAgo(dateString) {
-    if (!dateString) return 'Never';
-    const now = new Date();
-    const then = new Date(dateString);
-    const diff = Math.floor((now - then) / 1000);
-    if (diff < 60) return `${diff}s ago`;
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return `${Math.floor(diff / 86400)}d ago`;
-  }
-  
+
   window.showMECDetail = async (deviceId) => {
     try {
-      const mec = await SecureDT.api(`/mec/${deviceId}/`);
-      const content = $('#mec-detail-content');
+      const mec = await SecureDT.api('/mec/'+deviceId+'/');
+      const heartbeats = await SecureDT.api('/mec/heartbeats/?mec_id='+deviceId).catch(()=>[]);
+      const content = document.getElementById('mec-detail-content');
       if (!content) return;
-      
-      const heartbeats = await SecureDT.api(`/mec/heartbeats/?mec_id=${deviceId}`).catch(() => []);
-      
-      content.innerHTML = `
-        <div style="display: grid; gap: var(--space-4);">
-          <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
-            <div><span class="kpi-label">Device ID</span><span class="kpi-value font-mono">${mec.device_id}</span></div>
-            <div><span class="kpi-label">System Name</span><span class="kpi-value">${mec.system_name || '—'}</span></div>
-            <div><span class="kpi-label">Status</span><span class="kpi-value ${mec.is_online ? 'success' : 'danger'}">${mec.is_online ? 'Online' : 'Offline'}</span></div>
-            <div><span class="kpi-label">Hostname</span><span class="kpi-value font-mono">${mec.hostname || '—'}</span></div>
-            <div><span class="kpi-label">OS</span><span class="kpi-value">${mec.operating_system || '—'}</span></div>
-            <div><span class="kpi-label">Agent Version</span><span class="kpi-value">${mec.agent_version || '—'}</span></div>
-            <div><span class="kpi-label">Registered</span><span class="kpi-value">${timeAgo(mec.registered_at)}</span></div>
-            <div><span class="kpi-label">Last Seen</span><span class="kpi-value">${timeAgo(mec.last_seen)}</span></div>
-            <div><span class="kpi-label">Last IP</span><span class="kpi-value font-mono">${mec.last_known_ip || '—'}</span></div>
-          </div>
-          
-          ${heartbeats.length > 0 ? `
-            <div>
-              <h3 style="font-size: var(--font-size-base); margin-bottom: var(--space-3);">Recent Telemetry</h3>
-              <div class="table-container" style="max-height: 300px;">
-                <table class="table">
-                  <thead><tr><th>Time</th><th>CPU</th><th>RAM</th><th>Disk</th><th>Latency</th><th>Energy</th><th>Task</th></tr></thead>
-                  <tbody>
-                    ${heartbeats.slice(0, 20).map(h => `
-                      <tr>
-                        <td>${timeAgo(h.timestamp)}</td>
-                        <td>${h.cpu_usage}%</td>
-                        <td>${h.ram_usage}%</td>
-                        <td>${h.disk_usage}%</td>
-                        <td>${h.network_latency}ms</td>
-                        <td>${h.energy_estimate}Wh</td>
-                        <td>${h.current_task || '—'}</td>
-                      </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ` : ''}
-        </div>
-      `;
-      
-      openModal(detailModal);
-    } catch (err) {
-      SecureDT.showToast('Failed to load MEC details: ' + err.message, 'error');
-    }
+      content.innerHTML =
+        '<div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:var(--space-4);">'+
+          '<div><span class="kpi-label">Device ID</span><span class="kpi-value font-mono" style="font-size:1rem;">'+mec.device_id+'</span></div>'+
+          '<div><span class="kpi-label">System Name</span><span class="kpi-value" style="font-size:1rem;">'+(mec.system_name||'--')+'</span></div>'+
+          '<div><span class="kpi-label">Status</span><span class="kpi-value '+(mec.is_online?'success':'danger')+'" style="font-size:1rem;">'+(mec.is_online?'Online':'Offline')+'</span></div>'+
+          '<div><span class="kpi-label">Hostname</span><span class="kpi-value font-mono" style="font-size:1rem;">'+(mec.hostname||'--')+'</span></div>'+
+          '<div><span class="kpi-label">OS</span><span class="kpi-value" style="font-size:1rem;">'+(mec.operating_system||'--')+'</span></div>'+
+          '<div><span class="kpi-label">Registered</span><span class="kpi-value" style="font-size:1rem;">'+timeAgo(mec.registered_at)+'</span></div>'+
+        '</div>'+
+        (heartbeats.length?
+          '<h3 style="font-size:var(--font-size-sm);font-weight:700;margin-bottom:var(--space-3);">Recent Telemetry</h3>'+
+          '<div class="table-container" style="max-height:260px;">'+
+            '<table class="table"><thead><tr><th>Time</th><th>CPU</th><th>RAM</th><th>Disk</th><th>Latency</th><th>Energy</th><th>Task</th></tr></thead><tbody>'+
+            heartbeats.slice(0,20).map(h=>
+              '<tr><td>'+timeAgo(h.timestamp)+'</td><td>'+h.cpu_usage+'%</td><td>'+h.ram_usage+'%</td><td>'+h.disk_usage+'%</td><td>'+h.network_latency+'ms</td><td>'+h.energy_estimate+'Wh</td><td>'+(h.current_task||'--')+'</td></tr>'
+            ).join('')+
+            '</tbody></table></div>'
+        :'<p style="color:var(--color-text-muted);font-size:var(--font-size-sm);">No telemetry data available yet.</p>');
+      openModal(detModal);
+    } catch(err) { SecureDT.showToast('Failed to load MEC details: '+err.message, 'error'); }
   };
-  
+
   window.revokeMEC = async (deviceId) => {
-    if (!confirm(`Revoke MEC ${deviceId}? This will block task dispatch.`)) return;
-    
+    if (!confirm('Revoke MEC '+deviceId+'? This will block task dispatch to this node.')) return;
     try {
-      await SecureDT.api(`/mec/${deviceId}/revoke/`, {
-        method: 'POST',
-        body: JSON.stringify({})
-      });
-      SecureDT.showToast(`MEC ${deviceId} revoked`, 'warning');
+      await SecureDT.api('/mec/'+deviceId+'/revoke/', {method:'POST', body:JSON.stringify({})});
+      SecureDT.showToast('MEC '+deviceId+' revoked', 'warning');
       loadMECs();
-    } catch (err) {
-      SecureDT.showToast('Failed: ' + err.message, 'error');
-    }
+    } catch(err) { SecureDT.showToast('Failed: '+err.message, 'error'); }
   };
-  
-  $('#refresh-mecs-btn')?.addEventListener('click', loadMECs);
-  
+
+  document.getElementById('refresh-mecs-btn')?.addEventListener('click', loadMECs);
   loadMECs();
+  setInterval(loadMECs, 30000);
 });
 </script>
 {% endblock %}

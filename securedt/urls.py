@@ -34,6 +34,7 @@ urlpatterns = [
     path('api/app/dashboard-stats/', page_views.dashboard_api, name='api_dashboard_stats'),
     path('api/app/upload-zip/', page_views.upload_dataset_api, name='api_upload_dataset'),
     path('api/app/upload-demo-zip/', page_views.upload_demo_zip_api, name='api_upload_demo_zip'),
+    path('api/download-sample-zip/<str:package_key>/', page_views.download_sample_zip_api, name='api_download_sample_zip'),
     path('api/app/digital-twin/', page_views.digital_twin_api, name='api_digital_twin_status'),
     path('api/app/storage-allocations/', page_views.storage_allocation_api, name='api_storage_allocations'),
     path('api/app/reports/', page_views.dataset_reports_api, name='api_dataset_reports'),

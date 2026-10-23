@@ -17,5 +17,5 @@ urlpatterns = [
     path("storage/attack/", DigitalTwinViewSet.as_view({"post": "storage_attack"}), name="digital_twin_storage_attack"),
     path("storage/recover/", DigitalTwinViewSet.as_view({"post": "storage_recover"}), name="digital_twin_storage_recover"),
     path("security/", DigitalTwinViewSet.as_view({"get": "security"}), name="digital_twin_security"),
-    path("", DigitalTwinViewSet.as_view({"get": "list"}), name="digital_twin"),
+    path("", DigitalTwinViewSet.as_view({"get": "list"}), name="digital_twin_list"),
 ]

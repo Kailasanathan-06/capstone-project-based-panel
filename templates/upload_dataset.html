@@ -195,12 +195,28 @@
       <div id="upload-result-banner" style="display: none; padding: 14px; border-radius: var(--radius-md); background: rgba(16, 185, 129, 0.1); border: 1px solid var(--status-green); margin-top: 14px;">
         <div style="font-weight: 600; color: var(--status-green); margin-bottom: 4px;" id="result-title">Analysis Completed Successfully!</div>
         <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 10px;" id="result-desc">Archive processed and persistent report saved.</div>
+        <div id="result-metrics" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px;">
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 8px 10px;">
+            <div class="text-xs text-dim">PROCESSING TIME</div>
+            <div class="text-mono text-bold" id="result-duration">&mdash;</div>
+          </div>
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 8px 10px;">
+            <div class="text-xs text-dim">SCHEDULER TIME</div>
+            <div class="text-mono text-bold" id="result-scheduler-duration">&mdash;</div>
+          </div>
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 8px 10px;">
+            <div class="text-xs text-dim">ENERGY CONSUMPTION</div>
+            <div class="text-mono text-bold text-amber" id="result-energy">&mdash;</div>
+          </div>
+        </div>
+        <div style="font-size: 0.72rem; color: var(--text-dim); margin-bottom: 10px;">Energy is estimated by SecureDT's simulated scheduling cost model, not hardware metering.</div>
         <a href="#" id="result-report-link" class="btn btn-primary btn-sm" style="height: 32px; font-size: 0.82rem;">Open Detailed Analysis Report</a>
       </div>
 
       <div id="upload-error-banner" style="display: none; padding: 14px; border-radius: var(--radius-md); background: rgba(239, 68, 68, 0.1); border: 1px solid var(--status-red); margin-top: 14px;">
         <div style="font-weight: 600; color: var(--status-red); margin-bottom: 4px;" id="error-title">Archive Rejected</div>
         <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 10px;" id="error-desc">Error details.</div>
+        <div id="error-metrics" style="display: none; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-dim); margin-bottom: 10px;">&mdash;</div>
         <button type="button" class="btn btn-secondary btn-sm" onclick="location.reload();">Retry Upload</button>
       </div>
     </div>
@@ -222,6 +238,43 @@
     if (bytes < 1024) return bytes + ' B';
     else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
     else return (bytes / 1048576).toFixed(2) + ' MB';
+  }
+
+  function formatDuration(ms) {
+    if (ms === null || ms === undefined || ms === '') return '\u2014';
+    const value = Number(ms);
+    if (!Number.isFinite(value)) return '\u2014';
+    return value >= 1000 ? `${(value / 1000).toFixed(2)} s` : `${value.toFixed(1)} ms`;
+  }
+
+  function formatEnergy(joules) {
+    if (joules === null || joules === undefined || joules === '') return '\u2014';
+    const value = Number(joules);
+    return Number.isFinite(value) ? `${value.toFixed(3)} J` : '\u2014';
+  }
+
+  function updateResultMetrics(summary, elapsedMs) {
+    const totalMs = summary && summary.total_analysis_duration_ms !== undefined
+      ? summary.total_analysis_duration_ms : elapsedMs;
+    const schedulerMs = summary ? summary.scheduler_duration_ms : null;
+    const energyJ = summary ? summary.energy_consumption_j : null;
+    document.getElementById('result-duration').textContent = formatDuration(totalMs);
+    document.getElementById('result-scheduler-duration').textContent = formatDuration(schedulerMs);
+    document.getElementById('result-energy').textContent = formatEnergy(energyJ);
+  }
+
+  function updateErrorMetrics(data, elapsedMs) {
+    const totalMs = data && data.analysis_duration_ms !== undefined
+      ? data.analysis_duration_ms : elapsedMs;
+    const energyJ = data && data.energy_consumption_j !== undefined
+      ? data.energy_consumption_j : 0;
+    const metricsEl = document.getElementById('error-metrics');
+    metricsEl.textContent = `Time: ${formatDuration(totalMs)} \u00b7 Energy: ${formatEnergy(energyJ)}`;
+    metricsEl.style.display = 'block';
+  }
+
+  function resetErrorMetrics() {
+    document.getElementById('error-metrics').style.display = 'none';
   }
 
   fileInput.addEventListener('change', () => {
@@ -276,8 +329,10 @@
     document.getElementById('pipeline-status-badge').className = 'badge badge-cyan';
     document.getElementById('upload-result-banner').style.display = 'none';
     document.getElementById('upload-error-banner').style.display = 'none';
+    resetErrorMetrics();
 
     const formData = new FormData(uploadForm);
+    const requestStarted = performance.now();
 
     try {
       const resp = await fetch('{% url "api_upload_dataset" %}', {
@@ -285,6 +340,7 @@
         body: formData,
       });
       const data = await resp.json();
+      const elapsedMs = performance.now() - requestStarted;
 
       if (data.stages) updateStages(data.stages);
 
@@ -293,18 +349,21 @@
         document.getElementById('pipeline-status-badge').className = 'badge badge-green';
         document.getElementById('result-title').textContent = `Analysis Completed: ${data.report_id}`;
         document.getElementById('result-desc').textContent = `Processed ${data.inventory.length} files. Recommended allocations computed.`;
+        updateResultMetrics(data.summary, elapsedMs);
         document.getElementById('result-report-link').href = `/reports/${data.report_id}/`;
         document.getElementById('upload-result-banner').style.display = 'block';
       } else {
         document.getElementById('pipeline-status-badge').textContent = 'Failed';
         document.getElementById('pipeline-status-badge').className = 'badge badge-red';
         document.getElementById('error-desc').textContent = data.error || 'Archive analysis failed.';
+        updateErrorMetrics(data, elapsedMs);
         document.getElementById('upload-error-banner').style.display = 'block';
       }
     } catch (err) {
       document.getElementById('pipeline-status-badge').textContent = 'Network Error';
       document.getElementById('pipeline-status-badge').className = 'badge badge-red';
       document.getElementById('error-desc').textContent = err.message;
+      updateErrorMetrics(null, performance.now() - requestStarted);
       document.getElementById('upload-error-banner').style.display = 'block';
     } finally {
       btnSubmit.disabled = false;
@@ -332,11 +391,13 @@
       document.getElementById('pipeline-status-badge').className = 'badge badge-cyan';
       document.getElementById('upload-result-banner').style.display = 'none';
       document.getElementById('upload-error-banner').style.display = 'none';
+      resetErrorMetrics();
 
       const mode = document.getElementById('execution-mode-select').value;
       const formData = new FormData();
       formData.append('package', pkg);
       formData.append('execution_mode', mode);
+      const requestStarted = performance.now();
 
       try {
         const resp = await fetch('{% url "api_upload_demo_zip" %}', {
@@ -347,6 +408,7 @@
           body: formData,
         });
         const data = await resp.json();
+        const elapsedMs = performance.now() - requestStarted;
         if (data.stages) updateStages(data.stages);
 
         if (data.success) {
@@ -354,6 +416,7 @@
           document.getElementById('pipeline-status-badge').className = 'badge badge-green';
           document.getElementById('result-title').textContent = `Scenario Completed: ${data.report_id}`;
           document.getElementById('result-desc').textContent = `Scenario '${pkg}' processed successfully. Full persistent report generated.`;
+          updateResultMetrics(data.summary, elapsedMs);
           document.getElementById('result-report-link').href = `/reports/${data.report_id}/`;
           document.getElementById('upload-result-banner').style.display = 'block';
         } else {
@@ -361,10 +424,12 @@
           document.getElementById('pipeline-status-badge').className = 'badge badge-red';
           document.getElementById('error-title').textContent = `Scenario Test Handled Safely`;
           document.getElementById('error-desc').textContent = data.error || 'Scenario executed rejection or error handling logic.';
+          updateErrorMetrics(data, elapsedMs);
           document.getElementById('upload-error-banner').style.display = 'block';
         }
       } catch (err) {
         document.getElementById('error-desc').textContent = err.message;
+        updateErrorMetrics(null, performance.now() - requestStarted);
         document.getElementById('upload-error-banner').style.display = 'block';
       } finally {
         btnRunScenario.disabled = false;

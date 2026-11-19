@@ -59,24 +59,24 @@
       </form>
     </div>
 
-    <!-- 14 Standardized Test Scenarios Suite -->
+    <!-- 30 Standardized Test Scenarios Suite -->
     <div class="card">
       <div class="card-header">
         <h2 class="card-title">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
-          14 Standardized Test Scenario ZIPs
+          30 Standardized Test Scenario ZIPs
         </h2>
         <span class="badge badge-cyan">Full Suite</span>
       </div>
 
       <p class="body-text" style="font-size: 0.85rem; margin-bottom: 12px;">
-        Select and directly execute any of the 14 test scenarios across Local, MEC, and Cloud resources, or download them individually.
+        Select and directly execute any of the 30 test scenarios (10 success, 10 failure, 10 loop/timeout) across Local, MEC, and Cloud resources, or download them individually.
       </p>
 
       <div class="form-group" style="margin-bottom: 12px;">
         <label class="form-label" for="scenario-preset-select">Select Test Scenario Archive</label>
         <select id="scenario-preset-select" class="form-select">
-          <optgroup label="Category A — Successful Datasets (8 Scenarios)">
+          <optgroup label="Category A — Successful Datasets (10 Scenarios)">
             <option value="success_01" selected>success_01_basic_all_storage.zip (Valid Local, MEC, Cloud)</option>
             <option value="success_02">success_02_mixed_file_formats.zip (CSV, JSON, TXT parsing)</option>
             <option value="success_03">success_03_capacity_aware.zip (Capacity-aware headroom allocation)</option>
@@ -85,16 +85,32 @@
             <option value="success_06">success_06_device_telemetry_stream.zip (Telemetry &amp; diagnostic inference)</option>
             <option value="success_07">success_07_mixed_format_lab_records.zip (Mixed CSV, JSON, TXT lab records)</option>
             <option value="success_08">success_08_ambulatory_care_workloads.zip (4-task ambulatory scheduling)</option>
+            <option value="success_09">success_09_fhir_interoperability_batch.zip (FHIR imaging &amp; consent)</option>
+            <option value="success_10">success_10_pharmacy_inventory_sync.zip (4-task pharmacy sync)</option>
           </optgroup>
-          <optgroup label="Category B — Failed Datasets (3 Scenarios)">
+          <optgroup label="Category B — Failed Datasets (10 Scenarios)">
             <option value="failed_01">failed_01_corrupt_archive.zip (Truncated corrupt ZIP header)</option>
             <option value="failed_02">failed_02_invalid_manifest.zip (Missing required schema fields)</option>
             <option value="failed_03">failed_03_capacity_or_policy_violation.zip (300MB on 10MB Local vault)</option>
+            <option value="failed_04">failed_04_missing_resources_field.zip (Manifest missing resources)</option>
+            <option value="failed_05">failed_05_resources_wrong_type.zip (Resources object instead of list)</option>
+            <option value="failed_06">failed_06_insufficient_resource_tiers.zip (Only 2 tiers declared)</option>
+            <option value="failed_07">failed_07_malformed_manifest_json.zip (Truncated JSON)</option>
+            <option value="failed_08">failed_08_disallowed_executable.zip (Blocked .exe payload)</option>
+            <option value="failed_09">failed_09_path_traversal_entry.zip (Blocked ../ escape path)</option>
+            <option value="failed_10">failed_10_decompression_limit.zip (280MB expansion blocked)</option>
           </optgroup>
-          <optgroup label="Category C — Loop &amp; Timeout Datasets (3 Scenarios)">
+          <optgroup label="Category C — Loop &amp; Timeout Datasets (10 Scenarios)">
             <option value="loop_01">loop_01_large_task_queue.zip (45-task bounded queue)</option>
             <option value="loop_02">loop_02_dependency_cycle.zip (A -> B -> C -> A circular loop)</option>
             <option value="loop_03">loop_03_timeout_simulation.zip (Watchdog 2s timeout simulation)</option>
+            <option value="loop_04">loop_04_self_dependency_loop.zip (Self-referencing task)</option>
+            <option value="loop_05">loop_05_mutual_dependency_deadlock.zip (A &lt;-&gt; B deadlock)</option>
+            <option value="loop_06">loop_06_five_node_dependency_cycle.zip (5-node cycle)</option>
+            <option value="loop_07">loop_07_edge_worker_watchdog.zip (MEC watchdog with 2 retries)</option>
+            <option value="loop_08">loop_08_cloud_sync_retry_storm.zip (Cloud watchdog with 5 retries)</option>
+            <option value="loop_09">loop_09_retry_exhaustion_batch.zip (3 timed-out tasks)</option>
+            <option value="loop_10">loop_10_cycle_and_timeout_mixed.zip (Cycle + timeout combined)</option>
           </optgroup>
         </select>
       </div>
@@ -112,7 +128,7 @@
 
       <div style="display: flex; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border-subtle);">
         <a href="{% url 'api_download_sample_zip' 'master' %}" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; justify-content: center;">
-          Download Master Suite ZIP (All 14)
+          Download Master Suite ZIP (All 30)
         </a>
         <a href="{% url 'api_download_sample_zip' 'inventory' %}" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center; justify-content: center;">
           Download Inventory CSV

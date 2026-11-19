@@ -15,6 +15,7 @@ import io
 import csv
 import json
 import time
+import uuid
 import zipfile
 import hashlib
 from datetime import datetime, timezone
@@ -432,7 +433,7 @@ def process_zip_dataset_upload(
         set_stage(1, "FAILED", error_msg)
 
         SecurityAuditEvent.objects.create(
-            event_id=f"AUD-{int(time.time())}-ZIP-FAIL",
+            event_id=f"AUD-{int(time.time())}-ZIP-FAIL-{uuid.uuid4().hex[:8]}",
             event_type="ZIP_VALIDATION_ERROR",
             severity="HIGH",
             source_ip=client_ip,

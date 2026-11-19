@@ -1,5 +1,5 @@
 """
-Automated Test Suite for All 14 Digital Twin Edge-Cloud ZIP Scenarios
+Automated Test Suite for All 30 Digital Twin Edge-Cloud ZIP Scenarios
 ======================================================================
 Verifies:
 1. Physical existence and integrity of all 11 scenario ZIPs and master suite
@@ -11,6 +11,7 @@ Verifies:
 import os
 import sys
 import io
+import csv
 import json
 import zipfile
 from pathlib import Path
@@ -35,20 +36,10 @@ SUITE_DIR = BASE_DIR / "sample_upload_datasets"
 
 def test_suite_inventory_and_structure():
     print("\n--- Test 1: Verifying Suite Artifacts Existence & Integrity ---")
-    expected_files = [
-        "success_01_basic_all_storage.zip",
-        "success_02_mixed_file_formats.zip",
-        "success_03_capacity_aware.zip",
-        "success_04_privacy_aware.zip",
-        "success_05_multi_task_scheduling.zip",
-        "failed_01_corrupt_archive.zip",
-        "failed_02_invalid_manifest.zip",
-        "failed_03_capacity_or_policy_violation.zip",
-        "loop_01_large_task_queue.zip",
-        "loop_02_dependency_cycle.zip",
-        "loop_03_timeout_simulation.zip",
+    with open(SUITE_DIR / "dataset_test_matrix_inventory.csv", newline="", encoding="utf-8") as fh:
+        expected_files = [row["Scenario Filename"] for row in csv.DictReader(fh)]
+    expected_files += [
         "master_test_datasets_suite.zip",
-        "dataset_test_matrix_inventory.csv",
         "README.md",
         "README_failed_01_corrupt_archive.txt"
     ]
@@ -152,7 +143,7 @@ def test_bounded_queue_processing():
 
 
 def test_all_five_successful_scenarios():
-    print("\n--- Test 8: Verifying All 8 Successful Scenarios (Category A) ---")
+    print("\n--- Test 8: Verifying All 10 Successful Scenarios (Category A) ---")
     success_scenarios = [
         ("success_01_basic_all_storage.zip", 3),
         ("success_02_mixed_file_formats.zip", 3),
@@ -162,6 +153,8 @@ def test_all_five_successful_scenarios():
         ("success_06_device_telemetry_stream.zip", 3),
         ("success_07_mixed_format_lab_records.zip", 3),
         ("success_08_ambulatory_care_workloads.zip", 4),
+        ("success_09_fhir_interoperability_batch.zip", 3),
+        ("success_10_pharmacy_inventory_sync.zip", 4),
     ]
 
     for fname, expected_count in success_scenarios:
@@ -193,9 +186,66 @@ def test_all_five_successful_scenarios():
         print(f"  [PASS] {fname}: Validated archive, 3-tier structure, and processed {expected_count} workloads.")
 
 
+def test_new_failed_scenarios_safe_rejection():
+    print("\n--- Test 9: Verifying Failed Scenarios 04-10 Safe Rejection ---")
+    expectations = {
+        "failed_04_missing_resources_field.zip": "Missing or invalid mandatory field 'resources'",
+        "failed_05_resources_wrong_type.zip": "Missing or invalid mandatory field 'resources'",
+        "failed_06_insufficient_resource_tiers.zip": "must define Local, MEC, and Cloud",
+        "failed_07_malformed_manifest_json.zip": "expecting value",
+        "failed_08_disallowed_executable.zip": "Disallowed executable file type",
+        "failed_09_path_traversal_entry.zip": "path traversal",
+        "failed_10_decompression_limit.zip": "safe uncompressed expansion limit",
+    }
+    for fname, expected_error in expectations.items():
+        path = SUITE_DIR / fname
+        with open(path, "rb") as fh:
+            raw_bytes = fh.read()
+        mock_file = SimpleUploadedFile(fname, raw_bytes, content_type="application/zip")
+        res = process_zip_dataset_upload(mock_file, execution_mode="SIMULATION")
+        assert not res["success"], f"{fname} should have been rejected"
+        assert expected_error.lower() in (res.get("error") or "").lower(), f"{fname}: unexpected error {res.get('error')}"
+        print(f"  [PASS] {fname}: {res['error']}")
+
+
+def test_new_loop_scenarios_safe_handling():
+    print("\n--- Test 10: Verifying Loop/Timeout Scenarios 04-10 ---")
+    cycle_archives = [
+        "loop_04_self_dependency_loop.zip",
+        "loop_05_mutual_dependency_deadlock.zip",
+        "loop_06_five_node_dependency_cycle.zip",
+        "loop_10_cycle_and_timeout_mixed.zip",
+    ]
+    for fname in cycle_archives:
+        path = SUITE_DIR / fname
+        with open(path, "rb") as fh:
+            raw_bytes = fh.read()
+        mock_file = SimpleUploadedFile(fname, raw_bytes, content_type="application/zip")
+        res = process_zip_dataset_upload(mock_file, execution_mode="SIMULATION")
+        assert not res["success"], f"{fname} cycle must trigger safe rejection"
+        assert "Dependency Cycle Detected" in res["error"]
+        print(f"  [PASS] {fname}: cycle detected safely.")
+
+    timeout_archives = [
+        "loop_07_edge_worker_watchdog.zip",
+        "loop_08_cloud_sync_retry_storm.zip",
+        "loop_09_retry_exhaustion_batch.zip",
+    ]
+    for fname in timeout_archives:
+        path = SUITE_DIR / fname
+        with open(path, "rb") as fh:
+            raw_bytes = fh.read()
+        mock_file = SimpleUploadedFile(fname, raw_bytes, content_type="application/zip")
+        res = process_zip_dataset_upload(mock_file, execution_mode="SIMULATION")
+        assert res["success"], f"{fname} should process with bounded timeout handling: {res.get('error')}"
+        stage_msg = res["stages"][2]["message"]
+        assert "Watchdog" in stage_msg, f"{fname}: no watchdog alert recorded"
+        print(f"  [PASS] {fname}: {stage_msg}")
+
+
 if __name__ == "__main__":
     print("=================================================================")
-    print("RUNNING AUTOMATED VERIFICATION FOR 14 DIGITAL TWIN TEST SCENARIOS")
+    print("RUNNING AUTOMATED VERIFICATION FOR 30 DIGITAL TWIN TEST SCENARIOS")
     print("=================================================================")
     test_suite_inventory_and_structure()
     test_corrupt_archive_rejection()
@@ -205,6 +255,8 @@ if __name__ == "__main__":
     test_timeout_watchdog_simulation()
     test_bounded_queue_processing()
     test_all_five_successful_scenarios()
+    test_new_failed_scenarios_safe_rejection()
+    test_new_loop_scenarios_safe_handling()
     print("\n=================================================================")
-    print("ALL 14 TEST SCENARIOS AND AUTOMATED VERIFICATION SUITE PASSED!")
+    print("ALL 30 TEST SCENARIOS AND AUTOMATED VERIFICATION SUITE PASSED!")
     print("=================================================================")

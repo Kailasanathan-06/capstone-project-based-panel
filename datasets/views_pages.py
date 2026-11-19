@@ -295,7 +295,7 @@ def upload_demo_zip_api(request):
         "complete": "master_test_datasets_suite.zip",
         "inventory": "dataset_test_matrix_inventory.csv",
         "readme_corrupt": "README_failed_01_corrupt_archive.txt",
-        # Category A: 5 Successful Scenarios
+        # Category A: 10 Successful Scenarios
         "success_01": "success_01_basic_all_storage.zip",
         "success_02": "success_02_mixed_file_formats.zip",
         "success_03": "success_03_capacity_aware.zip",
@@ -304,14 +304,30 @@ def upload_demo_zip_api(request):
         "success_06": "success_06_device_telemetry_stream.zip",
         "success_07": "success_07_mixed_format_lab_records.zip",
         "success_08": "success_08_ambulatory_care_workloads.zip",
-        # Category B: 3 Failed Scenarios
+        "success_09": "success_09_fhir_interoperability_batch.zip",
+        "success_10": "success_10_pharmacy_inventory_sync.zip",
+        # Category B: 10 Failed Scenarios
         "failed_01": "failed_01_corrupt_archive.zip",
         "failed_02": "failed_02_invalid_manifest.zip",
         "failed_03": "failed_03_capacity_or_policy_violation.zip",
-        # Category C: 3 Loop / Timeout Scenarios
+        "failed_04": "failed_04_missing_resources_field.zip",
+        "failed_05": "failed_05_resources_wrong_type.zip",
+        "failed_06": "failed_06_insufficient_resource_tiers.zip",
+        "failed_07": "failed_07_malformed_manifest_json.zip",
+        "failed_08": "failed_08_disallowed_executable.zip",
+        "failed_09": "failed_09_path_traversal_entry.zip",
+        "failed_10": "failed_10_decompression_limit.zip",
+        # Category C: 10 Loop / Timeout Scenarios
         "loop_01": "loop_01_large_task_queue.zip",
         "loop_02": "loop_02_dependency_cycle.zip",
         "loop_03": "loop_03_timeout_simulation.zip",
+        "loop_04": "loop_04_self_dependency_loop.zip",
+        "loop_05": "loop_05_mutual_dependency_deadlock.zip",
+        "loop_06": "loop_06_five_node_dependency_cycle.zip",
+        "loop_07": "loop_07_edge_worker_watchdog.zip",
+        "loop_08": "loop_08_cloud_sync_retry_storm.zip",
+        "loop_09": "loop_09_retry_exhaustion_batch.zip",
+        "loop_10": "loop_10_cycle_and_timeout_mixed.zip",
     }
     req_pkg = request.POST.get("package") or request.GET.get("package") or "master"
     filename = package_map.get(req_pkg, req_pkg if ("." in req_pkg) else f"{req_pkg}.zip")
@@ -343,7 +359,7 @@ def download_sample_zip_api(request, package_key):
         "complete": "master_test_datasets_suite.zip",
         "inventory": "dataset_test_matrix_inventory.csv",
         "readme_corrupt": "README_failed_01_corrupt_archive.txt",
-        # Category A: 5 Successful Scenarios
+        # Category A: 10 Successful Scenarios
         "success_01": "success_01_basic_all_storage.zip",
         "success_02": "success_02_mixed_file_formats.zip",
         "success_03": "success_03_capacity_aware.zip",
@@ -352,14 +368,30 @@ def download_sample_zip_api(request, package_key):
         "success_06": "success_06_device_telemetry_stream.zip",
         "success_07": "success_07_mixed_format_lab_records.zip",
         "success_08": "success_08_ambulatory_care_workloads.zip",
-        # Category B: 3 Failed Scenarios
+        "success_09": "success_09_fhir_interoperability_batch.zip",
+        "success_10": "success_10_pharmacy_inventory_sync.zip",
+        # Category B: 10 Failed Scenarios
         "failed_01": "failed_01_corrupt_archive.zip",
         "failed_02": "failed_02_invalid_manifest.zip",
         "failed_03": "failed_03_capacity_or_policy_violation.zip",
-        # Category C: 3 Loop / Timeout Scenarios
+        "failed_04": "failed_04_missing_resources_field.zip",
+        "failed_05": "failed_05_resources_wrong_type.zip",
+        "failed_06": "failed_06_insufficient_resource_tiers.zip",
+        "failed_07": "failed_07_malformed_manifest_json.zip",
+        "failed_08": "failed_08_disallowed_executable.zip",
+        "failed_09": "failed_09_path_traversal_entry.zip",
+        "failed_10": "failed_10_decompression_limit.zip",
+        # Category C: 10 Loop / Timeout Scenarios
         "loop_01": "loop_01_large_task_queue.zip",
         "loop_02": "loop_02_dependency_cycle.zip",
         "loop_03": "loop_03_timeout_simulation.zip",
+        "loop_04": "loop_04_self_dependency_loop.zip",
+        "loop_05": "loop_05_mutual_dependency_deadlock.zip",
+        "loop_06": "loop_06_five_node_dependency_cycle.zip",
+        "loop_07": "loop_07_edge_worker_watchdog.zip",
+        "loop_08": "loop_08_cloud_sync_retry_storm.zip",
+        "loop_09": "loop_09_retry_exhaustion_batch.zip",
+        "loop_10": "loop_10_cycle_and_timeout_mixed.zip",
     }
     filename = package_map.get(package_key, f"{package_key}.zip" if not ("." in package_key) else package_key)
     sample_path = Path(settings.BASE_DIR) / "sample_upload_datasets" / filename

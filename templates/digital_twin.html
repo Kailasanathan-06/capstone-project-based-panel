@@ -206,7 +206,7 @@
               {{ r.security_risk|floatformat:2 }}
             </span>
           </td>
-          <td class="text-mono">{{ r.trust|floatformat:2 }}</td>
+          <td class="text-mono">{{ r.trust_score|floatformat:2 }}</td>
           <td>
             <span class="badge {% if r.status == 'SAFE' %}badge-green{% elif r.status == 'WARNING' %}badge-amber{% else %}badge-red{% endif %}">
               {{ r.status }}

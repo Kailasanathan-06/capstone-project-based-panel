@@ -93,8 +93,8 @@ def run_all_tests():
     # ----------------------------------------------------
     # 2. TEST DATA GENERATION
     # ----------------------------------------------------
-    test_dir = Path("test_artifacts_synthetic")
-    test_dir.mkdir(exist_ok=True)
+    test_dir = Path(".tmp") / "test_artifacts_synthetic"
+    test_dir.mkdir(parents=True, exist_ok=True)
     
     samples = {
         "small.txt": b"TEST DATA -- NOT REAL. Small text file for task payload testing.",

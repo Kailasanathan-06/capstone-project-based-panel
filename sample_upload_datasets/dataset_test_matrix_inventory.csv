@@ -10,3 +10,6 @@ failed_03_capacity_or_policy_violation.zip,FAILED,Tasks exceed capacity or viola
 loop_01_large_task_queue.zip,LOOP/TIMEOUT,Large but bounded task queue,Processing remains responsive or reports overload,4920,4c95298435268230ded785e8d29c03906a4fa7d77cfadd9ca1d71daa4aa91bde
 loop_02_dependency_cycle.zip,LOOP/TIMEOUT,Task dependency metadata contains a cycle,Cycle is detected and safely rejected,3564,c7dca35c116dd5ccb9501880fb6f807501cd2c2c74fa843463d5ccbf24a7b115
 loop_03_timeout_simulation.zip,LOOP/TIMEOUT,Resource response configured to exceed test timeout,"Task times out, retries within limits, cancelled safely",3515,f521e04420171d80e26017348d540c37ca58395dc3b680f47c873bf9c3959e8e
+success_06_device_telemetry_stream.zip,SUCCESS,Valid telemetry and diagnostic workloads across all three storage tiers,Analysis succeeds (3/3 assigned),3976,c55441743a8ff8b43659671ec4d1bf5300f110701f92e53d46c465b6fc3936d2
+success_07_mixed_format_lab_records.zip,SUCCESS,"Mixed CSV, JSON, and TXT files parsed and allocated per privacy tier",Analysis succeeds (3/3 assigned),3987,84f10a2933f128c2af2066bbf717d39359becf1e37928a8294f02659ef047dba
+success_08_ambulatory_care_workloads.zip,SUCCESS,Four-task scheduling across three resources with two edge diagnostic batches,Analysis succeeds (4/4 assigned),4128,be304083deef968cf7947b43c2004de2167794090145e56a1ded1f45b7080019

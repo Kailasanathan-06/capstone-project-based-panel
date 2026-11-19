@@ -1,6 +1,6 @@
 # SecureDT — Digital Twin Edge–Cloud Master Test Dataset Suite
 
-This suite contains **11 standardized ZIP test datasets** for testing the project's dataset upload, validation, analysis, storage eligibility, task scheduling, failure handling, and timeout detection.
+This suite contains **14 standardized ZIP test datasets** for testing the project's dataset upload, validation, analysis, storage eligibility, task scheduling, failure handling, and timeout detection.
 
 ## Infrastructure Resources Represented
 1. **Local Storage** (`LOCAL-01`): On-premises hospital workstation (HIPAA Tier-1 Vault, `LOCAL_ONLY` policy).
@@ -9,7 +9,7 @@ This suite contains **11 standardized ZIP test datasets** for testing the projec
 
 ## Test Scenarios Overview
 
-### Category A: Successful Datasets (5 archives)
+### Category A: Successful Datasets (8 archives)
 | Filename | Test Purpose | Expected Outcome |
 |---|---|---|
 | `success_01_basic_all_storage.zip` | Valid data for Local, MEC, and Cloud | Analysis succeeds (3/3 assigned) |
@@ -17,6 +17,9 @@ This suite contains **11 standardized ZIP test datasets** for testing the projec
 | `success_03_capacity_aware.zip` | Different dataset sizes and resource capacities | Assignments respect capacity headroom |
 | `success_04_privacy_aware.zip` | Different privacy policies across datasets | Only policy-permitted destinations are eligible |
 | `success_05_multi_task_scheduling.zip` | 6 independent tasks across three resources | GA scheduler produces traceable decisions |
+| `success_06_device_telemetry_stream.zip` | Telemetry, diagnostic inference, and health aggregate | Analysis succeeds (3/3 assigned) |
+| `success_07_mixed_format_lab_records.zip` | Lab request CSV, pathology JSON, and clinical notes TXT | All formats parsed and allocated by tier |
+| `success_08_ambulatory_care_workloads.zip` | Four-task scheduling with two edge diagnostic batches | Analysis succeeds (4/4 assigned) |
 
 ### Category B: Failed Datasets (3 archives)
 | Filename | Test Purpose | Expected Outcome |
@@ -58,6 +61,6 @@ scenario_name.zip
 
 ## How to Test
 1. Open the SecureDT application in your browser: `http://127.0.0.1:8000/upload/`
-2. Click **Choose Archive** and select any of the 11 scenario ZIP files (or pick from the quick preset dropdown).
+2. Click **Choose Archive** and select any of the 14 scenario ZIP files (or pick from the quick preset dropdown).
 3. Choose **Simulation Mode** or **Execution Mode** and click **Upload & Analyze Archive**.
 4. Observe the real-time 10-stage analysis pipeline and verify the persistent report against `expected_results/expected_result.json`.

@@ -1,5 +1,5 @@
 """
-Automated Test Suite for All 11 Digital Twin Edge-Cloud ZIP Scenarios
+Automated Test Suite for All 14 Digital Twin Edge-Cloud ZIP Scenarios
 ======================================================================
 Verifies:
 1. Physical existence and integrity of all 11 scenario ZIPs and master suite
@@ -30,7 +30,7 @@ from engine.dataset_analysis_service import (
     validate_manifest_schema
 )
 
-SUITE_DIR = Path("test_datasets_suite")
+SUITE_DIR = BASE_DIR / "sample_upload_datasets"
 
 
 def test_suite_inventory_and_structure():
@@ -152,13 +152,16 @@ def test_bounded_queue_processing():
 
 
 def test_all_five_successful_scenarios():
-    print("\n--- Test 8: Verifying All 5 Successful Scenarios (Category A) ---")
+    print("\n--- Test 8: Verifying All 8 Successful Scenarios (Category A) ---")
     success_scenarios = [
         ("success_01_basic_all_storage.zip", 3),
         ("success_02_mixed_file_formats.zip", 3),
         ("success_03_capacity_aware.zip", 3),
         ("success_04_privacy_aware.zip", 3),
         ("success_05_multi_task_scheduling.zip", 6),
+        ("success_06_device_telemetry_stream.zip", 3),
+        ("success_07_mixed_format_lab_records.zip", 3),
+        ("success_08_ambulatory_care_workloads.zip", 4),
     ]
 
     for fname, expected_count in success_scenarios:
@@ -192,7 +195,7 @@ def test_all_five_successful_scenarios():
 
 if __name__ == "__main__":
     print("=================================================================")
-    print("RUNNING AUTOMATED VERIFICATION FOR 11 DIGITAL TWIN TEST SCENARIOS")
+    print("RUNNING AUTOMATED VERIFICATION FOR 14 DIGITAL TWIN TEST SCENARIOS")
     print("=================================================================")
     test_suite_inventory_and_structure()
     test_corrupt_archive_rejection()
@@ -203,5 +206,5 @@ if __name__ == "__main__":
     test_bounded_queue_processing()
     test_all_five_successful_scenarios()
     print("\n=================================================================")
-    print("ALL 11 TEST SCENARIOS AND AUTOMATED VERIFICATION SUITE PASSED!")
+    print("ALL 14 TEST SCENARIOS AND AUTOMATED VERIFICATION SUITE PASSED!")
     print("=================================================================")

@@ -77,6 +77,12 @@ class RedesignWorkflowTests(TestCase):
         self.assertIsNotNone(data.get('report_id'))
         report_id = data['report_id']
 
+        summary = data.get('summary', {})
+        self.assertIn('total_analysis_duration_ms', summary)
+        self.assertIn('scheduler_duration_ms', summary)
+        self.assertIn('energy_consumption_j', summary)
+        self.assertGreaterEqual(summary['energy_consumption_j'], 0)
+
         # Verify DB records
         upload = DatasetUpload.objects.get(upload_id=data['upload_id'])
         self.assertEqual(upload.status, 'COMPLETED')
@@ -119,6 +125,8 @@ class RedesignWorkflowTests(TestCase):
         data = resp.json()
         self.assertFalse(data.get('success'))
         self.assertIn('traversal', data.get('error', '').lower())
+        self.assertIn('analysis_duration_ms', data)
+        self.assertEqual(data.get('energy_consumption_j'), 0.0)
 
     def test_disallowed_executable_extension_is_rejected(self):
         """Security check: Archive containing executable (.exe, .sh) must be blocked."""

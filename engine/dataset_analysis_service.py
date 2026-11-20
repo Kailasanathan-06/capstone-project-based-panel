@@ -15,6 +15,7 @@ import io
 import csv
 import json
 import time
+import uuid
 import zipfile
 import hashlib
 from datetime import datetime, timezone
@@ -46,6 +47,29 @@ MAX_UNCOMPRESSED_ARCHIVE_BYTES = 250 * 1024 * 1024
 MAX_SINGLE_FILE_BYTES = 100 * 1024 * 1024
 # Blocked dangerous extensions
 DISALLOWED_EXTENSIONS = {".exe", ".bat", ".cmd", ".sh", ".vbs", ".ps1", ".msi", ".dll", ".so", ".bin"}
+
+# Simulated energy cost model used by the Digital Twin scheduler.
+ENERGY_RATE_BY_DESTINATION = {
+    "LOCAL_STORAGE": 3.8,
+    "MEC_STORAGE": 2.5,
+    "CLOUD_STORAGE": 5.1,
+}
+DEFAULT_CPU_CYCLES_GIGA = 0.5
+
+
+def estimate_energy_consumption_j(inventory_items: List[Dict[str, Any]]) -> float:
+    """Estimate scheduling energy (J) from the chosen storage tier and workload size."""
+    total = 0.0
+    for item in inventory_items:
+        rate = ENERGY_RATE_BY_DESTINATION.get(item.get("selected_destination"))
+        if rate is None:
+            continue
+        task = item.get("matched_task") or {}
+        size_bytes = item.get("eval_size", item.get("file_size", 0))
+        size_mb = float(size_bytes or 0) / (1024 * 1024)
+        cpu_cycles_giga = float(task.get("cpu_cycles_giga", DEFAULT_CPU_CYCLES_GIGA))
+        total += rate * (cpu_cycles_giga + size_mb / 10.0)
+    return round(total, 3)
 
 
 def format_bytes(num_bytes: int) -> str:
@@ -432,7 +456,7 @@ def process_zip_dataset_upload(
         set_stage(1, "FAILED", error_msg)
 
         SecurityAuditEvent.objects.create(
-            event_id=f"AUD-{int(time.time())}-ZIP-FAIL",
+            event_id=f"AUD-{int(time.time())}-ZIP-FAIL-{uuid.uuid4().hex[:8]}",
             event_type="ZIP_VALIDATION_ERROR",
             severity="HIGH",
             source_ip=client_ip,
@@ -446,6 +470,8 @@ def process_zip_dataset_upload(
             "report_id": None,
             "stages": stages,
             "error": error_msg,
+            "analysis_duration_ms": round((time.time() - start_time) * 1000.0, 2),
+            "energy_consumption_j": 0.0,
         }
 
     # -------------------------------------------------------------------------
@@ -600,7 +626,15 @@ def process_zip_dataset_upload(
         upload_record.error_message = error_msg
         upload_record.save(update_fields=["status", "error_message"])
         set_stage(2, "FAILED", error_msg)
-        return {"success": False, "upload_id": upload_id, "stages": stages, "error": error_msg}
+        return {
+            "success": False,
+            "upload_id": upload_id,
+            "report_id": None,
+            "stages": stages,
+            "error": error_msg,
+            "analysis_duration_ms": round((time.time() - start_time) * 1000.0, 2),
+            "energy_consumption_j": 0.0,
+        }
 
     # -------------------------------------------------------------------------
     # Stage 4: Feature Extraction & Metadata Computation
@@ -784,6 +818,8 @@ def process_zip_dataset_upload(
     cloud_items = [i for i in inventory_items if i["selected_destination"] == "CLOUD_STORAGE"]
     unassigned_items = [i for i in inventory_items if i["selected_destination"] == "UNASSIGNED"]
 
+    energy_consumption_j = estimate_energy_consumption_j(inventory_items)
+
     summary_data = {
         "report_id": report_id,
         "upload_id": upload_id,
@@ -797,6 +833,9 @@ def process_zip_dataset_upload(
         "uploaded_at": now_dt.isoformat(),
         "total_analysis_duration_ms": total_analysis_duration_ms,
         "scheduler_duration_ms": scheduler_duration_ms,
+        "energy_consumption_j": energy_consumption_j,
+        "energy_consumption_formatted": f"{energy_consumption_j:.3f} J",
+        "energy_model": "SecureDT simulated scheduling cost model",
         "destinations": {
             "LOCAL_STORAGE": {
                 "name": "Local Storage (On-Prem Secure Vault)",
@@ -852,6 +891,7 @@ def process_zip_dataset_upload(
         "population_size": 40,
         "generations": 30,
         "runtime_ms": scheduler_duration_ms,
+        "energy_consumption_j": energy_consumption_j,
         "items_evaluated": len(inventory_items),
     }
 

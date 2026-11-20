@@ -19,8 +19,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-BASE_OUTPUT_DIR = Path("test_datasets_suite")
 SAMPLE_UPLOAD_DIR = Path("sample_upload_datasets")
+BASE_OUTPUT_DIR = SAMPLE_UPLOAD_DIR
 
 
 def calc_sha256(data: bytes) -> str:
@@ -853,21 +853,6 @@ def generate_all_scenarios():
     })
 
     # =========================================================================
-    # Copy all 11 scenario ZIPs into sample_upload_datasets for web interface
-    # =========================================================================
-    for sc in scenario_inventory:
-        src = BASE_OUTPUT_DIR / sc["filename"]
-        dst = SAMPLE_UPLOAD_DIR / sc["filename"]
-        if src.exists():
-            with open(src, "rb") as f_in, open(dst, "wb") as f_out:
-                f_out.write(f_in.read())
-
-    # Copy external README for corrupt archive
-    if f1_readme_path.exists():
-        with open(f1_readme_path, "r", encoding="utf-8") as f_in, open(SAMPLE_UPLOAD_DIR / f1_readme_path.name, "w", encoding="utf-8") as f_out:
-            f_out.write(f_in.read())
-
-    # =========================================================================
     # Generate Inventory CSV
     # =========================================================================
     csv_path = BASE_OUTPUT_DIR / "dataset_test_matrix_inventory.csv"
@@ -879,9 +864,6 @@ def generate_all_scenarios():
             with open(p, "rb") as f:
                 sha = calc_sha256(f.read())
             writer.writerow([sc["filename"], sc["category"], sc["purpose"], sc["expected"], sc["size"], sha])
-
-    with open(csv_path, "rb") as f_in, open(SAMPLE_UPLOAD_DIR / csv_path.name, "wb") as f_out:
-        f_out.write(f_in.read())
 
     # =========================================================================
     # Generate Root Master README.md
@@ -958,9 +940,6 @@ def generate_all_scenarios():
         zf.write(f1_readme_path, arcname="README_failed_01_corrupt_archive.txt")
         for sc in scenario_inventory:
             zf.write(BASE_OUTPUT_DIR / sc["filename"], arcname=f"scenarios/{sc['filename']}")
-
-    with open(master_zip_path, "rb") as f_in, open(SAMPLE_UPLOAD_DIR / master_zip_path.name, "wb") as f_out:
-        f_out.write(f_in.read())
 
     print(f"\nMaster Suite generated: {master_zip_path} ({os.path.getsize(master_zip_path)} bytes)")
     print(f"Total scenario archives: {len(scenario_inventory)}")

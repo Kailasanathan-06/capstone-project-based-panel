@@ -20,10 +20,11 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(next_page='/login/'), name='logout'),
     path('register/', views.register, name='register'),
 
-    # Essential Core Application Pages (A through G)
+    # Essential Core Application Pages (A through H)
     path('', page_views.dashboard_view, name='dashboard'),
     path('upload/', page_views.upload_dataset_view, name='upload_dataset'),
     path('digital-twin/', page_views.digital_twin_view, name='digital_twin'),
+    path('edge-system/', page_views.edge_system_view, name='edge_system'),
     path('storage-allocation/', page_views.storage_allocation_view, name='storage_allocation'),
     path('reports/', page_views.dataset_reports_view, name='dataset_reports'),
     path('reports/<str:report_id>/', page_views.report_detail_view, name='report_detail'),
@@ -36,6 +37,11 @@ urlpatterns = [
     path('api/app/upload-demo-zip/', page_views.upload_demo_zip_api, name='api_upload_demo_zip'),
     path('api/download-sample-zip/<str:package_key>/', page_views.download_sample_zip_api, name='api_download_sample_zip'),
     path('api/app/digital-twin/', page_views.digital_twin_api, name='api_digital_twin_status'),
+    path('api/app/edge-systems/check/', page_views.edge_system_check_api, name='api_edge_system_check'),
+    path('api/app/edge-systems/download-exe/', page_views.download_edge_agent_exe, name='api_download_edge_agent_exe'),
+    path('api/app/edge-systems/download-bundle/', page_views.download_edge_agent_bundle, name='api_download_edge_agent_bundle'),
+    path('api/app/edge-systems/register-friend/', page_views.edge_system_register_friend_api, name='api_edge_system_register_friend'),
+    path('api/app/edge-systems/live/', page_views.edge_systems_live_api, name='api_edge_systems_live'),
     path('api/app/storage-allocations/', page_views.storage_allocation_api, name='api_storage_allocations'),
     path('api/app/reports/', page_views.dataset_reports_api, name='api_dataset_reports'),
     path('api/app/reports/<str:report_id>/', page_views.report_detail_api, name='api_report_detail'),

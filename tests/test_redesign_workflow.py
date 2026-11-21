@@ -6,8 +6,10 @@ import io
 import zipfile
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.utils import timezone
 from django.core.files.uploadedfile import SimpleUploadedFile
 
+from mec_manager.models import MECAgent
 from datasets.models import (
     DatasetUpload,
     DatasetInventoryItem,
@@ -145,3 +147,69 @@ class RedesignWorkflowTests(TestCase):
         data = resp.json()
         self.assertFalse(data.get('success'))
         self.assertIn('disallowed', data.get('error', '').lower())
+
+    def test_digital_twin_scene_endpoint_schema(self):
+        """The 3D scene API exposes backend records without device secrets or file paths."""
+        MECAgent.objects.create(
+            device_id='MEC-901',
+            auth_token='scene-test-token',
+            last_heartbeat=timezone.now(),
+            last_seen=timezone.now(),
+            is_online=True,
+            is_approved=True,
+        )
+
+        resp = self.client.get(reverse('digital_twin_scene'))
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+
+        self.assertEqual(data.get('mode'), 'live')
+        self.assertIn('generated_at', data)
+        self.assertIn('server', data)
+        self.assertIn('resources', data)
+        self.assertIn('mec_devices', data)
+        self.assertIn('tiers', data)
+        self.assertIn('transfers', data)
+        self.assertIn('tasks', data)
+        self.assertIn('scheduling', data)
+        self.assertIn('security_events', data)
+        self.assertIn('policies', data)
+
+        self.assertFalse(data['capabilities']['encryption_confirmed'])
+        self.assertTrue(data['capabilities']['policy_enforcement'])
+        self.assertFalse(data['capabilities']['transfer_progress_available'])
+        self.assertGreaterEqual(data['server']['registered_mecs'], 1)
+
+        mec_ids = [mec['device_id'] for mec in data['mec_devices']]
+        self.assertIn('MEC-901', mec_ids)
+        for policy in ['LOCAL_ONLY', 'TRUSTED_EDGE', 'CLOUD_ALLOWED']:
+            self.assertIn(policy, data['policies'])
+            self.assertIn('allowed_tiers', data['policies'][policy])
+            self.assertIn('eligible_resources', data['policies'][policy])
+
+        raw = resp.content.decode('utf-8')
+        for forbidden in ['auth_token', 'scene-test-token', 'last_known_ip', 'source_ip', 'description']:
+            self.assertNotIn(forbidden, raw)
+
+    def test_digital_twin_scene_has_no_fabricated_mecs(self):
+        """With no registered agents, the scene reports an empty MEC list."""
+        resp = self.client.get(reverse('digital_twin_scene'))
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data['mec_devices'], [])
+        self.assertEqual(data['server']['registered_mecs'], 0)
+        self.assertEqual(data['server']['connected_mecs'], 0)
+
+    def test_digital_twin_page_includes_3d_panel_and_assets(self):
+        """The existing page keeps its heading and embeds the scoped 3D visualization."""
+        resp = self.client.get('/digital-twin/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Digital Twin Resource State Monitor')
+        self.assertContains(resp, 'Interactive 3D Digital Twin Operations Map')
+        self.assertContains(resp, 'Protection Policy Visualization')
+        self.assertContains(resp, 'id="dt3d-stage"')
+        self.assertContains(resp, 'data-scene-url="/api/digital-twin/scene/"')
+        self.assertContains(resp, 'Run Transfer Simulation')
+        self.assertContains(resp, 'Run Attack Simulation')
+        self.assertContains(resp, 'vendor/three.min.js')
+        self.assertContains(resp, 'js/digital_twin_3d.js')

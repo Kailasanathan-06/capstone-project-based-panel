@@ -3,13 +3,14 @@
 MEC Agent - Autonomous Edge Computing Agent
 
 This agent runs on MEC (Multi-access Edge Computing) nodes and:
-1. Registers with the Django server once using a pairing code
-2. Stores configuration securely
-3. Automatically reconnects on startup
+1. Prompts for the server network IP on every launch (mobile hotspot friendly)
+2. Registers with the Django server once using a pairing code
+3. Stores configuration securely, including the last used server IP
 4. Sends periodic heartbeats with system telemetry
-5. Receives and executes authorized tasks
-6. Returns results through the Django API
-7. Handles network changes and reconnection with exponential backoff
+5. Waits for server approval before receiving tasks
+6. Receives and executes authorized tasks
+7. Returns results through the Django API
+8. Handles network changes and reconnection with exponential backoff
 """
 
 import os
@@ -25,6 +26,7 @@ import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
 from datetime import datetime
+from urllib.parse import urlsplit, urlunsplit
 
 # Third-party imports
 try:
@@ -76,6 +78,42 @@ DEFAULT_CONFIG = {
     "max_retry_delay": 300,
     "verify_ssl": True,
 }
+
+
+def normalize_server_url(value: str) -> str:
+    """Normalize an entered network IP / URL into a full Django base URL."""
+    value = (value or "").strip().rstrip("/")
+    if not value:
+        return DEFAULT_CONFIG["server_url"]
+    if "://" not in value:
+        value = "http://" + value
+    parts = urlsplit(value)
+    host = parts.hostname
+    if not host:
+        raise ValueError("invalid server address")
+    try:
+        port = parts.port or 8000
+    except ValueError:
+        port = 8000
+    return urlunsplit((parts.scheme or "http", f"{host}:{port}", "", "", ""))
+
+
+def prompt_server_url(current: str = None) -> str:
+    """Ask for the server network IP every launch; keep the last IP on empty input."""
+    default = current or DEFAULT_CONFIG["server_url"]
+    print("\n" + "=" * 61)
+    print(" MEC storage / heartbeat connection uses the SERVER NETWORK IP.")
+    print(" Mobile hotspot changes the IP - enter the server's new LAN IP.")
+    print(f" Last used server: {default}")
+    print("=" * 61)
+    raw = input("Server network IP (e.g. 192.168.43.10) or full URL [Enter = keep last]: ").strip()
+    if not raw:
+        return default
+    try:
+        return normalize_server_url(raw)
+    except ValueError as exc:
+        print(f" [WARN] {exc} - keeping {default}")
+        return default
 
 
 # =============================================================================
@@ -291,6 +329,7 @@ class APIClient:
         data = {
             "mec_id": self.config.get("device_id"),
             "auth_token": self.config.get("auth_token"),
+            "server_url": self.config.get("server_url"),
             **telemetry,
         }
 
@@ -474,7 +513,10 @@ class MECAgent:
                     if "error" in result:
                         logger.warning(f"Heartbeat failed: {result['error']}")
                     else:
-                        logger.debug("Heartbeat sent successfully")
+                        if result.get("approval_status") == "PENDING":
+                            logger.info("Awaiting SERVER APPROVAL - open MEC Infrastructure and approve this device.")
+                        else:
+                            logger.debug("Heartbeat sent successfully")
                 except Exception as e:
                     logger.error(f"Heartbeat error: {e}")
                 
@@ -564,28 +606,37 @@ def main():
     agent = MECAgent()
     
     if args.command == "register":
-        server_url = args.server or input("Server URL: ").strip()
+        server_url = normalize_server_url(args.server) if args.server else prompt_server_url(agent.config.get("server_url"))
         pairing_code = args.pairing_code or input("Pairing code: ").strip()
         system_name = args.name or input("System name (optional): ").strip() or None
-        
-        if not server_url or not pairing_code:
-            logger.error("Server URL and pairing code are required")
+
+        if not pairing_code:
+            logger.error("Pairing code is required")
             sys.exit(1)
-        
+
         if agent.register(server_url, pairing_code, system_name):
             print("\n[OK] Registration successful!")
             print(f"     Device ID: {agent.config.get('device_id')}")
             print(f"     Auth Token: {agent.config.get('auth_token')[:16]}...")
-            print("\nThe agent will now automatically connect on startup.")
+            print("     Status: PENDING - the server must approve this MEC before tasks run.")
         else:
             print("\n[FAILED] Registration failed!")
             sys.exit(1)
-    
+
     elif args.command == "run":
+        server_url = normalize_server_url(args.server) if args.server else prompt_server_url(agent.config.get("server_url"))
+        agent.config.set("server_url", server_url)
+        print(f"[INFO] Connecting to MEC server at {server_url}")
+
         if not agent.config.is_registered():
-            logger.error("Agent not registered. Run 'mec_agent register' first.")
-            sys.exit(1)
-        
+            pairing_code = args.pairing_code or input("Pairing code: ").strip()
+            if not pairing_code:
+                logger.error("Pairing code is required for first-time registration.")
+                sys.exit(1)
+            if not agent.register(server_url, pairing_code, args.name):
+                print("\n[FAILED] Registration failed!")
+                sys.exit(1)
+
         agent.run()
     
     elif args.command == "status":

@@ -40,6 +40,8 @@ class MECAgent(models.Model):
     last_seen = models.DateTimeField("Last Seen", null=True, blank=True)
     is_online = models.BooleanField("Online Status", default=False)
     is_revoked = models.BooleanField("Revoked", default=False)
+    is_approved = models.BooleanField("Approved by Server", default=False)
+    approved_at = models.DateTimeField("Approved At", null=True, blank=True)
     # System information (diagnostics)
     hostname = models.CharField("Hostname", max_length=100, blank=True)
     operating_system = models.CharField("Operating System", max_length=50, blank=True)
@@ -54,17 +56,23 @@ class MECAgent(models.Model):
         ordering = ["device_id"]
 
     def __str__(self):
-        return f"{self.device_id} - {'ONLINE' if self.is_online else 'OFFLINE'}"
+        return f"{self.device_id} - {self.status_label}"
 
     @property
     def is_eligible(self):
-        """A device may only execute tasks when online and NOT revoked."""
-        return self.is_online and not self.is_revoked
+        """A device may only execute tasks when approved, online and NOT revoked."""
+        return self.is_approved and self.is_online and not self.is_revoked
+
+    @property
+    def approval_status(self):
+        return "APPROVED" if self.is_approved else "PENDING"
 
     @property
     def status_label(self):
         if self.is_revoked:
             return "REVOKED"
+        if not self.is_approved:
+            return "PENDING"
         return "ONLINE" if self.is_online else "OFFLINE"
 
 

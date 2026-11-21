@@ -13,6 +13,8 @@ class MECAgentSerializer(serializers.ModelSerializer):
     """Public representation of a registered MEC device."""
 
     status = serializers.CharField(source="status_label", read_only=True)
+    approval_status = serializers.CharField(read_only=True)
+    approved_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = MECAgent
@@ -21,7 +23,10 @@ class MECAgentSerializer(serializers.ModelSerializer):
             "system_name",
             "agent_version",
             "is_online",
+            "is_approved",
             "is_revoked",
+            "approval_status",
+            "approved_at",
             "status",
             "last_seen",
             "last_heartbeat",

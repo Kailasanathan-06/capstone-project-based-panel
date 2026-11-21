@@ -112,7 +112,7 @@ def get_real_dashboard_metrics():
     twin_states = twin.states()
 
     # MEC agent real database check
-    mec_agent = MECAgent.objects.filter(is_online=True).first()
+    mec_agent = MECAgent.objects.filter(is_online=True, is_approved=True, is_revoked=False).first()
     mec_online = mec_agent is not None
 
     storage_nodes = []
@@ -426,7 +426,7 @@ def digital_twin_view(request):
             s["trust_score"] = val
 
     mec_agents = MECAgent.objects.all().order_by("-is_online", "device_id")
-    mec_online_count = MECAgent.objects.filter(is_online=True).count()
+    mec_online_count = MECAgent.objects.filter(is_online=True, is_approved=True, is_revoked=False).count()
 
     # Local Storage stats
     local_dest = destinations.get("LOCAL_STORAGE")
@@ -740,6 +740,8 @@ def edge_system_view(request):
             operating_system="Linux Ubuntu 22.04 LTS (Edge RT)",
             agent_version="v2.4-edge",
             is_online=True,
+            is_approved=True,
+            approved_at=dj_timezone.now(),
             last_known_ip="192.168.10.45",
             last_heartbeat=dj_timezone.now(),
             last_seen=dj_timezone.now(),
@@ -866,7 +868,6 @@ color 0b
 echo ==============================================================
 echo     SecureDT Edge Computing Node - Autonomous Agent Client
 echo ==============================================================
-echo Server Host URL:  {server_url}
 echo Pairing Auth Key: {active_code.code}
 echo ==============================================================
 echo.
@@ -875,21 +876,21 @@ set /p FRIEND_SYSTEM_NAME="Enter your system / friend name (e.g. Alex-Gaming-PC)
 if "%FRIEND_SYSTEM_NAME%"=="" set FRIEND_SYSTEM_NAME=%COMPUTERNAME%-EdgeNode
 
 echo.
-echo [1/2] Registering with SecureDT Edge-Cloud Server...
-SecureDT_Edge_Agent.exe register --server "{server_url}" --pairing-code "{active_code.code}" --name "%FRIEND_SYSTEM_NAME%"
+echo The agent will ask for the SERVER NETWORK IP on every launch.
+echo On a mobile hotspot the server IP changes - enter the current one.
+echo.
+echo Starting agent (registration is automatic on first run)...
+SecureDT_Edge_Agent.exe run --pairing-code "{active_code.code}" --name "%FRIEND_SYSTEM_NAME%"
 if %ERRORLEVEL% NEQ 0 (
     echo.
-    echo [ERROR] Registration failed. Please check that {server_url} is reachable across the network.
+    echo [ERROR] Agent failed. Check the server IP and that the Django server is running.
     pause
     exit /b %ERRORLEVEL%
 )
 
 echo.
-echo [2/2] Registration successful! Starting continuous live telemetry and heartbeat daemon...
-echo Your system is now visible in the SecureDT "Edge Systems" dashboard!
-echo Press Ctrl+C at any time to pause or disconnect.
-echo.
-SecureDT_Edge_Agent.exe run
+echo Agent stopped. The server must approve your MEC in
+echo MEC Infrastructure before it becomes ONLINE and receives tasks.
 pause
 """
 
@@ -898,14 +899,18 @@ pause
 You are connecting this computer as an authorized edge node (MEC agent)
 in the SecureDT Digital Twin Edge-Cloud network.
 
-SERVER URL:    {server_url}
 PAIRING CODE:  {active_code.code}
+LAST SERVER:   {server_url}  (entered again on every launch)
 
 INSTRUCTIONS:
 1. Double-click "connect_friend_edge.bat".
 2. Type your name / PC name when prompted (e.g., "Alex-Laptop").
-3. The client will register with the server and start sending live telemetry.
-4. Open the SecureDT dashboard at {server_url}/edge-system/ to see your PC!
+3. Enter the SERVER NETWORK IP when asked. On a mobile hotspot this IP
+   changes each time, so always enter the IP currently shown on the server.
+   Pressing Enter keeps the last IP that was saved.
+4. On the SERVER PC, open MEC Infrastructure -> Pending MEC Approval and
+   click Approve for your device. Only the server can approve a MEC.
+5. Once approved, the device shows as ONLINE and can receive tasks.
 """
 
     mem_zip = io.BytesIO()
@@ -947,6 +952,8 @@ def edge_system_register_friend_api(request):
             "auth_token": "sdt_friend_tok_" + secrets.token_hex(16),
             "agent_version": "v2.4-edge-exe",
             "is_online": True,
+            "is_approved": True,
+            "approved_at": dj_timezone.now(),
             "last_heartbeat": dj_timezone.now(),
             "last_seen": dj_timezone.now(),
         }

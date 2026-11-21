@@ -31,6 +31,8 @@ def register_and_heartbeat(client, system_name="Test Edge PC"):
     )
     assert res.status_code == 201, res.data
     device_id = res.data["device_id"]
+    approval = client.post(f"/api/mec/{device_id}/approve/", {}, format="json")
+    assert approval.status_code == 200, approval.data
     agent = MECAgent.objects.get(device_id=device_id)
     process_heartbeat(
         device_id=device_id,
@@ -102,6 +104,46 @@ class SecureDTAPITestCase(TestCase):
         self.assertTrue(found["is_online"])
         self.assertGreater(found["cpu"], 0)
         self.assertGreater(found["task_count"], -1)
+
+    def test_mec_requires_server_approval(self):
+        code = PairingCode.generate_new()
+        res = self.client.post(
+            "/api/mec/register/",
+            {"pairing_code": code.code, "system_name": "Pending Edge PC"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertEqual(res.data["approval_status"], "PENDING")
+
+        device_id = res.data["device_id"]
+        agent = MECAgent.objects.get(device_id=device_id)
+        token = Token.objects.get(user=agent.user).key
+        mec_client = APIClient()
+
+        beat = mec_client.post(
+            "/api/mec/heartbeat/",
+            {"mec_id": device_id, "auth_token": res.data["auth_token"], "status": "ONLINE"},
+            format="json",
+        )
+        self.assertEqual(beat.status_code, 200)
+        self.assertEqual(beat.data["approval_status"], "PENDING")
+
+        blocked = mec_client.get(
+            f"/api/mec/{device_id}/next-task/",
+            HTTP_AUTHORIZATION=f"Token {token}",
+            HTTP_X_MEC_ID=device_id,
+        )
+        self.assertIn(blocked.status_code, (401, 403))
+
+        approved = self.client.post(f"/api/mec/{device_id}/approve/", {}, format="json")
+        self.assertEqual(approved.status_code, 200, approved.data)
+
+        allowed = mec_client.get(
+            f"/api/mec/{device_id}/next-task/",
+            HTTP_AUTHORIZATION=f"Token {token}",
+            HTTP_X_MEC_ID=device_id,
+        )
+        self.assertEqual(allowed.status_code, 200, allowed.data)
 
     def test_full_task_lifecycle(self):
         agent, reg = register_and_heartbeat(self.client)

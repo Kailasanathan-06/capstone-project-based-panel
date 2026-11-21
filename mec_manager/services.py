@@ -74,6 +74,8 @@ def register_mec(pairing_code, system_name="", server_url="", agent_version="1.0
         agent_version=agent_version,
         last_known_ip=ip,
         is_online=True,
+        is_approved=False,
+        approved_at=None,
         last_seen=timezone.now(),
         last_heartbeat=timezone.now(),
     )
@@ -96,6 +98,32 @@ def register_mec(pairing_code, system_name="", server_url="", agent_version="1.0
     code.save()
 
     return agent, agent.auth_token, None
+
+
+def approve_mec(device_id):
+    """Server-side approval. Returns the agent, or None when not found."""
+    try:
+        agent = MECAgent.objects.get(device_id=device_id)
+    except MECAgent.DoesNotExist:
+        return None
+    agent.is_approved = True
+    agent.approved_at = timezone.now()
+    agent.save(update_fields=["is_approved", "approved_at"])
+    return agent
+
+
+def reject_mec(device_id):
+    """Revoke server approval for a device (it becomes PENDING again)."""
+    try:
+        agent = MECAgent.objects.get(device_id=device_id)
+    except MECAgent.DoesNotExist:
+        return None
+    agent.is_approved = False
+    agent.approved_at = None
+    agent.is_online = False
+    agent.save(update_fields=["is_approved", "approved_at", "is_online"])
+    requeue_orphaned_tasks()
+    return agent
 
 
 def authenticate_agent(device_id, auth_token, request_ip=None):
@@ -133,6 +161,8 @@ def process_heartbeat(device_id, auth_token, payload, request_ip=None):
     agent.hostname = payload.get("hostname", agent.hostname)
     agent.operating_system = payload.get("os_info", agent.operating_system)
     agent.agent_version = payload.get("agent_version", agent.agent_version)
+    if payload.get("server_url"):
+        agent.server_url = payload.get("server_url")
     agent.save()
 
     beat = Heartbeat.objects.create(
@@ -183,14 +213,18 @@ def ensure_default_connected_mec():
             operating_system="Linux Ubuntu 22.04 LTS (Edge RT)",
             agent_version="1.0.0",
             is_online=True,
+            is_approved=True,
+            approved_at=now,
             last_heartbeat=now,
             last_seen=now,
         )
     else:
         agent.is_online = True
+        agent.is_approved = True
+        agent.approved_at = agent.approved_at or now
         agent.last_seen = now
         agent.last_heartbeat = now
-        agent.save(update_fields=["is_online", "last_seen", "last_heartbeat"])
+        agent.save(update_fields=["is_online", "is_approved", "approved_at", "last_seen", "last_heartbeat"])
 
     latest_beat = Heartbeat.objects.filter(mec=agent).order_by("-timestamp").first()
     if not latest_beat or (now - latest_beat.timestamp).total_seconds() > 45:

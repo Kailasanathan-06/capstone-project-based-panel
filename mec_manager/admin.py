@@ -14,8 +14,8 @@ class PairingCodeAdmin(admin.ModelAdmin):
 
 @admin.register(MECAgent)
 class MECAgentAdmin(admin.ModelAdmin):
-    list_display = ("device_id", "system_name", "is_online", "is_revoked", "last_seen")
-    list_filter = ("is_online", "is_revoked")
+    list_display = ("device_id", "system_name", "status_label", "is_approved", "is_online", "is_revoked", "last_seen")
+    list_filter = ("is_approved", "is_online", "is_revoked")
     search_fields = ("device_id", "system_name")
     readonly_fields = ("auth_token",)
 

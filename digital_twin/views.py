@@ -142,6 +142,274 @@ class DigitalTwinViewSet(viewsets.ViewSet):
             }
         )
 
+    def scene(self, request):
+        """Read-only topology snapshot assembled from existing SecureDT records."""
+        import hashlib
+        import json
+        import posixpath
+
+        from django.conf import settings
+        from django.utils import timezone
+
+        from datasets.models import (
+            DatasetInventoryItem,
+            DatasetStorageReplica,
+            SecurityAuditEvent,
+            StorageDestination,
+        )
+        from engine.policy_engine import PolicyEngine
+        from mec_manager.models import MECAgent
+        from tasks.models import SchedulingDecision, Task
+
+        refresh_mec_status()
+        twin = DigitalTwin()
+        states = twin.states()
+        state_by_id = {r["resource_id"]: r for r in states}
+        timeout = getattr(settings, "HEARTBEAT_TIMEOUT_SECONDS", 30)
+
+        resources = []
+        for r in states:
+            resources.append(
+                {
+                    "resource_id": r["resource_id"],
+                    "resource_type": r["resource_type"],
+                    "status": r["status"],
+                    "is_online": bool(r["is_online"]),
+                    "availability": bool(r["availability"]),
+                    "is_stale": bool(r["is_stale"]),
+                    "is_simulated": bool(r["is_simulated"]),
+                    "telemetry_mode": r["telemetry_mode"],
+                    "freshness_seconds": round(r["freshness_seconds"], 1),
+                    "cpu_utilization": round(r["cpu_utilization"], 3),
+                    "memory_utilization": round(r["memory_utilization"], 3),
+                    "network_latency_ms": round(r["network_latency_ms"], 1),
+                    "security_risk": round(r["security_risk"], 3),
+                    "active_tasks": r["active_tasks"],
+                }
+            )
+
+        active_counts = {}
+        for row in Task.objects.filter(status__in=["ASSIGNED", "RUNNING"]).values_list(
+            "assigned_node", flat=True
+        ):
+            if row:
+                active_counts[row] = active_counts.get(row, 0) + 1
+
+        mecs = []
+        for agent in MECAgent.objects.all().order_by("device_id"):
+            rid = agent.device_id.upper()
+            res = state_by_id.get(rid)
+            if res:
+                freshness = res["freshness_seconds"]
+                stale = res["is_stale"]
+            else:
+                freshness = (
+                    (timezone.now() - agent.last_seen).total_seconds()
+                    if agent.last_seen
+                    else None
+                )
+                stale = freshness is None or freshness > timeout
+
+            if agent.is_revoked or not agent.is_online or stale:
+                connection = "OFFLINE"
+            elif not agent.is_approved:
+                connection = "CONNECTING"
+            else:
+                connection = "CONNECTED"
+
+            mecs.append(
+                {
+                    "device_id": agent.device_id,
+                    "connection_state": connection,
+                    "eligible": connection == "CONNECTED" and bool(agent.is_approved),
+                    "heartbeat_freshness_seconds": round(freshness, 1)
+                    if freshness is not None
+                    else None,
+                    "telemetry_mode": res["telemetry_mode"] if res else "UNKNOWN",
+                    "cpu_utilization": res["cpu_utilization"] if res else None,
+                    "memory_utilization": res["memory_utilization"] if res else None,
+                    "active_tasks": active_counts.get(rid, 0),
+                }
+            )
+
+        destination_rows = {
+            d.destination_id: d for d in StorageDestination.objects.all()
+        }
+        tiers = []
+        for key, dest in destination_rows.items():
+            tiers.append(
+                {
+                    "destination_id": key,
+                    "destination_type": dest.destination_type,
+                    "name": dest.name,
+                    "is_emulator": bool(dest.is_emulator),
+                    "privacy_tier_allowed": dest.privacy_tier_allowed,
+                    "capacity_bytes": dest.capacity_bytes,
+                    "used_bytes": dest.used_bytes,
+                }
+            )
+
+        item_by_name = {}
+        for item in DatasetInventoryItem.objects.all().only(
+            "relative_path", "privacy_policy", "declared_source"
+        ):
+            item_by_name[posixpath.basename(item.relative_path)] = item
+
+        known_sources = {r["resource_id"] for r in states} | set(destination_rows)
+        transfer_states = {
+            "PENDING": "WAITING",
+            "COPYING": "TRANSFERRING",
+            "VERIFIED": "COMPLETED",
+            "FAILED": "FAILED",
+            "BLOCKED_BY_POLICY": "BLOCKED",
+            "UNAVAILABLE": "FAILED",
+        }
+        transfers = []
+        replicas = DatasetStorageReplica.objects.select_related(
+            "storage_destination"
+        ).order_by("-created_at")[:12]
+        for replica in replicas:
+            item = item_by_name.get(posixpath.basename(replica.relative_key))
+            policy = item.privacy_policy if item else "UNKNOWN"
+            declared = (item.declared_source or "").upper() if item else ""
+            source_known = declared in known_sources
+            suffix = ""
+            if item and getattr(item, "format", ""):
+                candidate = "".join(
+                    c for c in item.format.lower() if c.isalnum()
+                )[:5]
+                suffix = f".{candidate}" if candidate else ""
+            digest = hashlib.sha256(replica.replica_id.encode("utf-8")).hexdigest()[
+                :8
+            ].upper()
+            transfers.append(
+                {
+                    "transfer_id": f"DATA-{digest}",
+                    "label": f"DATA-{digest}{suffix}",
+                    "source": declared if source_known else "SOURCE NOT RECORDED",
+                    "source_known": source_known,
+                    "destination": replica.storage_destination.destination_id,
+                    "state": transfer_states.get(
+                        replica.replication_status, "WAITING"
+                    ),
+                    "privacy_policy": policy,
+                    "recorded_at": replica.created_at.isoformat(),
+                }
+            )
+
+        tasks = []
+        for task in Task.objects.order_by("-created_at")[:20]:
+            tasks.append(
+                {
+                    "task_id": task.task_id,
+                    "status": task.status,
+                    "privacy_policy": task.privacy_policy,
+                    "assigned_node": task.assigned_node
+                    or (task.assigned_mec.device_id if task.assigned_mec else ""),
+                    "assigned_tier": task.assigned_tier,
+                    "recorded_at": task.created_at.isoformat(),
+                }
+            )
+
+        decisions = []
+        for decision in SchedulingDecision.objects.order_by("-timestamp")[:6]:
+            objective = {}
+            try:
+                parsed = json.loads(decision.objective_scores or "{}")
+                if isinstance(parsed, dict):
+                    objective = {
+                        k: round(float(v), 4)
+                        for k, v in parsed.items()
+                        if isinstance(v, (int, float)) and not isinstance(v, bool)
+                    }
+            except (ValueError, TypeError):
+                objective = {}
+            try:
+                rejected = json.loads(decision.rejected_candidates or "[]")
+            except (ValueError, TypeError):
+                rejected = []
+            decisions.append(
+                {
+                    "task_id": decision.task.task_id,
+                    "algorithm": decision.algorithm,
+                    "selected_resource": decision.selected_resource,
+                    "selected_tier": decision.selected_tier,
+                    "objective_scores": objective,
+                    "rejected_count": len(rejected) if hasattr(rejected, "__len__") else 0,
+                    "recorded_at": decision.timestamp.isoformat(),
+                }
+            )
+
+        policies = {}
+        for policy in ["LOCAL_ONLY", "TRUSTED_EDGE", "CLOUD_ALLOWED"]:
+            probe = {
+                "privacy_policy": policy,
+                "operation": "normalize_clahe",
+                "memory_mb": 256,
+            }
+            eligible = PolicyEngine.get_eligible_resources(probe, states)
+            policies[policy] = {
+                "allowed_tiers": sorted(
+                    {r["resource_type"].upper() for r in eligible}
+                ),
+                "eligible_resources": [r["resource_id"] for r in eligible],
+            }
+
+        events = []
+        for event in SecurityAuditEvent.objects.order_by("-timestamp")[:12]:
+            events.append(
+                {
+                    "event_id": event.event_id,
+                    "event_type": event.event_type,
+                    "severity": event.severity,
+                    "blocked": bool(event.blocked),
+                    "verdict": "BLOCKED" if event.blocked else "RECORDED",
+                    "task_id": event.task_id,
+                    "device_id": event.device_id,
+                    "recorded_at": event.timestamp.isoformat(),
+                }
+            )
+
+        return Response(
+            {
+                "mode": "live",
+                "generated_at": timezone.now().isoformat(),
+                "server": {
+                    "id": "CENTRAL",
+                    "label": "SecureDT Central Server",
+                    "status": "ONLINE",
+                    "registered_mecs": len(mecs),
+                    "connected_mecs": sum(
+                        1 for m in mecs if m["connection_state"] == "CONNECTED"
+                    ),
+                    "active_tasks": len(active_counts),
+                    "active_transfers": sum(
+                        1
+                        for t in transfers
+                        if t["state"] in ("TRANSFERRING", "WAITING")
+                    ),
+                },
+                "resources": resources,
+                "mec_devices": mecs,
+                "tiers": tiers,
+                "transfers": transfers,
+                "tasks": tasks,
+                "scheduling": {
+                    "decisions": decisions,
+                    "decision_source": "recorded SchedulingDecision records",
+                },
+                "security_events": events,
+                "policies": policies,
+                "capabilities": {
+                    "encryption_confirmed": False,
+                    "policy_enforcement": True,
+                    "ga_scheduler": True,
+                    "heartbeat_timeout_seconds": timeout,
+                    "transfer_progress_available": False,
+                },
+            }
+        )
+
     def _generate_benchmark_tasks(self, count=12, seed=42):
         """Generate deterministic medical-image benchmark workload using MedMNIST PneumoniaMNIST samples."""
         import random

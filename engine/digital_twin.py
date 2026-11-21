@@ -250,7 +250,7 @@ class DigitalTwin:
             resource_id = agent.device_id.upper()
             freshness = (now - agent.last_seen).total_seconds() if agent.last_seen else 999999.0
             is_stale = freshness > heartbeat_timeout
-            is_eligible = bool(agent.is_online and not agent.is_revoked and not is_stale)
+            is_eligible = bool(agent.is_approved and agent.is_online and not agent.is_revoked and not is_stale)
 
             try:
                 latest_beat = agent.heartbeats.order_by("-timestamp").first()
@@ -292,6 +292,8 @@ class DigitalTwin:
 
             if not agent.is_online or agent.is_revoked:
                 mec_res._status = "REVOKED" if agent.is_revoked else "OFFLINE"
+            elif not agent.is_approved:
+                mec_res._status = "PENDING"
             elif is_stale:
                 mec_res._status = "STALE_OFFLINE"
             else:

@@ -8,8 +8,10 @@ These paths are included from `/api/mec/`, so they are deliberately bare:
   /api/mec/pairing-codes/    GET/POST generate & list pairing codes
   /api/mec/<id>/             GET  device detail
   /api/mec/<id>/revoke/      POST revoke device
-  /api/mec/<id>/unrevoke/    POST un-revoke device
-  /api/mec/<id>/next-task/   GET  pull next assigned task (MEC auth)
+   /api/mec/<id>/unrevoke/    POST un-revoke device
+   /api/mec/<id>/approve/     POST server approval (activates the device)
+   /api/mec/<id>/reject/      POST withdraw approval (back to PENDING)
+   /api/mec/<id>/next-task/   GET  pull next assigned task (MEC auth)
   /api/mec/<id>/report-result/ POST report task result (MEC auth)
 """
 
@@ -28,6 +30,8 @@ urlpatterns = [
     path("<str:pk>/report-result/", MECTaskEndpoint.as_view({"post": "report_result"}), name="mec_report_result"),
     path("<str:pk>/revoke/", MECAgentViewSet.as_view({"post": "revoke"}), name="mec_revoke"),
     path("<str:pk>/unrevoke/", MECAgentViewSet.as_view({"post": "unrevoke"}), name="mec_unrevoke"),
+    path("<str:pk>/approve/", MECAgentViewSet.as_view({"post": "approve"}), name="mec_approve"),
+    path("<str:pk>/reject/", MECAgentViewSet.as_view({"post": "reject"}), name="mec_reject"),
     path("", MECAgentViewSet.as_view({"get": "list"}), name="mec_list"),
     path("<str:pk>/", MECAgentViewSet.as_view({"get": "retrieve"}), name="mec_detail"),
 ]

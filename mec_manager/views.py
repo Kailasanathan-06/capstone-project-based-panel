@@ -8,6 +8,8 @@ Implements:
 - GET   /api/mec/<id>/              -> device detail with live telemetry
 - POST  /api/mec/<id>/revoke/       -> revoke a device (blocks dispatch)
 - POST  /api/mec/<id>/unrevoke/
+- POST  /api/mec/<id>/approve/      -> server approval (required before tasks)
+- POST  /api/mec/<id>/reject/       -> withdraw approval (back to PENDING)
 - GET   /api/mec/pairing-codes/     -> list pairing codes (staff/logged-in)
 - POST  /api/mec/pairing-codes/     -> generate a new pairing code
 - GET   /api/mec/<id>/task/         -> next assigned task for the device
@@ -34,6 +36,8 @@ from .services import (
     process_heartbeat,
     requeue_orphaned_tasks,
     ensure_default_connected_mec,
+    approve_mec,
+    reject_mec,
 )
 from tasks.models import Task
 
@@ -51,7 +55,7 @@ class MECAuthentication(TokenAuthentication):
             return None
         try:
             agent = MECAgent.objects.get(device_id=mec_id, user=user)
-            if agent.is_revoked:
+            if agent.is_revoked or not agent.is_approved:
                 return None
         except MECAgent.DoesNotExist:
             return None
@@ -85,7 +89,7 @@ class MECAgentViewSet(viewsets.ViewSet):
     def connected_mec(self, request):
         """Return the primary verified MEC agent connected to the server."""
         refresh_mec_status()
-        agent = MECAgent.objects.filter(is_revoked=False).first()
+        agent = MECAgent.objects.filter(is_revoked=False, is_approved=True).first()
         if not agent:
             agent = ensure_default_connected_mec()
         now = timezone.now()
@@ -190,6 +194,8 @@ class MECAgentViewSet(viewsets.ViewSet):
                 "heartbeat_interval": 10,
                 "heartbeat_timeout": 30,
                 "status": "registered",
+                "approval_status": agent.approval_status,
+                "message": "Registered. Awaiting server approval before tasks can be assigned.",
             },
             status=status.HTTP_201_CREATED,
         )
@@ -223,9 +229,11 @@ class MECAgentViewSet(viewsets.ViewSet):
         return Response(
             {
                 "device_id": agent.device_id,
-                "status": "ONLINE" if agent.is_online else "OFFLINE",
+                "status": agent.status_label,
+                "approval_status": agent.approval_status,
+                "approved": agent.is_approved,
                 "last_seen": agent.last_seen,
-                "next_action": "acknowledged",
+                "next_action": "acknowledged" if agent.is_approved else "awaiting_server_approval",
             }
         )
 
@@ -249,6 +257,29 @@ class MECAgentViewSet(viewsets.ViewSet):
         agent.is_revoked = False
         agent.save(update_fields=["is_revoked"])
         return Response({"device_id": agent.device_id, "status": "UNREVOKED"})
+
+    def approve(self, request, pk=None):
+        """Server approval - only approved devices may become ONLINE and run tasks."""
+        agent = approve_mec(pk)
+        if not agent:
+            return Response({"error": "MEC device not found"}, status=404)
+        return Response({
+            "device_id": agent.device_id,
+            "status": "APPROVED",
+            "approval_status": agent.approval_status,
+            "approved_at": agent.approved_at,
+        })
+
+    def reject(self, request, pk=None):
+        """Withdraw server approval - the device returns to PENDING."""
+        agent = reject_mec(pk)
+        if not agent:
+            return Response({"error": "MEC device not found"}, status=404)
+        return Response({
+            "device_id": agent.device_id,
+            "status": "PENDING",
+            "approval_status": agent.approval_status,
+        })
 
 
 class PairingCodeViewSet(viewsets.ViewSet):

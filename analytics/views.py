@@ -34,7 +34,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
     def overview(self, request):
         self._refresh()
         total = MECAgent.objects.count()
-        online = MECAgent.objects.filter(is_online=True, is_revoked=False).count()
+        online = MECAgent.objects.filter(is_online=True, is_approved=True, is_revoked=False).count()
         revoked = MECAgent.objects.filter(is_revoked=True).count()
 
         status_counts = {

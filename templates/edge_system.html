@@ -79,15 +79,15 @@
         In Command Prompt on your friend's PC, run:
       </p>
       <div style="background: #0f172a; padding: 6px 10px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.74rem; color: #a5b4fc; margin-top: 6px; word-break: break-all; display: flex; justify-content: space-between; align-items: center;">
-        <span id="cli-cmd-text">SecureDT_Edge_Agent.exe register --server {{ server_lan_url }} --pairing-code {{ active_pairing_code }} --name "Friend-PC"</span>
+        <span id="cli-cmd-text">SecureDT_Edge_Agent.exe run --pairing-code {{ active_pairing_code }} --name "Friend-PC"</span>
         <button type="button" class="btn btn-ghost btn-xs" onclick="copyCliCmd()" style="padding: 2px 6px; font-size: 10px; margin-left: 8px;">Copy</button>
       </div>
     </div>
 
     <div style="background: #fff; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
-      <strong class="text-cyan">Step 3: Run &amp; View Live</strong>
+      <strong class="text-cyan">Step 3: Enter Server IP &amp; Get Approved</strong>
       <p style="margin: 4px 0 0 0; color: var(--text-muted); font-size: 0.8rem;">
-        Run <code>SecureDT_Edge_Agent.exe run</code>. Your friend's system will immediately appear below with real-time CPU, RAM, and storage!
+        The EXE asks for the <strong>server network IP</strong> every launch (last used: {{ server_lan_url }}). Enter the current hotspot IP, then approve the device under <strong>MEC Infrastructure &rarr; Pending MEC Approval</strong>. Only the server can approve it.
       </p>
     </div>
   </div>

@@ -10,8 +10,8 @@ const CONFIG = {
   apiBase: '/api',
   refreshInterval: 8000,
   chartColors: {
-    primary: '#0ea5e9', success: '#22c55e', warning: '#f59e0b',
-    danger: '#ef4444', info: '#06b6d4', grid: '#2a3a52', text: '#9ca3af'
+    primary: '#4f46e5', success: '#10b981', warning: '#f59e0b',
+    danger: '#ef4444', info: '#0d9488', grid: '#e8edf5', text: '#64748b'
   }
 };
 
@@ -146,7 +146,7 @@ function setText(id, text) {
 // Theme, Menu, Connection status
 // =============================================================================
 function initTheme() {
-  const saved = localStorage.getItem('theme') || 'dark';
+  const saved = localStorage.getItem('theme') || 'light';
   document.documentElement.setAttribute('data-theme', saved);
   document.body.setAttribute('data-theme', saved);
   const toggle = $('#theme-toggle');
@@ -219,7 +219,7 @@ function renderTopology(container, resources, { meta = {} } = {}) {
     const id = r.resource_id;
     if (id === 'USER') special.push({ id, label: 'USER', color: '#f59e0b' });
     else if (id === 'LOCAL') special.push({ id, label: 'LOCAL', color: '#8b5cf6' });
-    else if (id === 'CLOUD') special.push({ id, label: 'CLOUD', color: '#06b6d4' });
+    else if (id === 'CLOUD') special.push({ id, label: 'CLOUD', color: '#0d9488' });
     else if (String(id).startsWith('MEC-')) mecNodes.push(r);
     else if (String(id).startsWith('STORAGE-')) storageNodes.push(r);
     else special.push({ id, label: id, color: '#94a3b8' });
@@ -228,7 +228,7 @@ function renderTopology(container, resources, { meta = {} } = {}) {
   const lines = [];
   const addLine = (a, b) => lines.push([a, b]);
   const mouse = special.find(s => s.id === 'USER') || { id: '_u', label: 'USER', color: '#f59e0b', x: 20, y: ch / 2 };
-  const cloud = special.find(s => s.id === 'CLOUD') || { id: '_c', label: 'CLOUD', color: '#06b6d4', x: cw - 20, y: ch / 2 };
+  const cloud = special.find(s => s.id === 'CLOUD') || { id: '_c', label: 'CLOUD', color: '#0d9488', x: cw - 20, y: ch / 2 };
   const local = special.find(s => s.id === 'LOCAL');
 
   const angleStep = (Math.PI * 2) / Math.max(mecNodes.length, 1);
@@ -279,8 +279,8 @@ function renderTopology(container, resources, { meta = {} } = {}) {
   });
   built.push(`</svg>`);
   built.push(nodeHTML(20, cy - 12, 'USER', '#f59e0b'));
-  built.push(nodeHTML(cx - 30, cy - 12, 'DJANGO', '#0ea5e9'));
-  built.push(nodeHTML(cw - 20, cy - 12, 'CLOUD', '#06b6d4'));
+  built.push(nodeHTML(cx - 30, cy - 12, 'DJANGO', '#4f46e5'));
+  built.push(nodeHTML(cw - 20, cy - 12, 'CLOUD', '#0d9488'));
   if (local) built.push(nodeHTML(local._x || cx, cy - 40, 'LOCAL', '#8b5cf6'));
   mecNodes.forEach(r => built.push(nodeHTML(r._x, r._y + 8, r.resource_id, nodeColor(r),
     `${Math.round((r.cpu_utilization || 0) * 100)}% | ${Math.round((r.security_risk || 0) * 100)}% risk|${r.availability === false ? 'OFFLINE' : r.status}`)));
@@ -954,7 +954,7 @@ async function initDataFlowPage() {
       body.innerHTML = `<div style="position:relative;height:${ch}px;background:radial-gradient(circle at center, var(--color-bg-elevated) 0%, transparent 70%)">
         <svg width="100%" height="${ch}"><line x1="10%" y1="50%" x2="70%" y2="50%" stroke="var(--color-border)" stroke-dasharray="6 4"/><line x1="30%" y1="50%" x2="90%" y2="50%" stroke="var(--color-border)" stroke-dasharray="6 4"/></svg>
         ${nodes.map(([n, pos]) => `<div style="position:absolute;${pos === 'left' ? 'left:5%' : pos === 'right' ? 'right:5%' : 'left:50%'}top:50%;transform:translate(-50%,-50%);text-align:center">
-          <span style="display:block;width:22px;height:22px;margin:0 auto;border-radius:50%;background:${pos === 'left' ? '#f59e0b' : pos === 'right' ? '#06b6d4' : '#0ea5e9'}"></span>
+          <span style="display:block;width:22px;height:22px;margin:0 auto;border-radius:50%;background:${pos === 'left' ? '#f59e0b' : pos === 'right' ? '#0d9488' : '#4f46e5'}"></span>
           <small style="color:var(--color-text-muted)">${n}</small></div>`).join('')}
         <div class="data-packets" style="position:absolute;top:50%;left:46%;transform:translate(-50%,-50%);font-size:10px;color:var(--color-primary)">● ● ● ●</div>
       </div>`;

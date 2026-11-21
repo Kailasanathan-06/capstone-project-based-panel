@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
-<body data-theme="dark" class="auth-page">
+<body data-theme="light" class="auth-page">
 
 <main class="auth-shell">
   <div class="auth-visual" aria-hidden="true">
@@ -86,9 +86,9 @@
     var svg = '<svg viewBox="0 0 160 160" width="260" height="260" class="va-ring">';
     for (var i = 1; i <= 4; i++) {
       var r = i * 16;
-      svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="rgba(56,189,248,.25)" stroke-width="1" class="ring-' + i + '"/>';
+      svg += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="1" class="ring-' + i + '"/>';
     }
-    svg += '<circle cx="' + cx + '" cy="' + cy + '" r="4" fill="#38bdf8"/>';
+    svg += '<circle cx="' + cx + '" cy="' + cy + '" r="4" fill="#ffffff"/>';
     svg += '</svg>';
     rings.innerHTML = svg;
   }

@@ -236,8 +236,8 @@
 (function(){
   const fmt = n => n==null ? '--' : n.toLocaleString();
   let _charts={};
-  const ACCENT='#35e0ff', RED='#ef4444', GREEN='#22c55e', MUTED='rgba(150,150,150,0.5)';
-  const COLORS=[RED,'#f97316','#eab308','#22c55e','#35e0ff','#6366f1','#ec4899','#14b8a6','#f43f5e','#84cc16','#8b5cf6','#0ea5e9'];
+  const ACCENT='#4f46e5', RED='#ef4444', GREEN='#22c55e', MUTED='rgba(150,150,150,0.5)';
+  const COLORS=[RED,'#f97316','#eab308','#22c55e','#4f46e5','#6366f1','#ec4899','#14b8a6','#f43f5e','#84cc16','#8b5cf6','#6366f1'];
 
   async function loadOverview(){
     try{const r=await fetch('/datasets/app/api/datasets/overview');const d=await r.json();

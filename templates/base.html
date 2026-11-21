@@ -13,34 +13,22 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=20261024-v9">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=20261121-v10">
   <style>
-    /* Critical UI neatness fallback guarantee */
-    body { margin: 0; background: #060913; color: #f1f5f9; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; -webkit-font-smoothing: antialiased; }
-    .app-header { display: flex !important; align-items: center !important; justify-content: space-between !important; height: 60px !important; background: #0e172a !important; border-bottom: 1px solid rgba(56, 189, 248, 0.18) !important; padding: 0 20px !important; position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; z-index: 1000 !important; }
-    .header-left, .header-actions { display: flex !important; align-items: center !important; gap: 14px !important; }
-    .app-container { display: flex !important; min-height: 100vh !important; padding-top: 60px !important; background: #060913 !important; }
-    .app-sidebar { width: 250px !important; min-width: 250px !important; max-width: 250px !important; background: #0a0f1d !important; border-right: 1px solid rgba(56, 189, 248, 0.12) !important; position: fixed !important; top: 60px !important; bottom: 0 !important; left: 0 !important; overflow-y: auto !important; z-index: 900 !important; padding: 20px 14px !important; box-sizing: border-box !important; }
-    .app-main { margin-left: 250px !important; flex: 1 !important; width: calc(100% - 250px) !important; background: #060913 !important; min-height: calc(100vh - 60px) !important; box-sizing: border-box !important; }
-    .content-area { max-width: 1440px !important; margin: 0 auto !important; padding: 28px 32px !important; }
-    .nav-item { display: flex !important; flex-direction: row !important; align-items: center !important; gap: 12px !important; padding: 10px 14px !important; margin-bottom: 4px !important; border-radius: 8px !important; text-decoration: none !important; color: #94a3b8 !important; font-size: 0.88rem !important; font-weight: 500 !important; white-space: nowrap !important; }
-    .nav-item:hover, .nav-item.active { background: rgba(56, 189, 248, 0.12) !important; color: #38bdf8 !important; }
-    .nav-item .nav-icon { width: 18px !important; height: 18px !important; min-width: 18px !important; flex-shrink: 0 !important; display: inline-block !important; }
-    .grid-metrics { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important; gap: 16px !important; }
-    .grid-metrics-6 { display: grid !important; grid-template-columns: repeat(6, 1fr) !important; gap: 14px !important; }
-    .metric-card { background: #0e172a !important; border: 1px solid rgba(56, 189, 248, 0.15) !important; border-radius: 10px !important; padding: 18px 20px !important; display: flex !important; flex-direction: column !important; justify-content: space-between !important; }
-    .metric-header { display: flex !important; align-items: center !important; justify-content: space-between !important; margin-bottom: 10px !important; }
-    .metric-icon { width: 18px !important; height: 18px !important; max-width: 18px !important; max-height: 18px !important; flex-shrink: 0 !important; }
-    .metric-value { font-size: 1.85rem !important; font-weight: 700 !important; line-height: 1.1 !important; margin-bottom: 6px !important; color: #f8fafc !important; }
-    .metric-sub { font-size: 0.76rem !important; color: #64748b !important; }
-    .card { background: #0e172a !important; border: 1px solid rgba(56, 189, 248, 0.15) !important; border-radius: 12px !important; padding: 22px 24px !important; margin-bottom: 22px !important; }
-    .card-header { display: flex !important; justify-content: space-between !important; align-items: center !important; margin-bottom: 18px !important; }
-    .card-title { font-size: 1.08rem !important; font-weight: 600 !important; color: #f1f5f9 !important; margin: 0 !important; display: flex !important; align-items: center !important; gap: 10px !important; }
-    .table { width: 100% !important; border-collapse: separate !important; border-spacing: 0 !important; }
-    .table th { background: #090e1a !important; color: #94a3b8 !important; padding: 12px 14px !important; text-align: left !important; font-size: 0.74rem !important; text-transform: uppercase !important; border-bottom: 1px solid rgba(56, 189, 248, 0.18) !important; }
-    .table td { padding: 12px 14px !important; border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important; font-size: 0.85rem !important; color: #cbd5e1 !important; vertical-align: middle !important; }
-    @media (max-width: 1200px) { .grid-metrics-6 { grid-template-columns: repeat(3, 1fr) !important; } }
-    @media (max-width: 768px) { .app-sidebar { transform: translateX(-100%); } .app-main { margin-left: 0 !important; width: 100% !important; } .grid-metrics-6 { grid-template-columns: repeat(2, 1fr) !important; } }
+    /* Critical layout fallback — light console palette */
+    body { margin: 0; background: #f4f6fb; color: #0f172a; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; -webkit-font-smoothing: antialiased; }
+    .app-header { display: flex; align-items: center; justify-content: space-between; min-height: 68px; background: #fff; border-bottom: 1px solid #e8edf5; padding: 0 26px; position: fixed; top: 0; left: 0; right: 0; z-index: 1000; }
+    .header-left, .header-actions { display: flex; align-items: center; gap: 14px; }
+    .app-container { display: flex; min-height: 100vh; padding-top: 68px; background: #f4f6fb; }
+    .app-sidebar { width: 256px; min-width: 256px; max-width: 256px; background: #fff; border-right: 1px solid #e8edf5; position: fixed; top: 68px; bottom: 0; left: 0; overflow-y: auto; z-index: 900; padding: 20px 14px; box-sizing: border-box; }
+    .app-content { margin-left: 256px; flex: 1; width: calc(100% - 256px); background: #f4f6fb; min-height: calc(100vh - 68px); box-sizing: border-box; }
+    .nav-item { display: flex; flex-direction: row; align-items: center; gap: 12px; padding: 10px 13px; margin-bottom: 3px; border-radius: 9px; text-decoration: none; color: #475569; font-size: 0.88rem; font-weight: 600; white-space: nowrap; }
+    .nav-item:hover { background: #f1f5f9; color: #0f172a; }
+    .nav-item.active { background: #eef2ff; color: #4f46e5; }
+    .nav-icon { width: 19px; height: 19px; min-width: 19px; flex-shrink: 0; display: inline-block; }
+    .metric-card, .kpi-card { background: #fff; border: 1px solid #e6ebf3; border-radius: 14px; padding: 18px 20px; }
+    .card { background: #fff; border: 1px solid #e6ebf3; border-radius: 14px; padding: 22px 24px; margin-bottom: 22px; }
+    @media (max-width: 992px) { .app-sidebar { transform: translateX(-100%); } .app-content { margin-left: 0 !important; width: 100% !important; } }
   </style>
   {% block extra_css %}{% endblock %}
 </head>
@@ -73,7 +61,7 @@
       <!-- Page Breadcrumb -->
       <div class="header-breadcrumb" aria-label="Breadcrumb">
         <span class="breadcrumb-sep">/</span>
-        <span class="breadcrumb-current">{% block page_breadcrumb %}{{ page_title|default:"Operations Dashboard" }}{% endblock %}</span>
+        <span class="breadcrumb-current">{% block page_breadcrumb %}{% block page_crumb %}{{ page_title|default:"Operations Dashboard" }}{% endblock %}{% endblock %}</span>
       </div>
     </div>
 
@@ -85,7 +73,7 @@
       </div>
 
       <!-- Quick Edge EXE Client Download -->
-      <a href="{% url 'api_download_edge_agent_exe' %}" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; height: 32px; font-size: 0.78rem; border-color: rgba(56, 189, 248, 0.35); text-decoration: none;" title="Download Autonomous Edge Agent (.exe) for Windows">
+      <a href="{% url 'api_download_edge_agent_exe' %}" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 6px; height: 34px; font-size: 0.78rem; border-color: #c7d2fe; text-decoration: none;" title="Download Autonomous Edge Agent (.exe) for Windows">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
           <polyline points="7 10 12 15 17 10"></polyline>

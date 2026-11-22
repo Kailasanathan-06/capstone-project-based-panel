@@ -406,3 +406,31 @@
   .dt3d-controls button,
   .dt3d-controls select { transition: none; }
 }
+
+/* Storage detail modal */
+.dt3d-modal { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.dt3d-modal[hidden] { display: none !important; }
+.dt3d-modal-backdrop { position: absolute; inset: 0; background: rgba(2, 6, 23, 0.62); backdrop-filter: blur(2px); }
+.dt3d-modal-panel { position: relative; width: min(1100px, 96vw); max-height: 88vh; overflow: auto; background: #0b1426; border: 1px solid #28415f; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.45); color: #dbeafe; }
+.dt3d-modal-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding: 16px 18px; border-bottom: 1px solid #1f3552; position: sticky; top: 0; background: #0b1426; z-index: 1; }
+.dt3d-modal-kicker { font-size: 10px; letter-spacing: .1em; color: #67e8f9; font-weight: 700; }
+.dt3d-modal-head h3 { margin: 2px 0; font-size: 20px; color: #f8fafc; }
+.dt3d-modal-sub { font-size: 12px; color: #94a3b8; font-family: Consolas, monospace; }
+.dt3d-modal-stats { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 8px; padding: 14px 18px; border-bottom: 1px solid #1f3552; }
+.dt3d-modal-stat { background: #0f1d35; border: 1px solid #243b5a; border-radius: 8px; padding: 8px 10px; }
+.dt3d-modal-stat span { display: block; font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em; }
+.dt3d-modal-stat strong { display: block; margin-top: 2px; font-size: 14px; color: #e2e8f0; }
+.dt3d-modal-body { padding: 14px 18px 18px; }
+.dt3d-modal-section { margin-bottom: 16px; }
+.dt3d-modal-section h4 { margin: 0 0 8px; font-size: 13px; color: #93c5fd; text-transform: uppercase; letter-spacing: .04em; }
+.dt3d-table-wrap { overflow: auto; border: 1px solid #223a58; border-radius: 8px; }
+.dt3d-modal-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 720px; }
+.dt3d-modal-table th, .dt3d-modal-table td { padding: 8px 10px; border-bottom: 1px solid #1d3350; text-align: left; vertical-align: top; }
+.dt3d-modal-table th { background: #10213a; color: #93c5fd; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; position: sticky; top: 0; }
+.dt3d-modal-table tr:last-child td { border-bottom: 0; }
+.dt3d-muted { color: #64748b; font-size: 11px; margin-top: 2px; }
+.dt3d-mono { font-family: Consolas, monospace; font-size: 11px; color: #cbd5e1; }
+.dt3d-pill { display: inline-block; padding: 2px 7px; border-radius: 999px; background: #163055; color: #bfdbfe; font-size: 10px; font-weight: 700; }
+.dt3d-empty-note { color: #94a3b8; font-size: 12px; padding: 10px 0; margin: 0; }
+@media (max-width: 1180px) { .dt3d-modal-stats { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+@media (max-width: 720px) { .dt3d-modal-stats { grid-template-columns: repeat(2, minmax(0,1fr)); } .dt3d-modal-panel { width: 98vw; max-height: 92vh; } }

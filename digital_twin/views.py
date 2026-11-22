@@ -81,6 +81,114 @@ class DigitalTwinViewSet(viewsets.ViewSet):
         sim = StorageSimulator()
         return Response(sim.status())
 
+    def storage_detail(self, request):
+        """Return stored files/replicas for a storage tier (for 3D node click details)."""
+        from datasets.models import DatasetInventoryItem, DatasetStorageReplica, DatasetUpload, StorageDestination
+
+        dest = str(request.query_params.get("destination", "")).upper().strip()
+        mapping = {
+            "LOCAL": "LOCAL_STORAGE",
+            "LOCAL_STORAGE": "LOCAL_STORAGE",
+            "MEC_STORAGE": "MEC_STORAGE",
+            "MEC": "MEC_STORAGE",
+            "CLOUD": "CLOUD_STORAGE",
+            "CLOUD_STORAGE": "CLOUD_STORAGE",
+        }
+        dest_id = mapping.get(dest)
+        if not dest_id:
+            return Response({"error": "Unknown destination. Use LOCAL, MEC_STORAGE, or CLOUD."}, status=400)
+
+        try:
+            destination = StorageDestination.objects.get(destination_id=dest_id)
+        except StorageDestination.DoesNotExist:
+            return Response({"error": "Storage destination not configured"}, status=404)
+
+        replicas = (
+            DatasetStorageReplica.objects.filter(storage_destination=destination)
+            .select_related("storage_destination", "scenario")
+            .order_by("-created_at")[:50]
+        )
+        replica_rows = []
+        for r in replicas:
+            replica_rows.append({
+                "replica_id": r.replica_id,
+                "dataset_id": r.dataset_id,
+                "scenario_id": r.scenario.scenario_id if r.scenario else "",
+                "file_name": os.path.basename(r.relative_key or r.absolute_path or ""),
+                "relative_key": r.relative_key,
+                "file_size_bytes": r.file_size_bytes,
+                "file_size": self._fmt_bytes(r.file_size_bytes),
+                "sha256_checksum": r.sha256_checksum,
+                "replication_status": r.replication_status,
+                "is_available": r.is_available,
+                "stored_at": r.created_at.isoformat() if r.created_at else None,
+                "stored_at_display": r.created_at.strftime("%Y-%m-%d %H:%M:%S") if r.created_at else None,
+                "last_verified_at": r.last_verified_at.isoformat() if r.last_verified_at else None,
+                "last_verified_display": r.last_verified_at.strftime("%Y-%m-%d %H:%M:%S") if r.last_verified_at else None,
+                "last_error": r.last_error or "",
+            })
+
+        items = (
+            DatasetInventoryItem.objects.filter(selected_destination=dest_id)
+            .select_related("upload")
+            .order_by("-id")[:50]
+        )
+        item_rows = []
+        for i in items:
+            item_rows.append({
+                "file_name": i.file_name,
+                "relative_path": i.relative_path,
+                "file_size_bytes": i.file_size,
+                "file_size": self._fmt_bytes(i.file_size),
+                "format": i.format,
+                "privacy_policy": i.privacy_policy,
+                "status": i.status,
+                "upload_id": i.upload.upload_id if i.upload_id else "",
+                "stored_at": i.upload.uploaded_at.isoformat() if i.upload_id and i.upload.uploaded_at else None,
+                "stored_at_display": i.upload.uploaded_at.strftime("%Y-%m-%d %H:%M:%S") if i.upload_id and i.upload.uploaded_at else None,
+            })
+
+        uploads = DatasetUpload.objects.filter(selected_destination=dest_id).order_by("-uploaded_at")[:20]
+        upload_rows = [{
+            "upload_id": u.upload_id,
+            "file_name": u.file_name,
+            "file_size": self._fmt_bytes(u.file_size),
+            "status": u.status,
+            "uploaded_at": u.uploaded_at.isoformat() if u.uploaded_at else None,
+            "uploaded_at_display": u.uploaded_at.strftime("%Y-%m-%d %H:%M:%S") if u.uploaded_at else None,
+            "file_count": u.file_count,
+        } for u in uploads]
+
+        return Response({
+            "destination_id": destination.destination_id,
+            "name": destination.name,
+            "destination_type": destination.destination_type,
+            "is_emulator": bool(destination.is_emulator),
+            "capacity_bytes": destination.capacity_bytes,
+            "used_bytes": destination.used_bytes,
+            "capacity": self._fmt_bytes(destination.capacity_bytes),
+            "used": self._fmt_bytes(destination.used_bytes),
+            "free": self._fmt_bytes(max(0, destination.capacity_bytes - destination.used_bytes)),
+            "replicas_count": len(replica_rows),
+            "inventory_items_count": len(item_rows),
+            "uploads_count": len(upload_rows),
+            "replicas": replica_rows,
+            "inventory_items": item_rows,
+            "uploads": upload_rows,
+        })
+
+    @staticmethod
+    def _fmt_bytes(n):
+        try:
+            n = float(n or 0)
+        except Exception:
+            return "0 B"
+        for unit in ["B", "KB", "MB", "GB", "TB"]:
+            if n < 1024 or unit == "TB":
+                return f"{n:.2f} {unit}" if unit != "B" else f"{int(n)} B"
+            n /= 1024.0
+        return f"{n:.2f} TB"
+
     def storage_attack(self, request):
         """Simulate an attack on virtual storage (never touches real disks)."""
         sim = StorageSimulator()

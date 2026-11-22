@@ -80,6 +80,133 @@
     return text.length > 18 ? text.slice(0, 15) + '...' : text;
   }
 
+  function storageDestForNode(nodeId) {
+    if (nodeId === 'LOCAL') return 'LOCAL_STORAGE';
+    if (nodeId === 'MEC_STORAGE') return 'MEC_STORAGE';
+    if (nodeId === 'CLOUD') return 'CLOUD_STORAGE';
+    return null;
+  }
+
+  function ensureStorageModal() {
+    var modal = byId('dt3d-storage-modal');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'dt3d-storage-modal';
+    modal.className = 'dt3d-modal';
+    modal.hidden = true;
+    modal.innerHTML = '' +
+      '<div class="dt3d-modal-backdrop" data-dt3d-close="1"></div>' +
+      '<div class="dt3d-modal-panel" role="dialog" aria-modal="true" aria-labelledby="dt3d-storage-title">' +
+        '<div class="dt3d-modal-head">' +
+          '<div><div class="dt3d-modal-kicker">STORAGE NODE DETAILS</div><h3 id="dt3d-storage-title">Storage</h3><div class="dt3d-modal-sub" id="dt3d-storage-sub"></div></div>' +
+          '<button type="button" class="dt3d-ctrl" data-dt3d-close="1">Close</button>' +
+        '</div>' +
+        '<div class="dt3d-modal-stats" id="dt3d-storage-stats"></div>' +
+        '<div class="dt3d-modal-body" id="dt3d-storage-body"><p class="dt3d-empty-note">Click a storage node to load details.</p></div>' +
+      '</div>';
+    document.body.appendChild(modal);
+    modal.addEventListener('click', function (e) {
+      if (e.target && e.target.getAttribute('data-dt3d-close')) closeStorageModal();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !modal.hidden) closeStorageModal();
+    });
+    return modal;
+  }
+
+  function closeStorageModal() {
+    var modal = byId('dt3d-storage-modal');
+    if (modal) modal.hidden = true;
+  }
+
+  function openStorageModal(nodeId) {
+    var dest = storageDestForNode(nodeId);
+    if (!dest) return;
+    var modal = ensureStorageModal();
+    var title = byId('dt3d-storage-title');
+    var sub = byId('dt3d-storage-sub');
+    var stats = byId('dt3d-storage-stats');
+    var body = byId('dt3d-storage-body');
+    modal.hidden = false;
+    if (title) title.textContent = dest.replace('_', ' ');
+    if (sub) sub.textContent = 'Loading stored data details...';
+    if (stats) stats.innerHTML = '';
+    if (body) body.innerHTML = '<p class="dt3d-empty-note">Loading...</p>';
+
+    fetch('/api/digital-twin/storage/detail/?destination=' + encodeURIComponent(dest), { credentials: 'same-origin' })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.data.error || 'Failed to load storage details');
+        renderStorageDetail(res.data);
+      })
+      .catch(function (err) {
+        if (sub) sub.textContent = 'Unable to load storage details';
+        if (body) body.innerHTML = '<p class="dt3d-empty-note" style="color:#f87171;">' + esc(err.message || 'Error') + '</p>';
+      });
+  }
+
+  function renderStorageDetail(d) {
+    var title = byId('dt3d-storage-title');
+    var sub = byId('dt3d-storage-sub');
+    var stats = byId('dt3d-storage-stats');
+    var body = byId('dt3d-storage-body');
+    if (title) title.textContent = d.name || d.destination_id;
+    if (sub) sub.textContent = d.destination_id + ' | ' + (d.destination_type || '') + (d.is_emulator ? ' | Emulator' : '');
+    if (stats) {
+      stats.innerHTML = [
+        ['Capacity', d.capacity], ['Used', d.used], ['Free', d.free],
+        ['Replicas', d.replicas_count], ['Inventory Items', d.inventory_items_count], ['Uploads', d.uploads_count]
+      ].map(function (kv) {
+        return '<div class="dt3d-modal-stat"><span>' + esc(kv[0]) + '</span><strong>' + esc(String(kv[1] == null ? '-' : kv[1])) + '</strong></div>';
+      }).join('');
+    }
+    var html = '';
+    html += '<section class="dt3d-modal-section"><h4>Stored Replicas / Files</h4>';
+    if (d.replicas && d.replicas.length) {
+      html += '<div class="dt3d-table-wrap"><table class="dt3d-modal-table"><thead><tr><th>File</th><th>Size</th><th>Status</th><th>Stored Date/Time</th><th>Verified</th><th>SHA-256</th></tr></thead><tbody>';
+      d.replicas.forEach(function (r) {
+        html += '<tr><td title="' + esc(r.relative_key || '') + '">' + esc(r.file_name || r.replica_id) + '<div class="dt3d-muted">' + esc(r.dataset_id || '') + '</div></td>' +
+          '<td>' + esc(r.file_size || '') + '</td>' +
+          '<td><span class="dt3d-pill">' + esc(r.replication_status || '') + '</span></td>' +
+          '<td>' + esc(r.stored_at_display || '-') + '</td>' +
+          '<td>' + esc(r.last_verified_display || '-') + '</td>' +
+          '<td class="dt3d-mono" title="' + esc(r.sha256_checksum || '') + '">' + esc((r.sha256_checksum || '').slice(0, 16)) + (r.sha256_checksum ? '…' : '-') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    } else {
+      html += '<p class="dt3d-empty-note">No stored replicas found for this tier.</p>';
+    }
+    html += '</section>';
+
+    html += '<section class="dt3d-modal-section"><h4>Dataset Inventory Items</h4>';
+    if (d.inventory_items && d.inventory_items.length) {
+      html += '<div class="dt3d-table-wrap"><table class="dt3d-modal-table"><thead><tr><th>File</th><th>Format</th><th>Size</th><th>Policy</th><th>Status</th><th>Stored Date/Time</th></tr></thead><tbody>';
+      d.inventory_items.forEach(function (i) {
+        html += '<tr><td title="' + esc(i.relative_path || '') + '">' + esc(i.file_name || '') + '<div class="dt3d-muted">' + esc(i.upload_id || '') + '</div></td>' +
+          '<td>' + esc(i.format || '-') + '</td><td>' + esc(i.file_size || '') + '</td>' +
+          '<td>' + esc(i.privacy_policy || '-') + '</td><td><span class="dt3d-pill">' + esc(i.status || '') + '</span></td>' +
+          '<td>' + esc(i.stored_at_display || '-') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    } else {
+      html += '<p class="dt3d-empty-note">No inventory items assigned to this tier.</p>';
+    }
+    html += '</section>';
+
+    html += '<section class="dt3d-modal-section"><h4>Recent Uploads to Tier</h4>';
+    if (d.uploads && d.uploads.length) {
+      html += '<div class="dt3d-table-wrap"><table class="dt3d-modal-table"><thead><tr><th>Upload ID</th><th>File</th><th>Size</th><th>Files</th><th>Status</th><th>Date/Time</th></tr></thead><tbody>';
+      d.uploads.forEach(function (u) {
+        html += '<tr><td class="dt3d-mono">' + esc(u.upload_id || '') + '</td><td>' + esc(u.file_name || '') + '</td><td>' + esc(u.file_size || '') + '</td><td>' + esc(String(u.file_count == null ? '-' : u.file_count)) + '</td><td><span class="dt3d-pill">' + esc(u.status || '') + '</span></td><td>' + esc(u.uploaded_at_display || '-') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    } else {
+      html += '<p class="dt3d-empty-note">No uploads recorded for this tier.</p>';
+    }
+    html += '</section>';
+    if (body) body.innerHTML = html;
+  }
+
   function colorFor(node) {
     if (node.kind === 'attacker') return 0xef4444;
     if (node.status === 'offline') return 0x64748b;
@@ -340,6 +467,24 @@
     };
   };
 
+  ThreeBackend.prototype.pick = function (clientX, clientY, rect, nodes) {
+    var raycaster = new THREE.Raycaster();
+    var mouse = new THREE.Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1
+    );
+    raycaster.setFromCamera(mouse, this.camera);
+    var objects = [];
+    var self = this;
+    Object.keys(this.nodes).forEach(function (id) {
+      var entry = self.nodes[id];
+      entry.group.traverse(function (obj) { if (obj.isMesh) { obj.userData.nodeId = id; objects.push(obj); } });
+    });
+    var hits = raycaster.intersectObjects(objects, false);
+    if (!hits.length) return null;
+    return hits[0].object.userData.nodeId || null;
+  };
+
   ThreeBackend.prototype.dispose = function () {
     this.root.traverse(function (obj) {
       if (obj.geometry) obj.geometry.dispose();
@@ -402,6 +547,21 @@
       visible: true,
       scale: scale
     };
+  };
+
+  CanvasBackend.prototype.pick = function (clientX, clientY, rect, nodes) {
+    var x = clientX - rect.left;
+    var y = clientY - rect.top;
+    var best = null;
+    var bestDist = 22;
+    var self = this;
+    (nodes || []).forEach(function (node) {
+      var p = self.project(node);
+      var dx = p.x - x, dy = p.y - y;
+      var d = Math.sqrt(dx*dx + dy*dy);
+      if (d < bestDist) { bestDist = d; best = node.id; }
+    });
+    return best;
   };
 
   CanvasBackend.prototype.draw = function (nextModel, showSecurity) {
@@ -1054,22 +1214,35 @@
     }
 
     var dragging = false;
+    var moved = false;
+    var downX = 0, downY = 0;
     var lastX = 0;
     var lastY = 0;
     on(canvas, 'pointerdown', function (event) {
-      dragging = true;
+      dragging = true; moved = false;
+      downX = event.clientX; downY = event.clientY;
       lastX = event.clientX;
       lastY = event.clientY;
       canvas.setPointerCapture(event.pointerId);
     });
     on(canvas, 'pointermove', function (event) {
       if (!dragging) return;
+      var dx = event.clientX - downX, dy = event.clientY - downY;
+      if (Math.abs(dx) + Math.abs(dy) > 6) moved = true;
       backend.rotate(event.clientX - lastX, event.clientY - lastY);
       lastX = event.clientX;
       lastY = event.clientY;
       dirty = true;
     });
-    on(canvas, 'pointerup', function () { dragging = false; });
+    on(canvas, 'pointerup', function (event) {
+      var wasDragging = dragging;
+      dragging = false;
+      if (wasDragging && !moved) {
+        var rect = canvas.getBoundingClientRect();
+        var nodeId = backend.pick ? backend.pick(event.clientX, event.clientY, rect, model.nodes) : null;
+        if (nodeId && storageDestForNode(nodeId)) openStorageModal(nodeId);
+      }
+    });
     on(canvas, 'pointercancel', function () { dragging = false; });
     on(canvas, 'wheel', function (event) {
       event.preventDefault();

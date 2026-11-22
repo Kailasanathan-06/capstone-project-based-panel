@@ -15,6 +15,7 @@ urlpatterns = [
     path("unquarantine/", DigitalTwinViewSet.as_view({"post": "unquarantine"}), name="digital_twin_unquarantine"),
     path("schedule/", DigitalTwinViewSet.as_view({"post": "schedule"}), name="digital_twin_schedule"),
     path("storage/status/", DigitalTwinViewSet.as_view({"get": "storage_status"}), name="digital_twin_storage_status"),
+    path("storage/detail/", DigitalTwinViewSet.as_view({"get": "storage_detail"}), name="digital_twin_storage_detail"),
     path("storage/attack/", DigitalTwinViewSet.as_view({"post": "storage_attack"}), name="digital_twin_storage_attack"),
     path("storage/recover/", DigitalTwinViewSet.as_view({"post": "storage_recover"}), name="digital_twin_storage_recover"),
     path("security/", DigitalTwinViewSet.as_view({"get": "security"}), name="digital_twin_security"),

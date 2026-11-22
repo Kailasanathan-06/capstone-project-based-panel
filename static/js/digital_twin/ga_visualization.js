@@ -149,6 +149,100 @@ export function buildSchedulingGraph(data) {
   return { nodes: nodes, links: links, decision: decision };
 }
 
+export function buildDatasetSchedulingGraph(inspection) {
+  var decisions = (inspection && inspection.dataset_scheduling) || [];
+  var dataset = (inspection && inspection.dataset) || {};
+  var nodes = [];
+  var links = [];
+  var destinations = Array.from(new Set(decisions.map(function (decision) {
+    return display(decision.selected_destination, 'UNASSIGNED');
+  })));
+
+  nodes.push({
+    id: 'DATASET_FILES',
+    label: display(dataset.dataset_name, 'SELECTED DATASET'),
+    type: 'dataset-root',
+    shape: 'folder',
+    status: 'online',
+    color: COLORS.queue,
+    size: 1.05,
+    position: { x: -11, y: 0, z: 0 },
+    meta: {
+      kicker: 'SELECTED DATASET',
+      sections: [{
+        title: 'Dataset Information',
+        rows: [
+          ['Dataset', display(dataset.dataset_name, 'Unknown')],
+          ['Report ID', display(dataset.report_id, 'Unknown')],
+          ['File count', display(dataset.file_count, 0)],
+          ['File-level decisions', decisions.length],
+          ['Source', 'Persisted dataset analysis report']
+        ]
+      }]
+    }
+  });
+
+  destinations.slice(0, 6).forEach(function (destination, index) {
+    nodes.push({
+      id: 'DESTINATION:' + destination,
+      label: destination,
+      type: 'resource',
+      shape: destination === 'UNASSIGNED' ? 'torus' : 'storage',
+      status: destination === 'UNASSIGNED' ? 'blocked' : 'online',
+      color: destination === 'UNASSIGNED' ? COLORS.blocked : COLORS.resource,
+      size: 0.8,
+      position: { x: 8, y: 3 - index * 1.2, z: 0 },
+      meta: {
+        kicker: 'PROPOSED STORAGE PLACEMENT',
+        sections: [{
+          title: 'Placement Information',
+          rows: [
+            ['Destination', destination],
+            ['Assigned files', decisions.filter(function (decision) {
+              return display(decision.selected_destination, 'UNASSIGNED') === destination;
+            }).length],
+            ['Meaning', 'Proposed or recorded placement; no live dispatch']
+          ]
+        }]
+      }
+    });
+  });
+
+  decisions.slice(0, 12).forEach(function (decision, index) {
+    var destination = display(decision.selected_destination, 'UNASSIGNED');
+    var blocked = destination === 'UNASSIGNED' || decision.result === 'BLOCKED';
+    nodes.push({
+      id: 'DATASET_DECISION:' + decision.task_id,
+      label: blocked ? 'TASK BLOCKED — NO ELIGIBLE RESOURCE' : decision.file_name,
+      type: blocked ? 'blocked' : 'decision',
+      shape: blocked ? 'attacker' : 'file',
+      status: blocked ? 'blocked' : 'online',
+      color: blocked ? COLORS.blocked : COLORS.ga,
+      size: 0.6,
+      position: { x: -2, y: 4 - index * 0.8, z: 0 },
+      meta: {
+        kicker: 'FILE-LEVEL ALLOCATION DECISION',
+        sections: [{
+          title: 'Decision Information',
+          rows: [
+            ['File', display(decision.file_name, 'Unknown')],
+            ['Privacy policy', display(decision.privacy_policy, 'UNKNOWN')],
+            ['Eligible resources', (decision.candidate_resources || []).join(', ') || 'NONE'],
+            ['Selected destination', destination],
+            ['Rationale', display(decision.decision_rationale, 'Not recorded')],
+            ['Rejected candidates', (decision.rejected_candidates || []).join(', ') || 'NONE'],
+            ['Result', display(decision.result, 'PROPOSED')]
+          ]
+        }]
+      }
+    });
+    links.push({ from: 'DATASET_FILES', to: 'DATASET_DECISION:' + decision.task_id, color: COLORS.queue, opacity: 0.5 });
+    links.push({ from: 'DATASET_DECISION:' + decision.task_id, to: 'DESTINATION:' + destination, color: blocked ? COLORS.blocked : COLORS.ga, opacity: 0.7 });
+  });
+
+  return { nodes: nodes, links: links, decisions: decisions };
+}
+
 export function buildComparisonGraph(comparison) {
   var algorithms = (comparison && comparison.algorithms) || {};
   var ga = algorithms.proposed_ga || {};
@@ -251,21 +345,28 @@ export function buildComparisonGraph(comparison) {
   return { nodes: nodes, links: links, comparison: comparison };
 }
 
-export function renderGaStatus(container, data, comparison) {
+export function renderGaStatus(container, data, comparison, inspection) {
   if (!container) return;
   var decisions = recordedDecisions(data);
+  var datasetDecisions = (inspection && inspection.dataset_scheduling) || [];
   var ga = comparison && comparison.algorithms && comparison.algorithms.proposed_ga;
   var lines = [];
+  if (datasetDecisions.length) {
+    lines.push('<strong>SELECTED DATASET DECISIONS</strong>');
+    lines.push('Files: ' + datasetDecisions.length);
+    lines.push('Placed: ' + datasetDecisions.filter(function (item) { return item.result === 'COMPLETED' || item.result === 'PROPOSED'; }).length);
+    lines.push('Blocked: ' + datasetDecisions.filter(function (item) { return item.result === 'BLOCKED'; }).length);
+    lines.push('Source: persisted analysis report');
+  } else {
+    lines.push('<strong>NO SELECTED DATASET DECISIONS</strong>');
+    lines.push('Select an analyzed dataset to show recorded file-level decisions.');
+  }
   if (decisions.length) {
     var decision = decisions[0];
-    lines.push('<strong>RECORDED DECISION</strong>');
+    lines.push('<strong>RECORDED DISPATCH DECISION</strong>');
     lines.push('Task: ' + escapeHtml(decision.task_id));
     lines.push('Algorithm: ' + escapeHtml(display(decision.algorithm, 'Unknown')));
     lines.push('Selected: ' + escapeHtml(display(decision.selected_resource, 'Unknown')) + ' / ' + escapeHtml(display(decision.selected_tier, 'Unknown')));
-    lines.push('Scores: ' + escapeHtml(formatScores(decision.objective_scores)));
-  } else {
-    lines.push('<strong>NO RECORDED DECISION</strong>');
-    lines.push('Normal dispatch decisions are not persisted.');
   }
   if (ga && ga.metrics) {
     lines.push('<strong>SIMULATED COMPARISON</strong>');
@@ -277,22 +378,26 @@ export function renderGaStatus(container, data, comparison) {
   container.innerHTML = lines.join('<br>');
 }
 
-export function renderGaHistory(container, data, comparison) {
+export function renderGaHistory(container, data, comparison, inspection) {
   if (!container) return;
   var ga = comparison && comparison.algorithms && comparison.algorithms.proposed_ga;
   var history = (ga && ga.history) || [];
   var decisions = recordedDecisions(data);
-  if (!history.length && !decisions.length) {
-    container.textContent = 'No GA history recorded. Normal dispatch decisions are not persisted.';
+  var datasetDecisions = (inspection && inspection.dataset_scheduling) || [];
+  if (!history.length && !decisions.length && !datasetDecisions.length) {
+    container.textContent = 'No scheduling history is available for the selected dataset.';
     return;
   }
   var rows = [];
+  datasetDecisions.slice(0, 8).forEach(function (decision) {
+    rows.push(decision.file_name + ' → ' + display(decision.selected_destination, 'UNASSIGNED') + ' · ' + display(decision.result, 'PROPOSED'));
+  });
   history.slice(-12).forEach(function (item) {
     if (!Array.isArray(item)) return;
-    rows.push('Gen ' + display(item[0], '?') + ' · best ' + display(item[1], '?') + ' · avg ' + display(item[2], '?'));
+    rows.push('Simulated gen ' + display(item[0], '?') + ' · best ' + display(item[1], '?') + ' · avg ' + display(item[2], '?'));
   });
   decisions.slice(0, 6).forEach(function (decision) {
-    rows.push('Recorded · ' + decision.task_id + ' → ' + display(decision.selected_resource, 'Unknown'));
+    rows.push('Recorded dispatch · ' + decision.task_id + ' → ' + display(decision.selected_resource, 'Unknown'));
   });
   container.innerHTML = rows.map(escapeHtml).join('<br>');
 }

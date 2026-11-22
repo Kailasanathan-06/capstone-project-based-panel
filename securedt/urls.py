@@ -35,6 +35,7 @@ urlpatterns = [
     path('api/app/dashboard-stats/', page_views.dashboard_api, name='api_dashboard_stats'),
     path('api/app/upload-zip/', page_views.upload_dataset_api, name='api_upload_dataset'),
     path('api/app/upload-demo-zip/', page_views.upload_demo_zip_api, name='api_upload_demo_zip'),
+    path('api/app/dataset-workflow-datasets/', page_views.dataset_workflow_datasets_api, name='api_dataset_workflow_datasets'),
     path('api/app/dataset-inspect/', page_views.dataset_workflow_inspect_api, name='api_dataset_workflow_inspect'),
     path('api/app/dataset-allocation-confirm/', page_views.dataset_allocation_confirm_api, name='api_dataset_allocation_confirm'),
     path('api/download-sample-zip/<str:package_key>/', page_views.download_sample_zip_api, name='api_download_sample_zip'),

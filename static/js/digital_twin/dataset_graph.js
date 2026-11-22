@@ -7,10 +7,21 @@ const NODE_COLORS = {
   group: 0xf59e0b
 };
 
-export function buildDatasetGraph(inspection) {
+export function buildDatasetGraph(inspection, collapsed) {
   var graphNodes = (inspection && inspection.graph_nodes) || [];
   var graphEdges = (inspection && inspection.graph_edges) || [];
-  var visible = graphNodes.slice(0, 220);
+  var collapsedIds = collapsed || new Set();
+  var parentById = {};
+  graphNodes.forEach(function (node) { parentById[node.id] = node.parent || null; });
+  function isHidden(node) {
+    var cursor = node.parent;
+    while (cursor) {
+      if (collapsedIds.has(cursor)) return true;
+      cursor = parentById[cursor];
+    }
+    return false;
+  }
+  var visible = graphNodes.filter(function (node) { return !isHidden(node); }).slice(0, 220);
   var ids = new Set(visible.map(function (node) { return node.id; }));
   var depthCounts = {};
   var depthIndexes = {};
@@ -74,38 +85,55 @@ function sectionForNode(node) {
   return { title: 'Dataset Information', rows: rows };
 }
 
-export function renderTree(container, tree, onSelect, query) {
+export function renderTree(container, tree, onSelect, query, collapsed, onToggle) {
   if (!container || !tree) return;
   var term = String(query || '').trim().toLowerCase();
+  var collapsedIds = collapsed || new Set();
   container.textContent = '';
   var list = document.createElement('ul');
-  var rendered = appendTreeNode(list, tree, onSelect, term);
+  var rendered = appendTreeNode(list, tree, onSelect, term, collapsedIds, onToggle);
   if (rendered) container.appendChild(list);
   else container.textContent = 'No dataset nodes match this search.';
 }
 
-function appendTreeNode(parent, node, onSelect, term) {
+function appendTreeNode(parent, node, onSelect, term, collapsedIds, onToggle) {
   if (term && !matches(node, term)) return false;
   var item = document.createElement('li');
+  var row = document.createElement('div');
+  row.className = 'dtw-tree-row';
+  var children = node.children || [];
+  if (children.length && !term) {
+    var toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'dtw-tree-toggle';
+    toggle.textContent = collapsedIds.has(node.id) ? '+' : '−';
+    toggle.setAttribute('aria-label', (collapsedIds.has(node.id) ? 'Expand ' : 'Collapse ') + node.name);
+    toggle.setAttribute('aria-expanded', String(!collapsedIds.has(node.id)));
+    toggle.addEventListener('click', function (event) {
+      event.stopPropagation();
+      if (onToggle) onToggle(node.id);
+    });
+    row.appendChild(toggle);
+  }
   var button = document.createElement('button');
   button.type = 'button';
   button.dataset.nodeId = node.id;
-  button.textContent = (node.type === 'folder' || node.type === 'root' ? '▸ ' : '· ') + node.name;
+  button.textContent = (children.length ? '' : '· ') + node.name;
   if (node.size !== undefined) button.textContent += '  (' + formatBytes(node.size) + ')';
   button.addEventListener('click', function () {
-    var siblings = parent.ownerDocument.querySelectorAll('.dtw-tree button');
+    var siblings = parent.ownerDocument.querySelectorAll('.dtw-tree button:not(.dtw-tree-toggle)');
     Array.prototype.forEach.call(siblings, function (candidate) { candidate.classList.remove('is-selected'); });
     button.classList.add('is-selected');
     onSelect(node);
   });
   if (term && node.type !== 'file') button.textContent += '  [match]';
-  item.appendChild(button);
-  var children = node.children || [];
-  if (children.length) {
+  row.appendChild(button);
+  item.appendChild(row);
+  if (children.length && (!term || !collapsedIds.has(node.id))) {
     var list = document.createElement('ul');
     var any = false;
     children.forEach(function (child) {
-      if (appendTreeNode(list, child, onSelect, term)) any = true;
+      if (appendTreeNode(list, child, onSelect, term, collapsedIds, onToggle)) any = true;
     });
     if (any) item.appendChild(list);
   }

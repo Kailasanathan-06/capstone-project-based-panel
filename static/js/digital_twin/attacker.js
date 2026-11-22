@@ -8,10 +8,11 @@ const COLORS = {
   offline: 0x64748b
 };
 
-export function buildAttackGraph(data, result, scenario) {
+export function buildAttackGraph(data, result, scenario, inspection) {
   var before = (result && result.before) || {};
   var after = (result && result.after) || {};
   var targetId = display(after.resource_id || before.resource_id, 'TARGET');
+  var dataset = (inspection && inspection.dataset) || {};
   var nodes = [];
   var links = [];
 
@@ -31,6 +32,7 @@ export function buildAttackGraph(data, result, scenario) {
         rows: [
           ['Scenario', display(scenario && scenario.label, 'Unknown')],
           ['Backend evidence', display(scenario && scenario.backend_evidence, 'Unknown')],
+          ['Dataset context', display(dataset.dataset_name, 'None selected')],
           ['Scope', 'Local visualization only'],
           ['Network access', 'None']
         ]
@@ -61,6 +63,7 @@ export function buildAttackGraph(data, result, scenario) {
           ['Memory after', display(after.memory_utilization, 'Unknown')],
           ['Risk before', display(before.security_risk, 'Unknown')],
           ['Risk after', display(after.security_risk, 'Unknown')],
+          ['Dataset context', display(dataset.dataset_name, 'None selected')],
           ['Encryption', 'NOT VERIFIED']
         ]
       }]
@@ -95,7 +98,7 @@ export function buildAttackGraph(data, result, scenario) {
   return { nodes: nodes, links: links, targetId: targetId };
 }
 
-export function renderAttackStatus(container, result, scenario) {
+export function renderAttackStatus(container, result, scenario, inspection) {
   if (!container) return;
   if (!result) {
     container.textContent = 'SIMULATION — NO REAL ATTACK PERFORMED · ENCRYPTION NOT VERIFIED';
@@ -103,9 +106,11 @@ export function renderAttackStatus(container, result, scenario) {
   }
   var before = result.before || {};
   var after = result.after || {};
+  var dataset = (inspection && inspection.dataset) || {};
   container.innerHTML = [
     '<strong>SIMULATED ATTACKER</strong>',
     'Scenario: ' + escapeHtml(display(scenario && scenario.label, 'Unknown')),
+    'Dataset context: ' + escapeHtml(display(dataset.dataset_name, 'None selected')),
     'Target: ' + escapeHtml(display(after.resource_id || before.resource_id, 'Unknown')),
     'Status: ' + escapeHtml(display(before.status, 'Unknown')) + ' → ' + escapeHtml(display(after.status, 'Unknown')),
     'Risk: ' + escapeHtml(display(before.security_risk, 'Unknown')) + ' → ' + escapeHtml(display(after.security_risk, 'Unknown')),

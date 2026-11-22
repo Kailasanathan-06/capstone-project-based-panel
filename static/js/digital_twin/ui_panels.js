@@ -218,6 +218,7 @@ export function renderFinalReport(container, data, inspection, comparison) {
   var pending = stages.filter(function (stage) { return stage.status === 'PENDING'; });
   var lines = [
     '<strong>' + escapeHtml(display(final.status, 'WORKFLOW STATUS RECORDED')) + '</strong>',
+    'Selected dataset: ' + escapeHtml(display(inspection && inspection.dataset && inspection.dataset.dataset_name, 'Not loaded')),
     'Backend stages: ' + stages.length,
     'Blocked stages: ' + blocked.length,
     'Pending stages: ' + pending.length,
@@ -239,4 +240,74 @@ export function setStatusStrip(part, value) {
   };
   var element = document.getElementById(ids[part]);
   if (element) element.textContent = value;
+}
+
+export function renderDatasetSelector(select, datasets, currentId, onChange) {
+  if (!select) return;
+  var previous = currentId || select.value;
+  select.textContent = '';
+  if (!datasets.length) {
+    var empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = 'No uploaded datasets';
+    select.appendChild(empty);
+    return;
+  }
+  datasets.forEach(function (dataset) {
+    var option = document.createElement('option');
+    option.value = dataset.upload_id;
+    option.textContent = dataset.dataset_name + ' · ' + dataset.upload_id;
+    select.appendChild(option);
+  });
+  if (previous && datasets.some(function (dataset) { return dataset.upload_id === previous; })) select.value = previous;
+  select.onchange = function () { onChange(this.value); };
+}
+
+export function renderDatasetInfo(container, dataset) {
+  if (!container) return;
+  if (!dataset) { container.textContent = 'Select an uploaded dataset to drive the workflow.'; return; }
+  var rows = [
+    ['Dataset', dataset.dataset_name],
+    ['Upload ID', dataset.upload_id],
+    ['Filename', dataset.file_name],
+    ['File count', display(dataset.file_count, 0)],
+    ['Total size', display(dataset.total_size_formatted, formatBytes(dataset.total_size_bytes))],
+    ['Upload status', display(dataset.upload_status, 'Unknown')],
+    ['Analysis status', display(dataset.analysis_status, 'Unknown')],
+    ['Allocation status', dataset.allocation_status ? display(dataset.allocation_status.execution_mode, 'Unknown') : 'Unknown']
+  ];
+  container.innerHTML = '<strong>' + escapeHtml(dataset.dataset_name) + '</strong><br>' + rows.map(function (row) {
+    return escapeHtml(row[0]) + ': ' + escapeHtml(row[1]);
+  }).join('<br>');
+}
+
+export function renderEventLog(container, entries) {
+  if (!container) return;
+  if (!entries || !entries.length) { container.textContent = 'No events recorded yet.'; return; }
+  container.textContent = '';
+  entries.slice(-40).forEach(function (entry) {
+    var line = document.createElement('div');
+    line.textContent = '[' + entry.time + '] ' + entry.label;
+    container.appendChild(line);
+  });
+}
+
+export function updatePlayback(index, total, stage, elapsedMilliseconds, playing) {
+  var timeline = document.getElementById('dtw-timeline');
+  var label = document.getElementById('dtw-stage-label');
+  var elapsed = document.getElementById('dtw-elapsed');
+  if (timeline) {
+    timeline.max = String(Math.max(0, total - 1));
+    timeline.value = String(index);
+    timeline.setAttribute('aria-valuetext', String(index + 1) + ' of ' + total + ': ' + stage);
+  }
+  if (label) label.textContent = String(index + 1).padStart(2, '0') + ' / ' + String(total).padStart(2, '0') + ' · ' + stage;
+  if (elapsed) elapsed.textContent = formatElapsed(elapsedMilliseconds);
+  var pause = document.getElementById('dtw-pause');
+  if (pause) pause.textContent = playing ? 'Pause' : 'Resume';
+}
+
+function formatElapsed(milliseconds) {
+  var seconds = Math.max(0, Math.floor(Number(milliseconds || 0) / 1000));
+  return String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');
 }

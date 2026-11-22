@@ -279,6 +279,24 @@ body[data-page="digital_twin"] .app-container { min-height: 100vh; }
 }
 .dtw-tree button.is-selected { background: rgba(14, 165, 233, 0.2); color: #e0f2fe; }
 .dtw-tree ul { margin: 0; padding-left: 12px; list-style: none; }
+.dtw-tree-actions { display: flex; gap: 6px; margin: 5px 0; }
+.dtw-tree-actions button {
+  padding: 4px 8px;
+  border: 1px solid #2b4d73;
+  border-radius: 5px;
+  background: #122744;
+  color: #9ed8ff;
+  font-size: 0.64rem;
+}
+.dtw-tree-row { display: flex; align-items: center; }
+.dtw-tree-row > button:first-child { flex: 1; }
+.dtw-tree-toggle {
+  width: 24px !important;
+  min-width: 24px;
+  padding: 4px 0 !important;
+  color: #f59e0b !important;
+  text-align: center !important;
+}
 .dtw-stats,
 .dtw-partitions,
 .dtw-security-list,
@@ -401,6 +419,63 @@ body[data-page="digital_twin"] .app-container { min-height: 100vh; }
 .dtw-demo-row label { flex: 0 0 auto; color: #8aa4c4; font-size: 0.68rem; }
 .dtw-demo-row select { flex: 1; }
 
+.dtw-dataset-label {
+  color: #8aa4c4;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+#dtw-dataset-select {
+  min-height: 34px;
+  max-width: 230px;
+  padding: 7px 10px;
+  border: 1px solid #2b4d73;
+  border-radius: 7px;
+  background: #122744;
+  color: #dbeafe;
+  font-size: 0.72rem;
+}
+.dtw-dataset-info {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid #203757;
+  border-radius: 7px;
+  background: rgba(6, 13, 26, 0.6);
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+.dtw-dataset-info strong { color: #e0f2fe; }
+.dtw-event-log {
+  margin-top: 14px;
+  border: 1px solid var(--dtw-line);
+  border-radius: 7px;
+  background: rgba(6, 13, 26, 0.6);
+}
+.dtw-event-log summary {
+  padding: 8px 10px;
+  color: #9ed8ff;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+#dtw-log-entries {
+  max-height: 120px;
+  overflow: auto;
+  padding: 0 10px 10px;
+  color: #b6c8df;
+  font-size: 0.66rem;
+  line-height: 1.5;
+}
+#dtw-log-entries div { padding: 3px 0; border-top: 1px solid rgba(32, 55, 87, 0.7); }
+#dtw-timeline { width: 190px; accent-color: #38bdf8; }
+#dtw-stage-label, #dtw-elapsed {
+  color: #a9bdd8;
+  font: 700 0.66rem/1 'JetBrains Mono', monospace;
+  white-space: nowrap;
+}
+
 @media (max-width: 1100px) {
   .dtw-main { grid-template-columns: minmax(0, 1fr) 290px; }
   .dtw-details { right: 302px; width: min(380px, calc(100% - 320px)); }
@@ -419,6 +494,8 @@ body[data-page="digital_twin"] .app-container { min-height: 100vh; }
   .dtw-demo-row { align-items: stretch; flex-direction: column; }
   .dtw-status { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dtw-viewport-hint { max-width: calc(100% - 24px); }
+  #dtw-dataset-select { max-width: 180px; }
+  #dtw-timeline { width: 110px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -25,7 +25,8 @@ import socket
 import zipfile
 import io
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 
 from datasets.models import (
     Dataset,
@@ -1111,6 +1112,11 @@ def _safe_relative_path(value):
     return "/".join(parts)
 
 
+def display_safe_name(value):
+    path = _safe_relative_path(value)
+    return path.rsplit("/", 1)[-1] or "file"
+
+
 def _dataset_tree(inventory, archive_name):
     root = {
         "id": "root",
@@ -1278,6 +1284,49 @@ def _storage_tier_snapshot():
 
 
 @api_view(["GET"])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def dataset_workflow_datasets_api(request):
+    datasets = []
+    for upload in DatasetUpload.objects.select_related("report").order_by("-uploaded_at"):
+        report = getattr(upload, "report", None)
+        inventory = []
+        if report:
+            try:
+                parsed = json.loads(report.inventory_json or "[]")
+                if isinstance(parsed, list):
+                    inventory = parsed
+            except (ValueError, TypeError):
+                inventory = []
+        destinations = Counter(
+            item.get("selected_destination") or "UNASSIGNED" for item in inventory
+        )
+        statuses = Counter(item.get("status") or "UNKNOWN" for item in inventory)
+        datasets.append({
+            "upload_id": upload.upload_id,
+            "report_id": report.report_id if report else None,
+            "dataset_name": Path(upload.file_name).stem,
+            "file_name": upload.file_name,
+            "file_count": upload.total_files_count or len(inventory),
+            "total_size_bytes": upload.total_uncompressed_bytes,
+            "total_size_formatted": format_bytes(upload.total_uncompressed_bytes),
+            "upload_status": upload.status,
+            "analysis_status": "COMPLETED" if report else upload.status,
+            "allocation_status": {
+                "execution_mode": upload.execution_mode,
+                "verified_count": statuses.get("STORED_AND_VERIFIED", 0) + statuses.get("VERIFIED", 0),
+                "blocked_count": statuses.get("UNASSIGNED", 0) + statuses.get("BLOCKED_BY_POLICY", 0),
+                "proposed_count": statuses.get("SIMULATED", 0) + statuses.get("RECOMMENDED", 0),
+                "destinations": dict(destinations),
+            },
+            "execution_mode": upload.execution_mode,
+            "uploaded_at": upload.uploaded_at.isoformat() if upload.uploaded_at else None,
+            "report_available": bool(report),
+        })
+    return JsonResponse({"success": True, "datasets": datasets})
+
+
+@api_view(["GET"])
 @permission_classes([AllowAny])
 def dataset_workflow_inspect_api(request):
     report_id = request.GET.get("report_id", "").strip()
@@ -1364,12 +1413,93 @@ def dataset_workflow_inspect_api(request):
         {"from": node["parent"], "to": node["id"]}
         for node in graph_nodes if node["parent"]
     ]
+    dataset = {
+        "upload_id": report.upload.upload_id,
+        "report_id": report.report_id,
+        "dataset_name": Path(report.upload.file_name).stem,
+        "file_name": report.upload.file_name,
+        "file_count": report.upload.total_files_count or len(inventory),
+        "total_size_bytes": report.upload.total_uncompressed_bytes,
+        "total_size_formatted": format_bytes(report.upload.total_uncompressed_bytes),
+        "upload_status": report.upload.status,
+        "analysis_status": "COMPLETED",
+        "execution_mode": execution_mode,
+    }
+
+    transfer_states = {
+        "SIMULATED": "PROPOSED",
+        "RECOMMENDED": "PROPOSED",
+        "VERIFIED": "COMPLETED",
+        "STORED_AND_VERIFIED": "COMPLETED",
+        "UNASSIGNED": "BLOCKED",
+        "BLOCKED_BY_POLICY": "BLOCKED",
+        "FAILED": "FAILED",
+    }
+    dataset_scheduling = []
+    dataset_transfers = []
+    for index, item in enumerate(inventory, start=1):
+        destination = item.get("selected_destination") or "UNASSIGNED"
+        state = transfer_states.get(item.get("status") or "", "PROPOSED")
+        task_id = f"{report.report_id}-FILE-{index:03d}"
+        dataset_scheduling.append({
+            "task_id": task_id,
+            "file_name": display_safe_name(item.get("file_name", f"file-{index}")),
+            "dataset_partition": destination,
+            "privacy_policy": item.get("privacy_policy") or "UNKNOWN",
+            "candidate_resources": sorted(
+                name for name, eligible in {
+                    "LOCAL_STORAGE": item.get("local_eligible"),
+                    "MEC_STORAGE": item.get("mec_eligible"),
+                    "CLOUD_STORAGE": item.get("cloud_eligible"),
+                }.items() if eligible
+            ),
+            "selected_destination": destination,
+            "decision_rationale": item.get("decision_rationale") or "Recorded policy decision",
+            "rejected_candidates": item.get("rejected_candidates") or [],
+            "result": state,
+        })
+        dataset_transfers.append({
+            "transfer_id": task_id,
+            "label": display_safe_name(item.get("file_name", f"file-{index}")),
+            "source": "CENTRAL",
+            "destination": destination,
+            "state": state,
+            "privacy_policy": item.get("privacy_policy") or "UNKNOWN",
+            "recorded_at": report.created_at.isoformat() if report.created_at else None,
+        })
+
+    dataset_security_events = [{
+        "event_id": f"{report.report_id}-INTEGRITY",
+        "event_type": "ARCHIVE_INTEGRITY",
+        "severity": "LOW" if security.get("integrity_verified") else "HIGH",
+        "blocked": not bool(security.get("integrity_verified")),
+        "verdict": "RECORDED" if security.get("integrity_verified") else "BLOCKED",
+        "task_id": report.report_id,
+        "device_id": "CENTRAL",
+        "recorded_at": report.created_at.isoformat() if report.created_at else None,
+    }]
+    if security.get("blocked_policy_violations"):
+        dataset_security_events.append({
+            "event_id": f"{report.report_id}-POLICY",
+            "event_type": "PRIVACY_POLICY_VIOLATION",
+            "severity": "HIGH",
+            "blocked": True,
+            "verdict": "BLOCKED",
+            "task_id": report.report_id,
+            "device_id": "CENTRAL",
+            "recorded_at": report.created_at.isoformat() if report.created_at else None,
+        })
+
     return JsonResponse({
         "success": True,
         "report_id": report.report_id,
         "upload_id": report.upload.upload_id,
         "file_name": summary.get("file_name") or "Uploaded Dataset",
         "execution_mode": execution_mode,
+        "dataset": dataset,
+        "dataset_scheduling": dataset_scheduling,
+        "dataset_transfers": dataset_transfers,
+        "dataset_security_events": dataset_security_events,
         "tree": tree,
         "graph_nodes": graph_nodes,
         "graph_edges": graph_edges,

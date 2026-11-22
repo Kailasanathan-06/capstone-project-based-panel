@@ -15,9 +15,12 @@
   data-compare-url="{% url 'digital_twin_compare' %}"
   data-upload-url="{% url 'api_upload_dataset' %}"
   data-demo-url="{% url 'api_upload_demo_zip' %}"
+  data-datasets-url="{% url 'api_dataset_workflow_datasets' %}"
   data-inspect-url="{% url 'api_dataset_workflow_inspect' %}"
   data-confirm-url="{% url 'api_dataset_allocation_confirm' %}"
-  data-stage="upload">
+  data-stage="upload"
+  data-upload-id=""
+  data-report-id="">
 
   <header class="dtw-topbar">
     <div class="dtw-title">
@@ -28,9 +31,13 @@
       </div>
     </div>
     <div class="dtw-top-actions">
+      <label class="dtw-dataset-label" for="dtw-dataset-select">Dataset</label>
+      <select id="dtw-dataset-select" aria-label="Select uploaded dataset">
+        <option value="">Loading datasets…</option>
+      </select>
       <span class="dtw-mode-badge" id="dtw-mode-badge">LIVE BACKEND</span>
       <button type="button" id="dtw-open-upload" class="dtw-btn dtw-btn-secondary">Upload Dataset</button>
-      <button type="button" id="dtw-start-demo" class="dtw-btn dtw-btn-primary">START SECUREDT DEMONSTRATION</button>
+      <button type="button" id="dtw-start-demo" class="dtw-btn dtw-btn-primary" disabled>PLAY DATASET WORKFLOW</button>
     </div>
   </header>
 
@@ -80,7 +87,8 @@
 
       <div class="dtw-context-body" id="dtw-context-body">
         <section data-panel="upload">
-          <p>Select a ZIP archive or load a bundled validation scenario. Upload progress comes from the browser request; no progress value is invented.</p>
+          <p>Select one existing dataset to drive the entire workflow, or upload a new ZIP. Only the selected dataset appears in the active animation.</p>
+          <div class="dtw-dataset-info" id="dtw-dataset-info">Loading dataset records…</div>
           <div class="dtw-callout dtw-callout-warn">Uploaded files are validated and analyzed. They are never executed.</div>
           <button type="button" id="dtw-panel-upload" class="dtw-btn dtw-btn-primary">Choose Dataset ZIP</button>
         </section>
@@ -89,6 +97,10 @@
           <p>Select nodes in the 3D graph tree. The outline mirrors the same persisted dataset structure.</p>
           <label class="dtw-field-label" for="dtw-search">Search dataset nodes</label>
           <input type="search" id="dtw-search" placeholder="File, folder, or format">
+          <div class="dtw-tree-actions">
+            <button type="button" id="dtw-tree-expand">Expand all</button>
+            <button type="button" id="dtw-tree-collapse">Collapse all</button>
+          </div>
           <div class="dtw-tree" id="dtw-tree">No dataset loaded.</div>
           <div class="dtw-stats" id="dtw-stats">No dataset statistics available.</div>
           <div class="dtw-selection" id="dtw-selection">No node selected.</div>
@@ -102,10 +114,10 @@
         </section>
 
         <section data-panel="schedule" hidden>
-          <p>Task Queue → Candidate Resources → GA Decision → Selected Resource → Execution</p>
+          <p>Selected dataset files → eligible tiers → recorded decision → proposed storage placement</p>
           <div class="dtw-callout" id="dtw-ga-status">Scheduling records are loading.</div>
           <div class="dtw-history" id="dtw-ga-history">No GA history recorded.</div>
-          <button type="button" id="dtw-run-schedule" class="dtw-btn dtw-btn-primary">Show Recorded Decision</button>
+          <button type="button" id="dtw-run-schedule" class="dtw-btn dtw-btn-primary">Show Simulated Benchmark</button>
         </section>
 
         <section data-panel="transfer" hidden>
@@ -142,6 +154,11 @@
           <p id="dtw-final-report">Complete the workflow to generate a final status report.</p>
           <div class="dtw-capability-grid" id="dtw-capabilities">Capability snapshot loading.</div>
         </section>
+
+        <details class="dtw-event-log" id="dtw-event-log">
+          <summary>Event Log</summary>
+          <div id="dtw-log-entries">No events recorded yet.</div>
+        </details>
       </div>
     </aside>
 
@@ -165,6 +182,11 @@
     <button type="button" id="dtw-toggle-labels" aria-pressed="true">Labels: On</button>
     <button type="button" id="dtw-toggle-links" aria-pressed="true">Links: On</button>
     <button type="button" id="dtw-toggle-motion" aria-pressed="false">Reduce Motion</button>
+    <span class="dtw-toolbar-sep" aria-hidden="true"></span>
+    <label for="dtw-timeline">Timeline</label>
+    <input type="range" id="dtw-timeline" min="0" max="15" value="0" step="1" aria-label="Workflow timeline">
+    <span id="dtw-stage-label">01 / 16 · Upload</span>
+    <span id="dtw-elapsed">00:00</span>
     <span class="dtw-toolbar-sep" aria-hidden="true"></span>
     <button type="button" id="dtw-prev">Previous</button>
     <label for="dtw-jump">Jump</label>

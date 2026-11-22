@@ -8,6 +8,7 @@ import zipfile
 from pathlib import Path
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
@@ -265,7 +266,7 @@ class RedesignWorkflowTests(TestCase):
             'id="dtw-details"',
             'id="dtw-toolbar"',
             'data-scene-url="/api/digital-twin/scene/"',
-            'START SECUREDT DEMONSTRATION',
+            'PLAY DATASET WORKFLOW',
             'vendor/three.min.js',
             'js/digital_twin/main.js',
             'css/digital_twin_workspace.css',
@@ -330,6 +331,14 @@ class RedesignWorkflowTests(TestCase):
             'data-stage="security"',
             'data-stage="results"',
             'id="dtw-start-demo"',
+            'id="dtw-dataset-select"',
+            'id="dtw-dataset-info"',
+            'id="dtw-timeline"',
+            'id="dtw-stage-label"',
+            'id="dtw-elapsed"',
+            'id="dtw-event-log"',
+            'id="dtw-tree-expand"',
+            'id="dtw-tree-collapse"',
             'id="dtw-open-upload"',
             'id="dtw-prev"',
             'id="dtw-next"',
@@ -360,6 +369,7 @@ class RedesignWorkflowTests(TestCase):
         for needle in [
             'data-upload-url="/api/app/upload-zip/"',
             'data-demo-url="/api/app/upload-demo-zip/"',
+            'data-datasets-url="/api/app/dataset-workflow-datasets/"',
             'data-inspect-url="/api/app/dataset-inspect/"',
             'data-confirm-url="/api/app/dataset-allocation-confirm/"',
             'data-compare-url="/api/digital-twin/compare/"',
@@ -383,6 +393,26 @@ class RedesignWorkflowTests(TestCase):
             'TASK BLOCKED — NO ELIGIBLE RESOURCE',
         ]:
             self.assertIn(label, source)
+
+    def test_workspace_modules_bind_the_selected_dataset_to_every_view(self):
+        module_dir = Path(settings.BASE_DIR) / 'static' / 'js' / 'digital_twin'
+        source = '\n'.join(
+            path.read_text(encoding='utf-8') for path in sorted(module_dir.glob('*.js'))
+        )
+        for marker in [
+            'datasetsUrl',
+            'dataset_transfers',
+            'dataset_scheduling',
+            'dataset_security_events',
+            'buildDatasetSchedulingGraph',
+            'renderDatasetSelector',
+            'renderDatasetInfo',
+            'renderEventLog',
+            'updatePlayback',
+            "focusFirst('DATASET_EVENT:')",
+            'collapsed',
+        ]:
+            self.assertIn(marker, source)
 
     def test_legacy_digital_twin_assets_are_removed(self):
         static_dir = Path(settings.BASE_DIR) / 'static'
@@ -477,6 +507,32 @@ class RedesignWorkflowTests(TestCase):
         missing_confirm = self.client.post(reverse('api_dataset_allocation_confirm'), {'report_id': 'MISSING'})
         self.assertEqual(missing_confirm.status_code, 404)
 
+    def test_dataset_workflow_datasets_api_requires_auth_and_lists_real_uploads(self):
+        url = reverse('api_dataset_workflow_datasets')
+        anonymous = self.client.get(url)
+        self.assertEqual(anonymous.status_code, 403)
+
+        user = get_user_model().objects.create_user(username='digital-twin-user', password='test-pass-123')
+        self.client.force_login(user)
+        upload = self._upload_workflow_zip()
+
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data['success'])
+        record = next(
+            item for item in data['datasets'] if item['upload_id'] == upload['upload_id']
+        )
+        self.assertEqual(record['report_id'], upload['report_id'])
+        self.assertEqual(record['dataset_name'], 'workflow_batch')
+        self.assertEqual(record['file_count'], 3)
+        self.assertEqual(record['analysis_status'], 'COMPLETED')
+        self.assertTrue(record['report_available'])
+
+        raw = resp.content.decode('utf-8')
+        for forbidden in ['absolute_path', 'sha256_checksum', 'auth_token', 'source_ip', 'C:\\']:
+            self.assertNotIn(forbidden, raw)
+
     def test_dataset_workflow_inspect_returns_sanitized_simulation_payload(self):
         upload = self._upload_workflow_zip()
         report_id = upload['report_id']
@@ -487,6 +543,16 @@ class RedesignWorkflowTests(TestCase):
         self.assertTrue(data['success'])
         self.assertEqual(data['report_id'], report_id)
         self.assertEqual(data['execution_mode'], 'SIMULATION')
+        self.assertEqual(data['dataset']['upload_id'], upload['upload_id'])
+        self.assertEqual(data['dataset']['report_id'], report_id)
+        self.assertEqual(len(data['dataset_scheduling']), 3)
+        self.assertEqual(len(data['dataset_transfers']), 3)
+        self.assertTrue(data['dataset_security_events'])
+        for decision in data['dataset_scheduling']:
+            self.assertIn(decision['selected_destination'], ['LOCAL_STORAGE', 'MEC_STORAGE', 'CLOUD_STORAGE', 'UNASSIGNED'])
+            self.assertIn(decision['result'], ['PROPOSED', 'COMPLETED', 'BLOCKED', 'FAILED'])
+        for transfer in data['dataset_transfers']:
+            self.assertEqual(transfer['source'], 'CENTRAL')
         self.assertEqual(data['tree']['id'], 'root')
         self.assertGreaterEqual(len(data['graph_nodes']), 4)
         self.assertGreaterEqual(len(data['graph_edges']), 3)

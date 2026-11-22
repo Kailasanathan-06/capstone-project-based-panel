@@ -512,14 +512,24 @@ export class TwinScene {
     if (!this.labelsVisible) return;
     var self = this;
     var placed = [];
+    var radius = this.cameraState.radius;
+    var keyTypes = ['server', 'storage', 'core', 'decision', 'policy', 'attacker', 'destination', 'source', 'dataset-root'];
     this.nodes.forEach(function (node) {
       var point = self.mode === 'webgl' ? self.project(node.position) : self.project2d(node.position);
       if (!point) { node.label.style.display = 'none'; return; }
       node.screen = { x: point.x, y: point.y };
+      var type = String(node.data.type || '');
+      var detailed = radius <= 32 || node.data.id === self.selectedId;
+      var keyNode = keyTypes.indexOf(type) !== -1;
+      if (radius > 55 && !keyNode && !detailed) { node.label.style.display = 'none'; return; }
+      if (radius > 32 && !keyNode && !detailed && (type.indexOf('dataset-file') === 0 || type === 'transfer' || type === 'file')) {
+        node.label.style.display = 'none';
+        return;
+      }
       var y = point.y;
       placed.sort(function (a, b) { return a.y - b.y; });
       for (var index = 0; index < placed.length; index += 1) {
-        if (Math.abs(placed[index].x - point.x) < 150 && Math.abs(placed[index].y - y) < 24) y += 25;
+        if (Math.abs(placed[index].x - point.x) < 140 && Math.abs(placed[index].y - y) < 22) y += 24;
       }
       placed.push({ x: point.x, y: y });
       node.label.style.display = 'block';

@@ -10,10 +10,12 @@ const COLORS = {
   offline: 0x64748b
 };
 
-export function buildSecurityGraph(data) {
+export function buildSecurityGraph(data, inspection) {
   var layers = (data && data.security_layers) || [];
   var events = (data && data.security_events) || [];
+  var datasetEvents = (inspection && inspection.dataset_security_events) || [];
   var policies = (data && data.policies) || {};
+  var dataset = (inspection && inspection.dataset) || {};
   var nodes = [];
   var links = [];
 
@@ -34,7 +36,9 @@ export function buildSecurityGraph(data) {
           ['Policy enforcement', (data && data.capabilities && data.capabilities.policy_enforcement) ? 'ENFORCED' : 'UNKNOWN'],
           ['Encryption', 'NOT VERIFIED'],
           ['Shield meaning', 'Policy enforcement only'],
-          ['Recent events', display(events.length, 0)]
+          ['Selected dataset', display(dataset.dataset_name, 'None selected')],
+          ['Dataset events', display(datasetEvents.length, 0)],
+          ['Recent backend events', display(events.length, 0)]
         ]
       }]
     }
@@ -96,7 +100,36 @@ export function buildSecurityGraph(data) {
     links.push({ from: 'SECURITY_CORE', to: 'POLICY:' + policy, color: COLORS.policyOnly, opacity: 0.5 });
   });
 
-  events.slice(0, 8).forEach(function (event, index) {
+  datasetEvents.slice(0, 8).forEach(function (event, index) {
+    var blocked = !!event.blocked;
+    nodes.push({
+      id: 'DATASET_EVENT:' + (event.event_id || index),
+      label: display(event.event_type, 'DATASET EVENT'),
+      type: event.type || 'dataset-event',
+      shape: blocked ? 'torus' : 'file',
+      status: blocked ? 'blocked' : 'online',
+      color: blocked ? COLORS.event : COLORS.enforced,
+      size: 0.55,
+      position: { x: Math.cos(index * 2.1) * 8, y: 5 + index * 0.45, z: Math.sin(index * 2.1) * 8 },
+      meta: {
+        kicker: 'SELECTED DATASET SECURITY',
+        sections: [{
+          title: 'Dataset Event',
+          rows: [
+            ['Dataset', display(dataset.dataset_name, 'Unknown')],
+            ['Event ID', display(event.event_id, 'Unknown')],
+            ['Type', display(event.event_type, 'Unknown')],
+            ['Severity', display(event.severity, 'Unknown')],
+            ['Verdict', display(event.verdict, 'Unknown')],
+            ['Recorded at', display(event.recorded_at, 'Unknown')]
+          ]
+        }]
+      }
+    });
+    links.push({ from: 'SECURITY_CORE', to: 'DATASET_EVENT:' + (event.event_id || index), color: blocked ? COLORS.event : COLORS.enforced, opacity: 0.55 });
+  });
+
+  events.slice(0, Math.max(0, 8 - datasetEvents.length)).forEach(function (event, index) {
     var blocked = !!event.blocked;
     nodes.push({
       id: 'EVENT:' + (event.event_id || index),
@@ -153,11 +186,20 @@ export function buildSecurityGraph(data) {
   return { nodes: nodes, links: links };
 }
 
-export function renderSecurityControls(container, data) {
+export function renderSecurityControls(container, data, inspection) {
   if (!container) return;
   var layers = (data && data.security_layers) || [];
+  var datasetEvents = (inspection && inspection.dataset_security_events) || [];
   container.textContent = '';
-  if (!layers.length) { container.textContent = 'No security controls are available.'; return; }
+  if (!layers.length && !datasetEvents.length) { container.textContent = 'No security controls are available.'; return; }
+  datasetEvents.forEach(function (event) {
+    var element = document.createElement('div');
+    element.className = 'dtw-security-layer';
+    element.innerHTML =
+      '<strong>' + escapeHtml(display(event.event_type, 'DATASET EVENT') + ' · ' + display(event.verdict, 'UNKNOWN')) + '</strong>' +
+      escapeHtml('Selected dataset report ' + display(inspection && inspection.report_id, 'Unknown'));
+    container.appendChild(element);
+  });
   layers.forEach(function (layer) {
     var element = document.createElement('div');
     element.className = 'dtw-security-layer';
@@ -181,6 +223,7 @@ export function renderCapabilities(container, data, inspection, comparison) {
     ['GA scheduler', capabilities.ga_scheduler ? 'AVAILABLE' : 'UNKNOWN'],
     ['Transfer progress', capabilities.transfer_progress_available ? 'AVAILABLE' : 'NOT AVAILABLE'],
     ['Encryption', 'NOT VERIFIED'],
+    ['Selected dataset', display(inspection && inspection.dataset && inspection.dataset.dataset_name, 'Not loaded')],
     ['Latest analysis', display(inspection && inspection.report_id, 'Not loaded')],
     ['Final status', display(final.status, 'Not available')],
     ['Detected formats', formats.slice(0, 5).map(function (item) { return item.name; }).join(', ') || 'Not available'],

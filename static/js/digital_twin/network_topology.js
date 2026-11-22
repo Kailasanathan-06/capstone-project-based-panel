@@ -31,6 +31,12 @@ export function buildNetwork(data) {
   var details = data.device_details || {};
   var mecCount = Math.max(mecDevices.length, 1);
   var radius = Math.max(8, mecCount * 1.9);
+  var zone = {
+    local: { x: -36, y: -3, z: 10 },
+    mecStorage: { x: 30, y: -2, z: 8 },
+    cloud: { x: 0, y: 18, z: 42 },
+    attacker: { x: 0, y: 5, z: -48 }
+  };
 
   var serverDetail = details.CENTRAL || {};
   nodes.push({
@@ -119,13 +125,15 @@ export function buildNetwork(data) {
     };
   }
 
-  var localNode = storageNode(local, 'LOCAL', 'LOCAL STORAGE', -radius, 0.5, 2.5, COLORS.storage);
-  var mecStorageNode = storageNode(mecStorage, 'MEC_STORAGE', 'MEC STORAGE', 0, -0.5, -radius, COLORS.mec);
-  var cloudNode = storageNode(cloud, 'CLOUD', cloud && cloud.is_emulator ? 'CLOUD EMULATOR' : 'CLOUD STORAGE', radius, 0.5, 2.5, COLORS.cloud);
+  var localNode = storageNode(local, 'LOCAL', 'LOCAL STORAGE', zone.local.x, zone.local.y, zone.local.z, COLORS.storage);
+  var mecStorageNode = storageNode(mecStorage, 'MEC_STORAGE', 'MEC STORAGE', zone.mecStorage.x, zone.mecStorage.y, zone.mecStorage.z, COLORS.mec);
+  var cloudNode = storageNode(cloud, 'CLOUD', cloud && cloud.is_emulator ? 'CLOUD EMULATOR' : 'CLOUD STORAGE', zone.cloud.x, zone.cloud.y, zone.cloud.z, COLORS.cloud);
   [localNode, mecStorageNode, cloudNode].forEach(function (node) { if (node) nodes.push(node); });
 
+  var mecColumns = Math.max(1, Math.ceil(Math.sqrt(mecCount)));
   mecDevices.forEach(function (device, index) {
-    var angle = (index / Math.max(1, mecDevices.length)) * Math.PI * 2;
+    var column = index % mecColumns;
+    var row = Math.floor(index / mecColumns);
     var detail = details[device.device_id] || {};
     var online = device.connection_state === 'CONNECTED';
     nodes.push({
@@ -137,9 +145,9 @@ export function buildNetwork(data) {
       color: statusColor(online, COLORS.mec),
       size: 0.9,
       position: {
-        x: Math.cos(angle) * radius,
-        y: 1.4 + (index % 2) * 1.5,
-        z: Math.sin(angle) * radius
+        x: 24 + column * 8,
+        y: 1 + row * 4,
+        z: 4 + row * 9
       },
       meta: {
         kicker: 'MEC RESOURCE',
@@ -224,7 +232,7 @@ export function buildNetwork(data) {
       status: resource.is_online ? 'online' : 'offline',
       color: statusColor(resource.is_online, COLORS.mec),
       size: 0.9,
-      position: { x: Math.cos(index) * radius, y: 2 + index % 3, z: Math.sin(index) * radius },
+      position: { x: 24 + (index % 3) * 8, y: 1 + Math.floor(index / 3) * 4, z: 4 + Math.floor(index / 3) * 9 },
       meta: {
         kicker: 'RESOURCE SNAPSHOT',
         sections: [
@@ -243,7 +251,7 @@ export function buildNetwork(data) {
     status: 'simulated',
     color: COLORS.attacker,
     size: 1,
-    position: { x: 0, y: 7, z: -radius - 7 },
+    position: { x: zone.attacker.x, y: zone.attacker.y, z: zone.attacker.z },
     meta: {
       kicker: 'EXTERNAL THREAT SIMULATOR',
       sections: [

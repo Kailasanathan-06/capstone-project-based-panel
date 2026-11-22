@@ -1,13 +1,31 @@
 import { display, escapeHtml, formatBytes } from './api_client.js';
 
 const STAGE_TITLES = {
-  upload: 'Dataset Upload',
-  analyze: 'Dataset Analysis',
-  allocate: 'Storage Allocation',
-  schedule: 'GA Scheduling',
-  transfer: 'Recorded Transfers',
-  security: 'Security Controls',
+  upload: 'Upload',
+  extraction: 'Extraction',
+  'dataset-tree': 'Dataset Tree',
+  analysis: 'Analysis',
+  allocation: 'Storage Allocation',
+  ga: 'GA Scheduling',
+  transfer: 'File Transfer',
+  storage: 'Storage',
+  protection: 'Protection',
+  attacker: 'Attacker Simulation',
   results: 'Final Report'
+};
+
+const PANEL_FOR_STAGE = {
+  upload: 'upload',
+  extraction: 'upload',
+  'dataset-tree': 'analyze',
+  analysis: 'analyze',
+  allocation: 'allocate',
+  ga: 'schedule',
+  transfer: 'transfer',
+  storage: 'transfer',
+  protection: 'security',
+  attacker: 'security',
+  results: 'results'
 };
 
 export function setStage(root, stage, stages) {
@@ -23,8 +41,9 @@ export function setStage(root, stage, stages) {
     if (button.dataset.stage === stage) button.setAttribute('aria-current', 'step');
     else button.removeAttribute('aria-current');
   });
+  var panelStage = PANEL_FOR_STAGE[stage] || stage;
   var panels = document.querySelectorAll('#dtw-context-body [data-panel]');
-  Array.prototype.forEach.call(panels, function (panel) { panel.hidden = panel.dataset.panel !== stage; });
+  Array.prototype.forEach.call(panels, function (panel) { panel.hidden = panel.dataset.panel !== panelStage; });
   var jump = document.getElementById('dtw-jump');
   if (jump && jump.value !== stage) jump.value = stage;
   var hint = document.getElementById('dtw-viewport-hint');
@@ -32,11 +51,13 @@ export function setStage(root, stage, stages) {
 }
 
 function hintForStage(stage) {
-  if (stage === 'analyze') return 'Light analysis view · click a tree row or graph node to inspect dataset structure';
-  if (stage === 'allocate') return 'Proposed placement only · blocked partitions are shown explicitly';
-  if (stage === 'schedule') return 'Recorded decisions and simulated benchmark metrics are labeled separately';
+  if (stage === 'extraction') return 'Dataset inventory is read from persisted extraction records';
+  if (stage === 'dataset-tree' || stage === 'analysis') return 'Light analysis view · click a tree row or graph node to inspect dataset structure';
+  if (stage === 'allocation') return 'Proposed placement only · blocked partitions are shown explicitly';
+  if (stage === 'ga') return 'Recorded eligible and blocked candidates · simulated benchmark metrics are labeled separately';
   if (stage === 'transfer') return 'Persisted replica states only · no transfer percentage, speed, or ETA is invented';
-  if (stage === 'security') return 'Shields show policy enforcement · encryption is NOT VERIFIED';
+  if (stage === 'storage') return 'Storage nodes show recorded placement, not live capacity guarantees';
+  if (stage === 'protection' || stage === 'attacker') return 'Shields show policy enforcement · encryption is NOT VERIFIED';
   if (stage === 'results') return 'Final report reflects recorded backend state and labeled simulations';
   return 'Drag to orbit · Shift+drag to pan · Scroll to zoom · Click a node for details';
 }
@@ -242,15 +263,23 @@ export function setStatusStrip(part, value) {
   if (element) element.textContent = value;
 }
 
-export function renderDatasetSelector(select, datasets, currentId, onChange) {
+export function renderDatasetSelector(select, datasets, currentId, onChange, placeholder) {
   if (!select) return;
   var previous = currentId || select.value;
   select.textContent = '';
+  if (placeholder) {
+    var prompt = document.createElement('option');
+    prompt.value = '';
+    prompt.textContent = placeholder;
+    select.appendChild(prompt);
+  }
   if (!datasets.length) {
-    var empty = document.createElement('option');
-    empty.value = '';
-    empty.textContent = 'No uploaded datasets';
-    select.appendChild(empty);
+    if (!placeholder) {
+      var empty = document.createElement('option');
+      empty.value = '';
+      empty.textContent = 'No uploaded datasets';
+      select.appendChild(empty);
+    }
     return;
   }
   datasets.forEach(function (dataset) {

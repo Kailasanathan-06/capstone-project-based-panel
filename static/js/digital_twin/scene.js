@@ -35,6 +35,9 @@ export class TwinScene {
     this.frame = 0;
     this.needsRender = true;
     this.mode = '2d';
+    this.boundary = null;
+    this.boundary2d = false;
+    this.cameraTween = null;
 
     this.initializeBackend();
     this.bindEvents();
@@ -124,6 +127,75 @@ export class TwinScene {
     });
     this.materialCache.set(key, material);
     return material;
+  }
+
+  tagObject(object, id) {
+    if (!object) return object;
+    object.userData.nodeId = id;
+    (object.children || []).forEach(function (child) { object.userData.nodeId = id; child.userData.nodeId = id; });
+    return object;
+  }
+
+  createObject(shape, color, size, id) {
+    var THREE = this.THREE;
+    var material = this.material(color);
+    var dark = this.material(0x0b1728);
+    var group;
+    var mesh;
+    if (shape === 'rack' || shape === 'server') {
+      group = new THREE.Group();
+      group.add(new THREE.Mesh(this.geometry('box', size), material));
+      for (var row = 0; row < 3; row += 1) {
+        mesh = new THREE.Mesh(this.geometry('box', 0.34 * size), dark);
+        mesh.position.set(0, (row - 1) * 0.38 * size, 0.62 * size);
+        group.add(mesh);
+      }
+      return this.tagObject(group, id);
+    }
+    if (shape === 'cabinet' || shape === 'storage') {
+      group = new THREE.Group();
+      group.add(new THREE.Mesh(this.geometry('cylinder', size), material));
+      for (var disk = 0; disk < 3; disk += 1) {
+        mesh = new THREE.Mesh(this.geometry('box', 0.16 * size), dark);
+        mesh.position.set(0, (disk - 1) * 0.28 * size, 0.78 * size);
+        group.add(mesh);
+      }
+      return this.tagObject(group, id);
+    }
+    if (shape === 'cloud') {
+      group = new THREE.Group();
+      [[-0.6, 0, 0], [0, 0.25, 0], [0.6, 0, 0], [0, -0.2, 0.3]].forEach(function (offset) {
+        var puff = new THREE.Mesh(this.geometry('sphere', 0.62 * size), material);
+        puff.position.set(offset[0] * size, offset[1] * size, offset[2] * size);
+        group.add(puff);
+      }, this);
+      return this.tagObject(group, id);
+    }
+    if (shape === 'folder') {
+      group = new THREE.Group();
+      group.add(new THREE.Mesh(this.geometry('box', 0.9 * size), material));
+      mesh = new THREE.Mesh(this.geometry('box', 0.45 * size), dark);
+      mesh.position.set(0, 0.42 * size, 0);
+      group.add(mesh);
+      return this.tagObject(group, id);
+    }
+    if (shape === 'file') {
+      group = new THREE.Group();
+      mesh = new THREE.Mesh(this.geometry('box', 0.62 * size), material);
+      mesh.scale.set(1.25, 1, 0.22);
+      group.add(mesh);
+      return this.tagObject(group, id);
+    }
+    if (shape === 'attacker') {
+      group = new THREE.Group();
+      group.add(new THREE.Mesh(this.geometry('cone', size), material));
+      mesh = new THREE.Mesh(this.geometry('torus', 1.1 * size), dark);
+      mesh.rotation.x = Math.PI / 2;
+      mesh.position.y = -0.6 * size;
+      group.add(mesh);
+      return this.tagObject(group, id);
+    }
+    return this.tagObject(new THREE.Mesh(this.geometry(shape, size), material), id);
   }
 
   bindEvents() {
@@ -254,7 +326,32 @@ export class TwinScene {
     this.needsRender = true;
   }
 
+  setBoundary(enabled) {
+    this.boundary2d = !!enabled;
+    if (this.mode !== 'webgl') return;
+    if (this.boundary) {
+      this.world.remove(this.boundary);
+      this.boundary = null;
+    }
+    if (!enabled || !this.THREE) return;
+    var THREE = this.THREE;
+    var geometry = new THREE.BoxGeometry(120, 56, 128);
+    var group = new THREE.Group();
+    group.add(new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+      color: 0x38bdf8, transparent: true, opacity: 0.025, side: THREE.BackSide, depthWrite: false
+    })));
+    group.add(new THREE.LineSegments(
+      new THREE.EdgesGeometry(geometry),
+      new THREE.LineBasicMaterial({ color: 0x2e6f9e, transparent: true, opacity: 0.35 })
+    ));
+    group.position.set(0, 2, -2);
+    this.boundary = group;
+    this.world.add(group);
+    this.needsRender = true;
+  }
+
   clear() {
+    this.setBoundary(false);
     if (this.mode === 'webgl') {
       while (this.world.children.length) this.world.remove(this.world.children[0]);
       this.links.forEach(function (link) { if (link.object && link.object.geometry) link.object.geometry.dispose(); });
@@ -274,6 +371,7 @@ export class TwinScene {
     nodes.forEach(function (node) { self.addNode(node); });
     links.forEach(function (link) { self.addLink(link); });
     this.setTheme((options && options.theme) || 'dark');
+    this.setBoundary(!!(options && options.boundary));
     if (options && options.fit !== false) this.fit(nodes);
     this.needsRender = true;
   }
@@ -286,12 +384,11 @@ export class TwinScene {
 
     if (this.mode === 'webgl') {
       var shape = SHAPE_GEOMETRY[node.shape] || 'box';
-      var mesh = new this.THREE.Mesh(this.geometry(shape, size), this.material(color, node.opacity));
-      mesh.position.set(position.x, position.y, position.z);
-      if (node.shape === 'checkpoint') mesh.rotation.x = Math.PI / 2;
-      mesh.userData.nodeId = node.id;
-      this.world.add(mesh);
-      record.object = mesh;
+      var object = this.createObject(shape, color, size, node.id);
+      object.position.set(position.x, position.y, position.z);
+      if (node.shape === 'checkpoint') object.rotation.x = Math.PI / 2;
+      this.world.add(object);
+      record.object = object;
     }
 
     var label = document.createElement('div');
@@ -364,9 +461,46 @@ export class TwinScene {
   focus(id) {
     var record = this.nodes.get(id);
     if (!record) return;
-    this.cameraState.target = { x: record.position.x, y: record.position.y, z: record.position.z };
-    this.cameraState.radius = Math.min(this.cameraState.radius, 24);
+    this.tweenCamera(
+      { x: record.position.x, y: record.position.y, z: record.position.z },
+      Math.min(this.cameraState.radius, 24)
+    );
+  }
+
+  tweenCamera(target, radius) {
+    if (this.reducedMotion) {
+      this.cameraState.target = { x: target.x, y: target.y, z: target.z };
+      this.cameraState.radius = radius;
+      this.cameraTween = null;
+      this.updateCamera();
+      return;
+    }
+    this.cameraTween = {
+      from: {
+        x: this.cameraState.target.x,
+        y: this.cameraState.target.y,
+        z: this.cameraState.target.z,
+        radius: this.cameraState.radius
+      },
+      to: { x: target.x, y: target.y, z: target.z, radius: radius },
+      start: performance.now(),
+      duration: 420
+    };
+  }
+
+  updateCameraTween() {
+    if (!this.cameraTween) return;
+    var tween = this.cameraTween;
+    var progress = Math.min(1, (performance.now() - tween.start) / tween.duration);
+    var eased = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+    this.cameraState.target = {
+      x: tween.from.x + (tween.to.x - tween.from.x) * eased,
+      y: tween.from.y + (tween.to.y - tween.from.y) * eased,
+      z: tween.from.z + (tween.to.z - tween.from.z) * eased
+    };
+    this.cameraState.radius = tween.from.radius + (tween.to.radius - tween.from.radius) * eased;
     this.updateCamera();
+    if (progress >= 1) this.cameraTween = null;
   }
 
   fit(nodes) {
@@ -430,14 +564,19 @@ export class TwinScene {
   }
 
   setPackets(packets) {
-    this.packets.forEach(function (packet) {
-      if (packet.object && packet.object.parent) packet.object.parent.remove(packet.object);
-    });
-    this.packets = [];
+    this.clearPackets();
     var self = this;
     (packets || []).forEach(function (packet) {
       self.addPacket(packet.from, packet.to, packet);
     });
+  }
+
+  clearPackets() {
+    this.packets.forEach(function (packet) {
+      if (packet.object && packet.object.parent) packet.object.parent.remove(packet.object);
+    });
+    this.packets = [];
+    this.needsRender = true;
   }
 
   positionPacket(packet) {
@@ -527,11 +666,16 @@ export class TwinScene {
         return;
       }
       var y = point.y;
+      var width = Math.max(70, String(node.label || node.id).length * 7);
       placed.sort(function (a, b) { return a.y - b.y; });
-      for (var index = 0; index < placed.length; index += 1) {
-        if (Math.abs(placed[index].x - point.x) < 140 && Math.abs(placed[index].y - y) < 22) y += 24;
+      for (var pass = 0; pass < 12; pass += 1) {
+        var collision = placed.some(function (item) {
+          return Math.abs(item.x - point.x) < (item.width + width) / 2 && Math.abs(item.y - y) < 22;
+        });
+        if (!collision) break;
+        y += 23;
       }
-      placed.push({ x: point.x, y: y });
+      placed.push({ x: point.x, y: y, width: width });
       node.label.style.display = 'block';
       node.label.style.left = point.x + 'px';
       node.label.style.top = y + 'px';
@@ -543,6 +687,14 @@ export class TwinScene {
     if (!context) return;
     context.clearRect(0, 0, this.width, this.height);
     var self = this;
+    if (this.boundary2d) {
+      var topLeft = this.project2d({ x: -58, y: 28, z: -60 });
+      var bottomRight = this.project2d({ x: 58, y: -24, z: 58 });
+      context.strokeStyle = '#2e6f9e';
+      context.globalAlpha = 0.45;
+      context.strokeRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+      context.globalAlpha = 1;
+    }
     if (this.linksVisible) {
       this.links.forEach(function (link) {
         var from = self.nodes.get(link.from);
@@ -585,8 +737,9 @@ export class TwinScene {
   loop() {
     var self = this;
     this.frame = window.requestAnimationFrame(function () {
+      self.updateCameraTween();
       self.updatePackets();
-      if (self.needsRender || self.packets.length) {
+      if (self.needsRender || self.packets.length || self.cameraTween) {
         if (self.mode === 'webgl') self.renderer.render(self.scene, self.camera);
         else self.render2d();
         self.renderLabels();

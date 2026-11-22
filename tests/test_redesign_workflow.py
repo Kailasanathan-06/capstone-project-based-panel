@@ -319,17 +319,28 @@ class RedesignWorkflowTests(TestCase):
         self.assertFalse(data['capabilities']['encryption_confirmed'])
 
     def test_digital_twin_page_includes_workflow_controls(self):
-        """The page exposes all seven stages plus demo, data, and attack controls."""
+        """The page exposes all eleven labeled stages plus demo, data, and attack controls."""
         resp = self.client.get('/digital-twin/')
         self.assertEqual(resp.status_code, 200)
         for needle in [
             'data-stage="upload"',
-            'data-stage="analyze"',
-            'data-stage="allocate"',
-            'data-stage="schedule"',
+            'data-stage="extraction"',
+            'data-stage="dataset-tree"',
+            'data-stage="analysis"',
+            'data-stage="allocation"',
+            'data-stage="ga"',
             'data-stage="transfer"',
-            'data-stage="security"',
+            'data-stage="storage"',
+            'data-stage="protection"',
+            'data-stage="attacker"',
             'data-stage="results"',
+            'id="dtw-selected-dataset"',
+            'id="dtw-history-dataset"',
+            'id="dtw-history-select"',
+            'id="dtw-fullscreen"',
+            'id="dtw-toggle-details"',
+            'id="dtw-defense-status"',
+            'id="dtw-timeline-stops"',
             'id="dtw-start-demo"',
             'id="dtw-dataset-select"',
             'id="dtw-dataset-info"',
@@ -373,6 +384,9 @@ class RedesignWorkflowTests(TestCase):
             'data-inspect-url="/api/app/dataset-inspect/"',
             'data-confirm-url="/api/app/dataset-allocation-confirm/"',
             'data-compare-url="/api/digital-twin/compare/"',
+            'data-mitigate-url="/api/digital-twin/mitigate/"',
+            'data-schedule-url="/api/digital-twin/schedule/"',
+            'data-security-url="/api/digital-twin/security/"',
         ]:
             self.assertContains(resp, needle)
 
@@ -409,10 +423,36 @@ class RedesignWorkflowTests(TestCase):
             'renderDatasetInfo',
             'renderEventLog',
             'updatePlayback',
-            "focusFirst('DATASET_EVENT:')",
+            'CANDIDATE_ELIGIBLE:',
+            'clearPackets()',
+            'renderDefenseStatus',
+            'setBoundary(!!(options && options.boundary))',
+            'goToDemoStep',
             'collapsed',
         ]:
             self.assertIn(marker, source)
+
+    def test_workflow_starts_with_dataset_selection_and_labeled_timeline(self):
+        workflow_path = Path(settings.BASE_DIR) / 'static' / 'js' / 'digital_twin' / 'workflow.js'
+        template_path = Path(settings.BASE_DIR) / 'templates' / 'digital_twin.html'
+        source = workflow_path.read_text(encoding='utf-8') + '\n' + template_path.read_text(encoding='utf-8')
+        for marker in [
+            "openUpload(true)",
+            "'extraction'",
+            "'dataset-tree'",
+            "'allocation'",
+            "'ga'",
+            "'storage'",
+            "'protection'",
+            "'attacker'",
+            'Selected Dataset:',
+            'Upload</span><span>Extraction</span>',
+            'value="10" label="Final Report"',
+            '0.5x',
+            '4x',
+        ]:
+            self.assertIn(marker, source)
+        self.assertNotIn("datasets.find(function (dataset) { return dataset.report_available; })", source)
 
     def test_legacy_digital_twin_assets_are_removed(self):
         static_dir = Path(settings.BASE_DIR) / 'static'

@@ -49,9 +49,9 @@ export function buildDatasetGraph(inspection, collapsed) {
       color: color,
       size: node.type === 'root' ? 1.1 : depth > 2 ? 0.55 : 0.75,
       position: {
-        x: Math.cos(angle) * radius,
-        y: -depth * 0.65 + (index % 2) * 0.6,
-        z: Math.sin(angle) * radius
+        x: -18 + Math.cos(angle) * radius,
+        y: -8 - depth * 0.45 + (index % 2) * 0.5,
+        z: 24 + Math.sin(angle) * radius
       },
       meta: {
         kicker: 'DATASET NODE',

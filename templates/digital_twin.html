@@ -18,6 +18,9 @@
   data-datasets-url="{% url 'api_dataset_workflow_datasets' %}"
   data-inspect-url="{% url 'api_dataset_workflow_inspect' %}"
   data-confirm-url="{% url 'api_dataset_allocation_confirm' %}"
+  data-mitigate-url="{% url 'digital_twin_mitigate' %}"
+  data-schedule-url="{% url 'digital_twin_schedule' %}"
+  data-security-url="{% url 'digital_twin_security' %}"
   data-stage="upload"
   data-upload-id=""
   data-report-id="">
@@ -30,6 +33,7 @@
         <p>Dataset → Allocation → Scheduling → Transfer → Defense</p>
       </div>
     </div>
+    <div class="dtw-selected-dataset" aria-live="polite">Selected Dataset: <strong id="dtw-selected-dataset">None</strong></div>
     <div class="dtw-top-actions">
       <label class="dtw-dataset-label" for="dtw-dataset-select">Dataset</label>
       <select id="dtw-dataset-select" aria-label="Select uploaded dataset">
@@ -43,12 +47,16 @@
 
   <nav class="dtw-steps" id="dtw-steps" aria-label="Digital Twin workflow stages">
     <button type="button" data-stage="upload" aria-current="step"><span>01</span> Upload</button>
-    <button type="button" data-stage="analyze"><span>02</span> Analyze</button>
-    <button type="button" data-stage="allocate"><span>03</span> Allocate</button>
-    <button type="button" data-stage="schedule"><span>04</span> Schedule</button>
-    <button type="button" data-stage="transfer"><span>05</span> Transfer</button>
-    <button type="button" data-stage="security"><span>06</span> Security</button>
-    <button type="button" data-stage="results"><span>07</span> Results</button>
+    <button type="button" data-stage="extraction"><span>02</span> Extraction</button>
+    <button type="button" data-stage="dataset-tree"><span>03</span> Dataset Tree</button>
+    <button type="button" data-stage="analysis"><span>04</span> Analysis</button>
+    <button type="button" data-stage="allocation"><span>05</span> Storage Allocation</button>
+    <button type="button" data-stage="ga"><span>06</span> GA Scheduling</button>
+    <button type="button" data-stage="transfer"><span>07</span> File Transfer</button>
+    <button type="button" data-stage="storage"><span>08</span> Storage</button>
+    <button type="button" data-stage="protection"><span>09</span> Protection</button>
+    <button type="button" data-stage="attacker"><span>10</span> Attacker Simulation</button>
+    <button type="button" data-stage="results"><span>11</span> Final Report</button>
   </nav>
 
   <main class="dtw-main">
@@ -79,7 +87,7 @@
     <aside class="dtw-context" id="dtw-context" aria-live="polite">
       <div class="dtw-context-head">
         <div>
-          <span class="dtw-context-kicker" id="dtw-context-kicker">STAGE 01 / 07</span>
+          <span class="dtw-context-kicker" id="dtw-context-kicker">STAGE 01 / 11</span>
           <h2 id="dtw-context-title">Dataset Upload</h2>
         </div>
         <button type="button" id="dtw-context-collapse" class="dtw-icon-btn" aria-label="Collapse contextual panel">›</button>
@@ -148,6 +156,7 @@
           </div>
           <button type="button" id="dtw-run-attack" class="dtw-btn dtw-btn-danger">Run Simulated Threat</button>
           <div class="dtw-callout" id="dtw-attack-status" aria-live="polite">SIMULATION — NO REAL ATTACK PERFORMED</div>
+          <div class="dtw-callout" id="dtw-defense-status" aria-live="polite">NO DEFENSIVE ACTION RECORDED</div>
         </section>
 
         <section data-panel="results" hidden>
@@ -182,10 +191,28 @@
     <button type="button" id="dtw-toggle-labels" aria-pressed="true">Labels: On</button>
     <button type="button" id="dtw-toggle-links" aria-pressed="true">Links: On</button>
     <button type="button" id="dtw-toggle-motion" aria-pressed="false">Reduce Motion</button>
+    <button type="button" id="dtw-fullscreen">Fullscreen</button>
+    <button type="button" id="dtw-toggle-details">Details</button>
     <span class="dtw-toolbar-sep" aria-hidden="true"></span>
     <label for="dtw-timeline">Timeline</label>
-    <input type="range" id="dtw-timeline" min="0" max="15" value="0" step="1" aria-label="Workflow timeline">
-    <span id="dtw-stage-label">01 / 16 · Upload</span>
+    <input type="range" id="dtw-timeline" min="0" max="10" value="0" step="1" list="dtw-timeline-stops" aria-label="Workflow timeline">
+    <datalist id="dtw-timeline-stops">
+      <option value="0" label="Upload"></option>
+      <option value="1" label="Extraction"></option>
+      <option value="2" label="Dataset Tree"></option>
+      <option value="3" label="Analysis"></option>
+      <option value="4" label="Storage Allocation"></option>
+      <option value="5" label="GA Scheduling"></option>
+      <option value="6" label="File Transfer"></option>
+      <option value="7" label="Storage"></option>
+      <option value="8" label="Protection"></option>
+      <option value="9" label="Attacker Simulation"></option>
+      <option value="10" label="Final Report"></option>
+    </datalist>
+    <div class="dtw-timeline-labels" id="dtw-timeline-labels" aria-hidden="true">
+      <span>Upload</span><span>Extraction</span><span>Dataset Tree</span><span>Analysis</span><span>Allocation</span><span>GA</span><span>Transfer</span><span>Storage</span><span>Protection</span><span>Attacker</span><span>Report</span>
+    </div>
+    <span id="dtw-stage-label">01 / 11 · Upload</span>
     <span id="dtw-elapsed">00:00</span>
     <span class="dtw-toolbar-sep" aria-hidden="true"></span>
     <button type="button" id="dtw-prev">Previous</button>
@@ -223,6 +250,13 @@
         <button type="button" id="dtw-close-upload" class="dtw-icon-btn" aria-label="Close upload panel">×</button>
       </div>
 
+        <div class="dtw-history-pick">
+          <label for="dtw-history-dataset">Or select an existing analyzed dataset</label>
+          <div class="dtw-history-row">
+            <select id="dtw-history-dataset"><option value="">Loading dataset history…</option></select>
+            <button type="button" id="dtw-history-select" class="dtw-btn dtw-btn-secondary">Use Dataset</button>
+          </div>
+        </div>
         <div class="dtw-callout dtw-callout-warn">SIMULATION MODE — no file placement · DEMONSTRATION MODE — SIMULATED DATA</div>
         <div class="dtw-dropzone" id="dtw-dropzone" tabindex="0" role="button" aria-label="Choose or drop a dataset ZIP">
           <strong>Drop dataset ZIP here</strong>

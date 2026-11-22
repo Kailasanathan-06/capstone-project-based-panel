@@ -475,6 +475,43 @@ body[data-page="digital_twin"] .app-container { min-height: 100vh; }
   font: 700 0.66rem/1 'JetBrains Mono', monospace;
   white-space: nowrap;
 }
+.dtw-selected-dataset {
+  margin-right: auto;
+  padding: 6px 10px;
+  border: 1px solid #264a70;
+  border-radius: 7px;
+  background: rgba(9, 19, 35, 0.85);
+  color: #8aa4c4;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+}
+.dtw-selected-dataset strong { color: #e0f2fe; text-transform: none; }
+.dtw-timeline-labels { display: none; }
+.dtw-history-pick {
+  margin-bottom: 14px;
+  padding: 10px;
+  border: 1px solid #24466b;
+  border-radius: 8px;
+  background: rgba(9, 20, 37, 0.75);
+}
+.dtw-history-pick label {
+  display: block;
+  margin-bottom: 6px;
+  color: #9ed8ff;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.dtw-history-row { display: flex; gap: 8px; }
+.dtw-history-row select {
+  flex: 1;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid #2b4d73;
+  border-radius: 7px;
+  background: #122744;
+  color: #dbeafe;
+  font-size: 0.72rem;
+}
 
 @media (max-width: 1100px) {
   .dtw-main { grid-template-columns: minmax(0, 1fr) 290px; }

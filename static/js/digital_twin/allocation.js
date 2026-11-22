@@ -23,7 +23,7 @@ export function buildAllocationGraph(inspection) {
     status: 'online',
     color: COLORS.root,
     size: 1.05,
-    position: { x: -12, y: 0, z: 0 },
+    position: { x: -18, y: -8, z: 24 },
     meta: {
       kicker: 'DATASET SOURCE',
       sections: [{
@@ -59,9 +59,9 @@ export function buildAllocationGraph(inspection) {
       color: blocked ? COLORS.blocked : COLORS.partition,
       size: 0.8,
       position: {
-        x: -2,
-        y: 3.2 - index * 1.05,
-        z: (slot - 0.5) * 2.2
+        x: -4 + (slot - 0.5) * 3,
+        y: 4 - index * 0.9,
+        z: 20 + (index % 3) * 2.4
       },
       meta: {
         kicker: 'ALLOCATION PARTITION',
@@ -88,8 +88,14 @@ export function buildAllocationGraph(inspection) {
     }
   });
 
+  var destinationZones = {
+    LOCAL_STORAGE: { x: -36, y: -3, z: 10 },
+    MEC_STORAGE: { x: 30, y: -2, z: 8 },
+    CLOUD_STORAGE: { x: 0, y: 18, z: 42 }
+  };
   Object.keys(tiers).forEach(function (destinationId, index) {
     var tier = tiers[destinationId] || {};
+    var zone = destinationZones[destinationId] || { x: 12 + index * 6, y: 2 - index * 3, z: 16 };
     nodes.push({
       id: destinationId,
       label: tier.is_emulator ? 'CLOUD EMULATOR' : display(tier.name, destinationId),
@@ -98,7 +104,7 @@ export function buildAllocationGraph(inspection) {
       status: 'online',
       color: tier.is_emulator ? COLORS.emulator : COLORS.storage,
       size: 0.95,
-      position: { x: 10, y: 3 - index * 2, z: 0 },
+      position: { x: zone.x, y: zone.y, z: zone.z },
       meta: {
         kicker: 'ALLOCATION TARGET',
         sections: [{
@@ -126,7 +132,7 @@ export function buildAllocationGraph(inspection) {
     status: 'blocked',
     color: COLORS.blocked,
     size: 0.9,
-    position: { x: 10, y: 3 - Object.keys(tiers).length * 2, z: 0 },
+    position: { x: 12, y: -14, z: 24 },
     meta: {
       kicker: 'POLICY ENFORCEMENT',
       sections: [{

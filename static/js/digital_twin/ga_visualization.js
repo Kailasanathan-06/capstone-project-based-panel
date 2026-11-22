@@ -166,7 +166,7 @@ export function buildDatasetSchedulingGraph(inspection) {
     status: 'online',
     color: COLORS.queue,
     size: 1.05,
-    position: { x: -11, y: 0, z: 0 },
+    position: { x: -18, y: -8, z: 24 },
     meta: {
       kicker: 'SELECTED DATASET',
       sections: [{
@@ -182,7 +182,14 @@ export function buildDatasetSchedulingGraph(inspection) {
     }
   });
 
+  var destinationZones = {
+    LOCAL_STORAGE: { x: -36, y: -3, z: 10 },
+    MEC_STORAGE: { x: 30, y: -2, z: 8 },
+    CLOUD_STORAGE: { x: 0, y: 18, z: 42 },
+    UNASSIGNED: { x: 12, y: -14, z: 24 }
+  };
   destinations.slice(0, 6).forEach(function (destination, index) {
+    var zone = destinationZones[destination] || { x: 12 + index * 6, y: 2 - index * 3, z: 16 };
     nodes.push({
       id: 'DESTINATION:' + destination,
       label: destination,
@@ -191,7 +198,7 @@ export function buildDatasetSchedulingGraph(inspection) {
       status: destination === 'UNASSIGNED' ? 'blocked' : 'online',
       color: destination === 'UNASSIGNED' ? COLORS.blocked : COLORS.resource,
       size: 0.8,
-      position: { x: 8, y: 3 - index * 1.2, z: 0 },
+      position: { x: zone.x, y: zone.y, z: zone.z },
       meta: {
         kicker: 'PROPOSED STORAGE PLACEMENT',
         sections: [{
@@ -219,7 +226,7 @@ export function buildDatasetSchedulingGraph(inspection) {
       status: blocked ? 'blocked' : 'online',
       color: blocked ? COLORS.blocked : COLORS.ga,
       size: 0.6,
-      position: { x: -2, y: 4 - index * 0.8, z: 0 },
+      position: { x: -4 + (index % 2) * 2.5, y: 6 - index * 0.8, z: 20 + Math.floor(index / 2) * 2 },
       meta: {
         kicker: 'FILE-LEVEL ALLOCATION DECISION',
         sections: [{
@@ -239,6 +246,54 @@ export function buildDatasetSchedulingGraph(inspection) {
     links.push({ from: 'DATASET_FILES', to: 'DATASET_DECISION:' + decision.task_id, color: COLORS.queue, opacity: 0.5 });
     links.push({ from: 'DATASET_DECISION:' + decision.task_id, to: 'DESTINATION:' + destination, color: blocked ? COLORS.blocked : COLORS.ga, opacity: 0.7 });
   });
+
+  var candidateDecision = decisions.find(function (decision) {
+    return (decision.candidate_resources || []).length || (decision.rejected_candidates || []).length;
+  });
+  if (candidateDecision) {
+    var seenCandidates = {};
+    var candidates = [];
+    (candidateDecision.candidate_resources || []).forEach(function (resource) {
+      candidates.push({ name: resource, eligible: true });
+    });
+    (candidateDecision.rejected_candidates || []).forEach(function (resource) {
+      candidates.push({ name: resource, eligible: false });
+    });
+    candidates.filter(function (candidate) {
+      if (!candidate.name || seenCandidates[candidate.name]) return false;
+      seenCandidates[candidate.name] = true;
+      return true;
+    }).slice(0, 8).forEach(function (candidate, index) {
+      var id = (candidate.eligible ? 'CANDIDATE_ELIGIBLE:' : 'CANDIDATE_BLOCKED:') + candidate.name;
+      nodes.push({
+        id: id,
+        label: (candidate.eligible ? 'ELIGIBLE · ' : 'BLOCKED · ') + candidate.name,
+        type: 'candidate',
+        shape: candidate.eligible ? 'resource' : 'torus',
+        status: candidate.eligible ? 'online' : 'blocked',
+        color: candidate.eligible ? COLORS.resource : COLORS.blocked,
+        size: 0.5,
+        position: { x: 6 + index * 3.5, y: -6 - Math.floor(index / 4) * 3, z: 24 + (index % 2) * 2 },
+        meta: {
+          kicker: candidate.eligible ? 'ELIGIBLE GA CANDIDATE' : 'INELIGIBLE GA CANDIDATE',
+          sections: [{
+            title: 'Candidate Information',
+            rows: [
+              ['Resource', candidate.name],
+              ['Status', candidate.eligible ? 'Eligible for this file' : 'Rejected by recorded policy'],
+              ['Decision file', display(candidateDecision.file_name, 'Unknown')]
+            ]
+          }]
+        }
+      });
+      links.push({
+        from: 'DATASET_DECISION:' + candidateDecision.task_id,
+        to: id,
+        color: candidate.eligible ? COLORS.resource : COLORS.blocked,
+        opacity: 0.5
+      });
+    });
+  }
 
   return { nodes: nodes, links: links, decisions: decisions };
 }

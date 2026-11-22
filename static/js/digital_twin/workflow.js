@@ -5,30 +5,76 @@ import { buildDatasetGraph, renderTree, renderStats, renderSelection, renderPart
 import { buildAllocationGraph } from './allocation.js';
 import { buildSchedulingGraph, buildDatasetSchedulingGraph, buildComparisonGraph, renderGaStatus, renderGaHistory } from './ga_visualization.js';
 import { buildSecurityGraph, renderSecurityControls, renderCapabilities, scenarioOptions, targetOptions, attackUrl } from './security.js';
-import { buildAttackGraph, renderAttackStatus } from './attacker.js';
+import { buildAttackGraph, renderAttackStatus, renderDefenseStatus } from './attacker.js';
 import { setStage, showDetails, hideDetails, updateViewportHead, buildTransferGraph, renderTransferStatus, renderUploadState, setUploadProgress, setUploadStatus, openUpload, renderFinalReport, setStatusStrip, renderDatasetSelector, renderDatasetInfo, renderEventLog, updatePlayback } from './ui_panels.js';
 
-export const STAGES = ['upload', 'analyze', 'allocate', 'schedule', 'transfer', 'security', 'results'];
+export const STAGES = [
+  'upload',
+  'extraction',
+  'dataset-tree',
+  'analysis',
+  'allocation',
+  'ga',
+  'transfer',
+  'storage',
+  'protection',
+  'attacker',
+  'results'
+];
+
+const STAGE_LABELS = {
+  upload: 'Upload',
+  extraction: 'Extraction',
+  'dataset-tree': 'Dataset Tree',
+  analysis: 'Analysis',
+  allocation: 'Storage Allocation',
+  ga: 'GA Scheduling',
+  transfer: 'File Transfer',
+  storage: 'Storage',
+  protection: 'Protection',
+  attacker: 'Attacker Simulation',
+  results: 'Final Report'
+};
+
+const VIEW_STAGE = {
+  upload: 'upload',
+  extraction: 'upload',
+  'dataset-tree': 'analyze',
+  analysis: 'analyze',
+  allocation: 'allocate',
+  ga: 'schedule',
+  transfer: 'transfer',
+  storage: 'transfer',
+  protection: 'security',
+  attacker: 'security',
+  results: 'results'
+};
+
+const DATASET_STAGES = [
+  'extraction',
+  'dataset-tree',
+  'analysis',
+  'allocation',
+  'ga',
+  'transfer',
+  'storage',
+  'protection',
+  'attacker',
+  'results'
+];
 
 const DEMO_STEPS = [
-  { stage: 'upload', action: 'selected-dataset', label: 'Selected dataset locked' },
-  { stage: 'upload', action: 'dataset-info', label: 'Dataset overview displayed' },
-  { stage: 'analyze', action: 'analyze', label: 'Dataset inventory inspected' },
-  { stage: 'analyze', action: 'focus-dataset', label: 'Dataset graph focused' },
-  { stage: 'allocate', action: 'allocate', label: 'Proposed allocation rendered' },
-  { stage: 'allocate', action: 'confirm', label: 'Allocation confirmation recorded' },
-  { stage: 'schedule', action: 'schedule', label: 'Dataset decisions rendered' },
-  { stage: 'schedule', action: 'focus-decision', label: 'Allocation decision focused' },
-  { stage: 'transfer', action: 'transfer', label: 'Dataset transfers replayed' },
-  { stage: 'transfer', action: 'focus-transfer', label: 'Transfer record focused' },
-  { stage: 'security', action: 'security', label: 'Security controls rendered' },
-  { stage: 'security', action: 'focus-protection', label: 'Protection policy focused' },
-  { stage: 'security', action: 'simulate-attack', label: 'Simulated threat executed' },
-  { stage: 'security', action: 'dataset-events', label: 'Dataset security events shown' },
-  { stage: 'results', action: 'results', label: 'Final report assembled' },
-  { stage: 'results', action: 'capabilities', label: 'Capability snapshot rendered' },
-  { stage: 'results', action: 'summary', label: 'Backend status summarized' },
-  { stage: 'results', action: 'complete', label: 'Workflow complete — selected dataset' }
+  { stage: 'upload', action: 'upload', label: 'Upload' },
+  { stage: 'extraction', action: 'extraction', label: 'Extraction' },
+  { stage: 'dataset-tree', action: 'dataset-tree', label: 'Dataset Tree' },
+  { stage: 'analysis', action: 'analysis', label: 'Analysis' },
+  { stage: 'allocation', action: 'allocation', label: 'Storage Allocation' },
+  { stage: 'ga', action: 'ga', label: 'GA Scheduling' },
+  { stage: 'transfer', action: 'transfer', label: 'File Transfer' },
+  { stage: 'storage', action: 'storage', label: 'Storage' },
+  { stage: 'protection', action: 'protection', label: 'Protection' },
+  { stage: 'attacker', action: 'attacker', label: 'Attacker Simulation' },
+  { stage: 'results', action: 'results', label: 'Final Report' }
 ];
 
 function delay(milliseconds) {
@@ -44,6 +90,7 @@ export class WorkflowController {
       comparison: null,
       upload: null,
       attack: null,
+      defense: null,
       graph: null,
       stage: 'upload',
       file: null,
@@ -80,16 +127,18 @@ export class WorkflowController {
   async boot() {
     this.populateJump();
     this.bindEvents();
+    openUpload(true);
+    setUploadStatus('UPLOAD A DATASET TO BEGIN · OR SELECT AN EXISTING DATASET');
+    this.setSelectedDatasetLabel(null);
     try {
       await this.loadScene();
       await this.loadDatasets();
-      var selected = this.state.datasets.find(function (dataset) { return dataset.report_available; });
-      if (selected) await this.selectDataset(selected.upload_id, false);
-      else {
-        renderDatasetInfo(document.getElementById('dtw-dataset-info'), null);
-        setUploadStatus('No analyzed dataset is available. Upload a ZIP or load a bundled archive.');
-      }
-      this.syncPlayback('upload');
+      var info = document.getElementById('dtw-dataset-info');
+      renderDatasetInfo(info, null);
+      var startButton = document.getElementById('dtw-start-demo');
+      if (startButton) startButton.disabled = true;
+      this.setStage('upload');
+      this.syncPlayback('Upload');
     } catch (error) {
       this.showBootError(error);
     }
@@ -101,13 +150,19 @@ export class WorkflowController {
     updateViewportHead(this.scene.mode, this.scene.nodes.size, this.reducedMotion);
   }
 
+  setSelectedDatasetLabel(dataset) {
+    var label = document.getElementById('dtw-selected-dataset');
+    if (!label) return;
+    label.textContent = dataset ? display(dataset.dataset_name || dataset.file_name, 'Selected dataset') : 'None';
+  }
+
   populateJump() {
     var jump = document.getElementById('dtw-jump');
     if (!jump) return;
     STAGES.forEach(function (stage, index) {
       var option = document.createElement('option');
       option.value = stage;
-      option.textContent = String(index + 1).padStart(2, '0') + ' · ' + stage;
+      option.textContent = String(index + 1).padStart(2, '0') + ' · ' + STAGE_LABELS[stage];
       jump.appendChild(option);
     });
   }
@@ -116,7 +171,10 @@ export class WorkflowController {
     var self = this;
     this.on('dtw-open-upload', 'click', function () { openUpload(true); });
     this.on('dtw-panel-upload', 'click', function () { openUpload(true); });
-    this.on('dtw-close-upload', 'click', function () { openUpload(false); });
+    this.on('dtw-close-upload', 'click', function () {
+      if (self.state.selectedDataset) openUpload(false);
+      else setUploadStatus('UPLOAD A DATASET TO BEGIN · OR SELECT AN EXISTING DATASET');
+    });
     this.on('dtw-dropzone', 'click', function () { self.clickFileInput(); });
     this.on('dtw-dropzone', 'keydown', function (event) {
       if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); self.clickFileInput(); }
@@ -140,6 +198,11 @@ export class WorkflowController {
       var select = document.getElementById('dtw-demo-package');
       self.loadDemoPackage(select ? select.value : 'success_01');
     });
+    this.on('dtw-history-select', 'click', function () {
+      var select = document.getElementById('dtw-history-dataset');
+      if (select && select.value) self.selectDataset(select.value, true);
+      else setUploadStatus('Select an existing dataset first.');
+    });
 
     this.on('dtw-context-collapse', 'click', function () {
       var context = document.getElementById('dtw-context');
@@ -153,7 +216,7 @@ export class WorkflowController {
     this.on('dtw-tree-expand', 'click', function () {
       self.state.collapsed.clear();
       self.rerenderTree();
-      if (self.state.stage === 'analyze') self.renderView('analyze');
+      if (self.state.stage === 'dataset-tree' || self.state.stage === 'analysis') self.renderView(self.state.stage);
     });
     this.on('dtw-tree-collapse', 'click', function () {
       self.state.collapsed.clear();
@@ -161,7 +224,7 @@ export class WorkflowController {
         self.folderIds(self.state.inspection.tree).forEach(function (id) { self.state.collapsed.add(id); });
       }
       self.rerenderTree();
-      if (self.state.stage === 'analyze') self.renderView('analyze');
+      if (self.state.stage === 'dataset-tree' || self.state.stage === 'analysis') self.renderView(self.state.stage);
     });
 
     this.on('dtw-confirm-allocation', 'click', function () { self.confirmAllocation(); });
@@ -198,6 +261,19 @@ export class WorkflowController {
       this.textContent = self.reducedMotion ? 'Motion Reduced' : 'Reduce Motion';
       self.scene.setReducedMotion(self.reducedMotion);
       updateViewportHead(self.scene.mode, self.scene.nodes.size, self.reducedMotion);
+    });
+    this.on('dtw-fullscreen', 'click', function () {
+      var element = self.root;
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+        return;
+      }
+      if (element && element.requestFullscreen) element.requestFullscreen();
+    });
+    this.on('dtw-toggle-details', 'click', function () {
+      var panel = document.getElementById('dtw-details');
+      if (!panel) return;
+      panel.hidden = !panel.hidden;
     });
     this.on('dtw-prev', 'click', function () { self.manualDemoStep(-1); });
     this.on('dtw-next', 'click', function () { self.manualDemoStep(1); });
@@ -251,44 +327,69 @@ export class WorkflowController {
 
   async loadDatasets() {
     var select = document.getElementById('dtw-dataset-select');
+    var history = document.getElementById('dtw-history-dataset');
     var self = this;
+    var onChange = function (uploadId) { self.selectDataset(uploadId, true); };
     try {
       var data = await getJSON(this.root.dataset.datasetsUrl);
       this.state.datasets = (data && data.datasets) || [];
-      renderDatasetSelector(select, this.state.datasets, this.state.uploadId, function (uploadId) {
-        self.selectDataset(uploadId, true);
-      });
-      if (!this.state.datasets.length) setUploadStatus('No uploaded datasets are available to select.');
+      renderDatasetSelector(select, this.state.datasets, this.state.uploadId, onChange);
+      renderDatasetSelector(history, this.state.datasets, '', onChange, 'Select an existing dataset…');
+      if (!this.state.datasets.length) setUploadStatus('No uploaded datasets are available to select. Upload a ZIP to begin.');
       this.logEvent(this.state.datasets.length + ' dataset record(s) loaded');
     } catch (error) {
       this.state.datasets = [];
       renderDatasetSelector(select, [], '', function () {});
+      renderDatasetSelector(history, [], '', function () {}, 'Dataset list unavailable');
       if (select && select.options.length) select.options[0].textContent = 'Dataset list unavailable';
       setUploadStatus('Dataset list unavailable: ' + display(error && error.message, 'Sign in to load uploaded datasets.'));
     }
+  }
+
+  resetDatasetState() {
+    this.stopDemo(false);
+    this.state.comparison = null;
+    this.state.attack = null;
+    this.state.defense = null;
+    this.state.showComparison = false;
+    this.state.demoIndex = 0;
+    this.state.demoElapsed = 0;
+    this.state.collapsed.clear();
+    this.state.graph = null;
+    this.scene.clearPackets();
+    this.scene.select(null);
+    var attackStatus = document.getElementById('dtw-attack-status');
+    if (attackStatus) attackStatus.textContent = 'SIMULATION — NO REAL ATTACK PERFORMED · ENCRYPTION NOT VERIFIED';
+    var defenseStatus = document.getElementById('dtw-defense-status');
+    if (defenseStatus) defenseStatus.textContent = 'NO DEFENSIVE ACTION RECORDED';
   }
 
   async selectDataset(uploadId, announce) {
     if (!uploadId) return;
     var dataset = this.state.datasets.find(function (item) { return item.upload_id === uploadId; });
     if (!dataset) { setUploadStatus('Selected dataset was not found.'); return; }
+    this.resetDatasetState();
     this.state.selectedDataset = dataset;
     this.state.uploadId = uploadId;
     this.state.reportId = dataset.report_id;
     this.root.dataset.uploadId = uploadId;
     this.root.dataset.reportId = dataset.report_id || '';
+    this.setSelectedDatasetLabel(dataset);
     renderDatasetInfo(document.getElementById('dtw-dataset-info'), dataset);
     setStatusStrip('selected', 'DATASET: ' + display(dataset.dataset_name, uploadId));
     var startButton = document.getElementById('dtw-start-demo');
     if (startButton) startButton.disabled = !dataset.report_available;
     if (!dataset.report_available) {
       setUploadStatus(display(dataset.dataset_name, 'Dataset') + ' has no completed analysis report.');
+      this.setStage('upload');
       return;
     }
     try {
       await this.loadInspection(dataset.report_id, null, false);
       if (announce !== false) setUploadStatus(display(dataset.dataset_name, 'Dataset') + ' selected. All workflow views now use this report.');
       this.logEvent('Selected dataset ' + display(dataset.dataset_name, uploadId));
+      this.setStage('extraction');
+      openUpload(false);
     } catch (error) {
       setUploadStatus('Dataset inspection failed: ' + display(error && error.message, 'Unknown error'));
     }
@@ -302,8 +403,10 @@ export class WorkflowController {
     this.state.reportId = data.report_id || this.state.reportId;
     if (data.dataset) {
       this.state.selectedDataset = data.dataset;
-      this.state.uploadId = data.upload_id || this.state.uploadId;
+      this.state.uploadId = data.upload_id || this.state.uploadId || (this.state.selectedDataset && this.state.selectedDataset.upload_id);
       this.root.dataset.uploadId = this.state.uploadId || '';
+      this.setSelectedDatasetLabel(this.state.selectedDataset);
+      renderDatasetInfo(document.getElementById('dtw-dataset-info'), this.state.selectedDataset);
     }
     this.root.dataset.reportId = data.report_id || '';
     this.rerenderTree();
@@ -341,7 +444,7 @@ export class WorkflowController {
     if (this.state.collapsed.has(id)) this.state.collapsed.delete(id);
     else this.state.collapsed.add(id);
     this.rerenderTree();
-    if (this.state.stage === 'analyze') this.renderView('analyze');
+    if (this.state.stage === 'dataset-tree' || this.state.stage === 'analysis') this.renderView(this.state.stage);
   }
 
   folderIds(node) {
@@ -389,40 +492,56 @@ export class WorkflowController {
     this.state.stage = stage;
     setStage(this.root, stage, STAGES);
     this.renderView(stage);
-    this.syncPlayback(stage);
+    this.syncPlayback(STAGE_LABELS[stage]);
   }
 
   renderView(stage) {
+    var viewStage = VIEW_STAGE[stage] || stage;
     var view = null;
-    if (stage === 'analyze' && this.state.inspection) view = buildDatasetGraph(this.state.inspection, this.state.collapsed);
-    else if (stage === 'allocate' && this.state.inspection) view = buildAllocationGraph(this.state.inspection);
-    else if (stage === 'schedule' && this.state.inspection && !this.state.showComparison) view = buildDatasetSchedulingGraph(this.state.inspection);
-    else if (stage === 'schedule' && this.state.comparison) view = buildComparisonGraph(this.state.comparison);
-    else if (stage === 'schedule') view = buildSchedulingGraph(this.state.scene);
-    else if (stage === 'transfer') view = buildTransferGraph({ transfers: (this.state.inspection && this.state.inspection.dataset_transfers) || [] });
-    else if (stage === 'security' || stage === 'results') view = buildSecurityGraph(this.state.scene, this.state.inspection);
+    var missing = DATASET_STAGES.indexOf(stage) !== -1 && !this.state.inspection;
+    if (missing) {
+      view = { nodes: [], links: [] };
+      setStatusStrip(stage, 'SELECT AN ANALYZED DATASET TO VIEW ' + String(STAGE_LABELS[stage] || stage).toUpperCase());
+    } else if (stage === 'upload' && this.state.inspection) {
+      view = buildDatasetGraph(this.state.inspection, this.state.collapsed);
+    } else if (stage === 'attacker' && this.state.attack) {
+      view = buildAttackGraph(this.state.scene, this.state.attack, this.attackScenario(), this.state.inspection, this.state.defense);
+    } else if (viewStage === 'analyze' && this.state.inspection) view = buildDatasetGraph(this.state.inspection, this.state.collapsed);
+    else if (viewStage === 'allocate' && this.state.inspection) view = buildAllocationGraph(this.state.inspection);
+    else if (viewStage === 'schedule' && this.state.inspection && !this.state.showComparison) view = buildDatasetSchedulingGraph(this.state.inspection);
+    else if (viewStage === 'schedule' && this.state.comparison) view = buildComparisonGraph(this.state.comparison);
+    else if (viewStage === 'schedule') view = buildSchedulingGraph(this.state.scene);
+    else if (viewStage === 'transfer' && this.state.inspection) view = buildTransferGraph({ transfers: this.state.inspection.dataset_transfers || [] });
+    else if ((viewStage === 'security' || viewStage === 'results') && this.state.inspection) view = buildSecurityGraph(this.state.scene, this.state.inspection);
     else view = buildNetwork(this.state.scene || {});
 
     if (!view) return;
     this.state.graph = view;
-    this.scene.setView(view.nodes, view.links, { theme: stage === 'analyze' ? 'light' : 'dark' });
+    this.scene.setView(view.nodes, view.links, {
+      theme: viewStage === 'analyze' ? 'light' : 'dark',
+      boundary: stage === 'protection' || stage === 'attacker' || stage === 'results' || stage === 'upload'
+    });
     this.scene.setLinksVisible(true);
     this.scene.setLabelsVisible(true);
     updateViewportHead(this.scene.mode, view.nodes.length, this.reducedMotion);
-    if (view.nodes.length) this.scene.select(view.nodes[0].id);
+    if (view.nodes.length && !missing) this.scene.select(view.nodes[0].id);
     this.refreshPanels(stage);
   }
 
   refreshPanels(stage) {
-    if (stage === 'schedule') {
+    var viewStage = VIEW_STAGE[stage] || stage;
+    if (viewStage === 'schedule') {
       renderGaStatus(document.getElementById('dtw-ga-status'), this.state.scene, this.state.comparison, this.state.inspection);
       renderGaHistory(document.getElementById('dtw-ga-history'), this.state.scene, this.state.comparison, this.state.inspection);
     }
-    if (stage === 'transfer') {
+    if (viewStage === 'transfer') {
       renderTransferStatus(document.getElementById('dtw-transfer-status'), { transfers: (this.state.inspection && this.state.inspection.dataset_transfers) || [] });
     }
-    if (stage === 'security') renderSecurityControls(document.getElementById('dtw-security-list'), this.state.scene, this.state.inspection);
-    if (stage === 'results') {
+    if (viewStage === 'security') {
+      renderSecurityControls(document.getElementById('dtw-security-list'), this.state.scene, this.state.inspection);
+      renderDefenseStatus(document.getElementById('dtw-defense-status'), this.state.defense, this.state.inspection);
+    }
+    if (viewStage === 'results') {
       renderFinalReport(document.getElementById('dtw-final-report'), this.state.scene, this.state.inspection, this.state.comparison);
       renderCapabilities(document.getElementById('dtw-capabilities'), this.state.scene, this.state.inspection, this.state.comparison);
     }
@@ -462,10 +581,10 @@ export class WorkflowController {
       this.state.upload = result;
       setUploadProgress(100);
       setUploadStatus('Upload complete. Report ' + display(result.report_id, 'unknown') + ' saved.');
-      openUpload(false);
       await this.loadDatasets();
       await this.selectDataset(result.upload_id, false);
-      this.setStage('analyze');
+      this.setStage('extraction');
+      openUpload(false);
     } catch (error) {
       setUploadStatus(display(error && error.message, 'Upload failed.'));
     } finally {
@@ -483,10 +602,10 @@ export class WorkflowController {
       this.state.upload = result;
       setUploadProgress(100);
       setUploadStatus('Bundled archive loaded. Report ' + display(result.report_id, 'unknown') + '.');
-      openUpload(false);
       await this.loadDatasets();
       await this.selectDataset(result.upload_id, false);
-      this.setStage('analyze');
+      this.setStage('extraction');
+      openUpload(false);
     } catch (error) {
       setUploadStatus(display(error && error.message, 'Demo archive failed validation.'));
     } finally {
@@ -527,7 +646,7 @@ export class WorkflowController {
       renderGaStatus(status, this.state.scene, data, this.state.inspection);
       renderGaHistory(document.getElementById('dtw-ga-history'), this.state.scene, data, this.state.inspection);
       setStatusStrip('ga', 'SIMULATED COMPARISON AVAILABLE — NOT LIVE DISPATCH');
-      this.setStage('schedule');
+      this.setStage('ga');
       this.logEvent('Simulated GA comparison rendered');
     } catch (error) {
       if (status) status.textContent = display(error && error.message, 'Scheduler comparison failed.');
@@ -536,15 +655,38 @@ export class WorkflowController {
     }
   }
 
+  animateGaDecisions() {
+    if (!this.state.inspection) return;
+    this.scene.clearPackets();
+    (this.state.inspection.dataset_scheduling || []).slice(0, 6).forEach(function (decision, index) {
+      var destination = display(decision.selected_destination, 'UNASSIGNED');
+      var blocked = destination === 'UNASSIGNED' || decision.result === 'BLOCKED';
+      this.scene.addPacket(
+        'DATASET_DECISION:' + decision.task_id,
+        'DESTINATION:' + destination,
+        {
+          state: blocked ? 'BLOCKED' : 'PROPOSED',
+          color: blocked ? 0xfb7185 : 0xf59e0b,
+          label: display(decision.file_name, 'dataset file') + ' → ' + destination,
+          onComplete: index === 0 ? function () {
+            setStatusStrip('ga', 'DATASET DECISIONS ANIMATED — RECORDED STATE ONLY');
+          } : null
+        }
+      );
+    }, this);
+  }
+
   runTransfer() {
     var transfers = (this.state.inspection && this.state.inspection.dataset_transfers) || [];
     if (!transfers.length) {
       renderTransferStatus(document.getElementById('dtw-transfer-status'), { transfers: [] });
       setStatusStrip('transfer', 'SELECT AN ANALYZED DATASET TO REPLAY ITS TRANSFERS');
+      this.setStage('transfer');
       return;
     }
     renderTransferStatus(document.getElementById('dtw-transfer-status'), { transfers: transfers });
     this.setStage('transfer');
+    this.scene.clearPackets();
     transfers.slice(0, 8).forEach(function (transfer, index) {
       var color = transfer.state === 'COMPLETED' ? 0x34d399 : transfer.state === 'BLOCKED' || transfer.state === 'FAILED' ? 0xfb7185 : 0xf59e0b;
       this.scene.addPacket('SOURCE:' + display(transfer.source, 'SOURCE NOT RECORDED'), 'DEST:' + display(transfer.destination, 'UNKNOWN'), {
@@ -558,6 +700,12 @@ export class WorkflowController {
     }, this);
     setStatusStrip('transfer', transfers.length + ' DATASET TRANSFER RECORD(S)');
     this.logEvent('Replayed ' + transfers.length + ' dataset transfer record(s)');
+  }
+
+  attackScenario() {
+    var select = document.getElementById('dtw-attack-scenario');
+    var id = select ? select.value : 'UNAUTHORIZED_TASK_SUBMISSION';
+    return ((this.state.scene && this.state.scene.simulation_catalog) || []).find(function (item) { return item.id === id; });
   }
 
   async runAttack(forcedScenario, forcedTarget) {
@@ -583,12 +731,14 @@ export class WorkflowController {
       });
       this.state.attack = result;
       renderAttackStatus(attackStatus, result, scenario, this.state.inspection);
-      setStatusStrip('security', 'SIMULATED ATTACK — ENCRYPTION NOT VERIFIED');
-      this.setStage('security');
+      setStatusStrip('attacker', 'SIMULATED ATTACK — ENCRYPTION NOT VERIFIED');
+      this.setStage('attacker');
       var attackGraph = buildAttackGraph(this.state.scene, result, scenario, this.state.inspection);
-      this.scene.setView(attackGraph.nodes, attackGraph.links, { theme: 'dark' });
+      this.scene.setView(attackGraph.nodes, attackGraph.links, { theme: 'dark', boundary: true });
       this.scene.addPacket('SIMULATED_ATTACKER', 'ATTACK_TARGET', { state: 'SIMULATED', color: 0xfb7185 });
       this.logEvent('Simulated threat executed for ' + display(this.state.inspection.report_id, 'selected dataset'));
+      await delay(this.reducedMotion ? 100 : 700);
+      await this.runDefense(result, scenario, attackGraph.targetId || targetId);
     } catch (error) {
       if (attackStatus) attackStatus.textContent = 'SIMULATED ATTACKER — ' + display(error && error.message, 'Simulation failed.') + ' · ENCRYPTION NOT VERIFIED';
     } finally {
@@ -596,11 +746,61 @@ export class WorkflowController {
     }
   }
 
+  async runDefense(result, scenario, targetId) {
+    var defense = {
+      targetId: targetId,
+      scenario: scenario,
+      quarantine: null,
+      security: null,
+      schedule: null,
+      proposals: [],
+      status: 'DEFENSIVE RESPONSE PENDING'
+    };
+    try {
+      if (this.root.dataset.mitigateUrl) {
+        defense.quarantine = await postForm(this.root.dataset.mitigateUrl, { resource_id: targetId });
+      }
+      if (this.root.dataset.securityUrl) {
+        defense.security = await getJSON(this.root.dataset.securityUrl);
+      }
+      if (this.root.dataset.scheduleUrl) {
+        defense.schedule = await postForm(this.root.dataset.scheduleUrl, { population: 12, generations: 6 });
+      }
+      defense.status = 'QUARANTINE RECORDED · POLICY-COMPLIANT REASSESSMENT PROPOSED';
+    } catch (error) {
+      defense.status = 'DEFENSIVE RESPONSE PARTIAL — ' + display(error && error.message, 'Unknown error');
+    }
+    var decisions = (this.state.inspection && this.state.inspection.dataset_scheduling) || [];
+    var source = decisions.find(function (decision) {
+      return (decision.candidate_resources || []).length > 0;
+    });
+    defense.proposals = source ? (source.candidate_resources || []).filter(function (resource) {
+      return resource !== targetId;
+    }).slice(0, 3) : [];
+    this.state.defense = defense;
+    renderDefenseStatus(document.getElementById('dtw-defense-status'), defense, this.state.inspection);
+    setStatusStrip('protection', defense.status + ' · ENCRYPTION NOT VERIFIED');
+    var graph = buildAttackGraph(this.state.scene, result, scenario, this.state.inspection, defense);
+    this.scene.setView(graph.nodes, graph.links, { theme: 'dark', boundary: true });
+    this.scene.addPacket('SIMULATED_ATTACKER', 'QUARANTINED:' + targetId, { state: 'ISOLATED', color: 0xa78bfa });
+    defense.proposals.forEach(function (resource, index) {
+      this.scene.addPacket('DATASET_FILES', 'REASSESSMENT_PROPOSAL:' + resource, {
+        state: 'PROPOSED',
+        color: 0x34d399,
+        label: 'Policy-compliant reassessment proposal',
+        onComplete: index === 0 ? function () {
+          setStatusStrip('protection', 'REASSESSMENT PROPOSED — NO LIVE DISPATCH');
+        } : null
+      });
+    }, this);
+    this.logEvent('Quarantine and reassessment visualization recorded');
+  }
+
   async startDemo() {
     if (!this.state.selectedDataset || !this.state.inspection) {
-      var available = this.state.datasets.find(function (dataset) { return dataset.report_available; });
-      if (!available) { setUploadStatus('Upload or select an analyzed dataset before starting the workflow.'); return; }
-      await this.selectDataset(available.upload_id, false);
+      setUploadStatus('Upload or select an analyzed dataset before starting the workflow.');
+      openUpload(true);
+      return;
     }
     this.state.demo = true;
     this.state.paused = false;
@@ -609,6 +809,7 @@ export class WorkflowController {
     this.state.demoElapsed = 0;
     this.state.showComparison = false;
     this.state.demoToken += 1;
+    this.scene.clearPackets();
     this.scene.setPaused(false);
     var token = this.state.demoToken;
     setUploadStatus(String(this.state.selectedDataset.execution_mode || '').toUpperCase() === 'SIMULATION'
@@ -632,63 +833,54 @@ export class WorkflowController {
     this.logEvent(step.label);
     this.syncPlayback(step.label);
     switch (step.action) {
-      case 'selected-dataset':
+      case 'upload':
         this.setStage('upload');
         openUpload(false);
         break;
-      case 'dataset-info':
-        renderDatasetInfo(document.getElementById('dtw-dataset-info'), this.state.selectedDataset);
+      case 'extraction':
+        this.setStage('extraction');
+        this.focusFirst('DATASET_FILES', 'root');
         break;
-      case 'analyze':
-        this.setStage('analyze');
+      case 'dataset-tree':
+        this.setStage('dataset-tree');
+        this.rerenderTree();
         break;
-      case 'focus-dataset':
+      case 'analysis':
+        this.setStage('analysis');
         this.focusFirst('root', 'folder:', 'file:');
         break;
-      case 'allocate':
-        this.setStage('allocate');
-        break;
-      case 'confirm':
+      case 'allocation':
+        this.setStage('allocation');
         await this.confirmAllocation();
+        this.focusFirst('DATASET_ROOT', 'DESTINATION:');
         break;
-      case 'schedule':
+      case 'ga':
         this.state.showComparison = false;
-        this.setStage('schedule');
-        break;
-      case 'focus-decision':
-        this.focusFirst('DATASET_DECISION:', 'DESTINATION:');
+        this.setStage('ga');
+        this.animateGaDecisions();
+        this.focusFirst('CANDIDATE_ELIGIBLE:', 'DATASET_DECISION:', 'DESTINATION:');
         break;
       case 'transfer':
         this.runTransfer();
-        break;
-      case 'focus-transfer':
         this.focusFirst('TRANSFER:', 'DEST:');
         break;
-      case 'security':
-        this.setStage('security');
+      case 'storage':
+        this.setStage('storage');
+        this.focusFirst('DEST:', 'STORAGE:', 'MEC_STORAGE', 'CLOUD_STORAGE');
         break;
-      case 'focus-protection':
-        this.focusFirst('PROTECTION_POLICY', 'SECURITY_CORE');
+      case 'protection':
+        this.setStage('protection');
+        this.focusFirst('PROTECTION_POLICY', 'SECURITY_CORE', 'TRUSTED_BOUNDARY');
         break;
-      case 'simulate-attack':
+      case 'attacker':
         var scenarioNode = document.getElementById('dtw-attack-scenario');
         var targetNode = document.getElementById('dtw-attack-target');
         await this.runAttack(scenarioNode ? scenarioNode.value : 'UNAUTHORIZED_TASK_SUBMISSION', targetNode ? targetNode.value : 'CENTRAL');
         break;
-      case 'dataset-events':
-        this.setStage('security');
-        this.focusFirst('DATASET_EVENT:');
-        break;
       case 'results':
         this.setStage('results');
-        break;
-      case 'capabilities':
-        renderCapabilities(document.getElementById('dtw-capabilities'), this.state.scene, this.state.inspection, this.state.comparison);
-        break;
-      case 'summary':
         renderFinalReport(document.getElementById('dtw-final-report'), this.state.scene, this.state.inspection, this.state.comparison);
-        break;
-      case 'complete':
+        renderCapabilities(document.getElementById('dtw-capabilities'), this.state.scene, this.state.inspection, this.state.comparison);
         setStatusStrip('selected', 'WORKFLOW COMPLETE — SELECTED DATASET');
         setUploadStatus('WORKFLOW COMPLETE — ' + display(this.state.selectedDataset && this.state.selectedDataset.dataset_name, 'DATASET'));
         break;
@@ -727,6 +919,11 @@ export class WorkflowController {
   }
 
   async goToDemoStep(index) {
+    if (!this.state.selectedDataset || !this.state.inspection) {
+      setUploadStatus('Select an analyzed dataset before scrubbing the workflow.');
+      openUpload(true);
+      return;
+    }
     this.stopDemo(false);
     var next = Math.max(0, Math.min(DEMO_STEPS.length - 1, Number(index) || 0));
     this.state.demoIndex = next;
@@ -755,7 +952,6 @@ export class WorkflowController {
     this.state.paused = false;
     this.state.demoToken += 1;
     this.scene.setPaused(false);
-    openUpload(false);
     var button = document.getElementById('dtw-pause');
     if (button) { button.setAttribute('aria-pressed', 'false'); button.textContent = 'Pause'; }
     if (announce !== false) {

@@ -10,6 +10,7 @@ Dedicated Views & API Endpoints for SecureDT Redesigned Pages:
 """
 
 import json
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from django.shortcuts import render, get_object_or_404, redirect
@@ -1101,4 +1102,330 @@ def edge_system_check_api(request):
             "replicas_count": replicas.count(),
             "verified_count": replicas.filter(replication_status="VERIFIED").count(),
         }
+    })
+
+
+def _safe_relative_path(value):
+    text = str(value or "").replace("\\", "/").strip()
+    parts = [part for part in text.split("/") if part not in ("", ".", "..")]
+    return "/".join(parts)
+
+
+def _dataset_tree(inventory, archive_name):
+    root = {
+        "id": "root",
+        "name": archive_name or "Uploaded Dataset",
+        "type": "folder",
+        "path": "",
+        "children": [],
+        "size": 0,
+        "file_count": 0,
+        "folder_count": 0,
+    }
+    folders = {"": root}
+    for item in inventory:
+        path = _safe_relative_path(item.get("relative_path") or item.get("file_name"))
+        if not path:
+            continue
+        parts = path.split("/")
+        parent = root
+        current = ""
+        for folder_name in parts[:-1]:
+            current = (current + "/" + folder_name).strip("/")
+            node = folders.get(current)
+            if node is None:
+                node = {
+                    "id": "folder:" + current,
+                    "name": folder_name,
+                    "type": "folder",
+                    "path": current,
+                    "children": [],
+                    "size": 0,
+                    "file_count": 0,
+                    "folder_count": 0,
+                }
+                folders[current] = node
+                parent["children"].append(node)
+            parent = node
+        size = max(0, int(item.get("size") or 0))
+        parent["children"].append({
+            "id": "file:" + path,
+            "name": parts[-1],
+            "type": "file",
+            "path": path,
+            "size": size,
+            "format": item.get("format") or "UNKNOWN",
+            "category": item.get("category") or "UNCLASSIFIED",
+            "privacy_policy": item.get("privacy_policy") or "UNKNOWN",
+            "selected_destination": item.get("selected_destination") or "UNASSIGNED",
+        })
+    return root
+
+
+def _summarize_tree(node):
+    if node["type"] == "folder":
+        size = 0
+        files = 0
+        folders = 0
+        for child in node["children"]:
+            child_size, child_files, child_folders = _summarize_tree(child)
+            size += child_size
+            files += child_files
+            folders += child_folders + (1 if child["type"] == "folder" else 0)
+        node["size"] = size
+        node["file_count"] = files
+        node["folder_count"] = folders
+        return size, files, folders
+    return node["size"], 1, 0
+
+
+def _compress_tree(node, max_files=300):
+    if node["type"] != "folder":
+        return
+    for child in node["children"][:]:
+        _compress_tree(child, max_files)
+    files = [child for child in node["children"] if child["type"] == "file"]
+    if len(files) <= max_files:
+        return
+    grouped = {}
+    for item in files:
+        key = item.get("format") or "UNKNOWN"
+        grouped.setdefault(key, []).append(item)
+    kept = [child for child in node["children"] if child["type"] != "file"]
+    for file_format, items in sorted(grouped.items()):
+        kept.append({
+            "id": "group:" + node["path"] + ":" + file_format,
+            "name": file_format + " files (" + str(len(items)) + ")",
+            "type": "group",
+            "format": file_format,
+            "path": node["path"],
+            "size": sum(int(item.get("size") or 0) for item in items),
+            "file_count": len(items),
+            "children": [],
+        })
+    node["children"] = kept
+
+
+def _flatten_tree(node, output, parent_id=None, depth=0):
+    entry = {
+        "id": node["id"],
+        "parent": parent_id,
+        "name": node["name"],
+        "type": node["type"],
+        "path": node.get("path", ""),
+        "size": node.get("size", 0),
+        "depth": depth,
+    }
+    output.append(entry)
+    for child in node.get("children", []):
+        _flatten_tree(child, output, node["id"], depth + 1)
+
+
+def _dataset_partitions(inventory):
+    groups = {}
+    for item in inventory:
+        path = _safe_relative_path(item.get("relative_path") or item.get("file_name"))
+        source = path.split("/")[0] if "/" in path else "ROOT"
+        group = groups.setdefault(source, {"files": [], "size": 0, "destinations": Counter(), "policies": set()})
+        size = max(0, int(item.get("size") or 0))
+        group["files"].append(item)
+        group["size"] += size
+        group["destinations"][item.get("selected_destination") or "UNASSIGNED"] += 1
+        group["policies"].add(item.get("privacy_policy") or "UNKNOWN")
+    partitions = []
+    for index, (source, group) in enumerate(sorted(groups.items()), start=1):
+        destinations = group["destinations"]
+        proposed = destinations.most_common(1)[0][0] if destinations else "UNASSIGNED"
+        blocked = destinations.get("UNASSIGNED", 0) > 0
+        partitions.append({
+            "partition_id": f"P-{index:02d}",
+            "source": source,
+            "strategy": "TOP_LEVEL_FOLDER" if source != "ROOT" else "FILE_GROUP",
+            "file_count": len(group["files"]),
+            "size_bytes": group["size"],
+            "size_formatted": format_bytes(group["size"]),
+            "proposed_destination": proposed,
+            "privacy_policies": sorted(group["policies"]),
+            "status": "BLOCKED" if blocked else "PROPOSED",
+            "sample_files": [
+                _safe_relative_path(item.get("relative_path") or item.get("file_name"))
+                for item in group["files"][:5]
+            ],
+        })
+    return partitions
+
+
+def _storage_tier_snapshot():
+    ensure_storage_destinations_initialized()
+    connected_mecs = MECAgent.objects.filter(is_approved=True, is_online=True).count()
+    snapshot = {}
+    for destination in StorageDestination.objects.all():
+        capacity = int(destination.capacity_bytes or 0)
+        used = max(0, int(destination.used_bytes or 0))
+        snapshot[destination.destination_id] = {
+            "destination_id": destination.destination_id,
+            "name": destination.name,
+            "type": destination.destination_type,
+            "is_emulator": destination.is_emulator,
+            "is_active": destination.is_active,
+            "capacity_bytes": capacity if capacity > 0 else None,
+            "used_bytes": used if capacity > 0 else None,
+            "free_bytes": max(0, capacity - used) if capacity > 0 else None,
+            "privacy_policy": destination.privacy_tier_allowed,
+            "connected_devices": connected_mecs if destination.destination_type == "MEC" else None,
+        }
+    return snapshot
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def dataset_workflow_inspect_api(request):
+    report_id = request.GET.get("report_id", "").strip()
+    if not report_id:
+        return JsonResponse({"success": False, "error": "report_id is required."}, status=400)
+    report = DatasetAnalysisReport.objects.filter(report_id=report_id).select_related("upload").first()
+    if report is None:
+        return JsonResponse({"success": False, "error": "Report not found."}, status=404)
+
+    summary = json.loads(report.summary_json or "{}")
+    inventory = json.loads(report.inventory_json or "[]")
+    ai_analysis = json.loads(report.ai_analysis_json or "{}")
+    allocation = json.loads(report.allocation_json or "{}")
+    security = json.loads(report.security_audit_json or "{}")
+    final = json.loads(report.final_result_json or "{}")
+
+    tree = _dataset_tree(inventory, summary.get("file_name"))
+    compressed_total = sum(1 for item in inventory if item.get("type") != "folder")
+    if compressed_total > 300:
+        _compress_tree(tree)
+    _summarize_tree(tree)
+    graph_nodes = []
+    _flatten_tree(tree, graph_nodes)
+
+    formats = Counter(
+        (item.get("format") or "UNKNOWN").upper() for item in inventory
+    )
+    categories = Counter(
+        (item.get("category") or "UNCLASSIFIED") for item in inventory
+    )
+    largest = sorted(
+        inventory,
+        key=lambda item: max(0, int(item.get("size") or 0)),
+        reverse=True,
+    )[:5]
+    stats = {
+        "total_files": len(inventory),
+        "total_folders": max(0, tree["folder_count"]),
+        "total_size_bytes": sum(max(0, int(item.get("size") or 0)) for item in inventory),
+        "total_size_formatted": format_bytes(sum(max(0, int(item.get("size") or 0)) for item in inventory)),
+        "formats": [{"name": name, "count": count} for name, count in formats.most_common()],
+        "categories": [{"name": name, "count": count} for name, count in categories.most_common()],
+        "metadata_files": sum(
+            1 for item in inventory
+            if (item.get("format") or "").lower() in ("csv", "json", "xml", "yaml", "yml", "txt")
+        ),
+        "largest_files": [
+            {
+                "name": item.get("file_name"),
+                "path": _safe_relative_path(item.get("relative_path") or item.get("file_name")),
+                "size": max(0, int(item.get("size") or 0)),
+                "size_formatted": format_bytes(max(0, int(item.get("size") or 0))),
+            }
+            for item in largest
+        ],
+        "category_method": "filename/source heuristic recorded by the existing analyzer",
+    }
+
+    partitions = _dataset_partitions(inventory)
+    tiers = _storage_tier_snapshot()
+    proposed_bytes = Counter()
+    proposed_counts = Counter()
+    for item in inventory:
+        destination = item.get("selected_destination") or "UNASSIGNED"
+        proposed_bytes[destination] += max(0, int(item.get("size") or 0))
+        proposed_counts[destination] += 1
+    proposed = {}
+    for destination in sorted(set(proposed_bytes) | set(tiers)):
+        proposed[destination] = {
+            "bytes": proposed_bytes.get(destination, 0),
+            "formatted": format_bytes(proposed_bytes.get(destination, 0)),
+            "file_count": proposed_counts.get(destination, 0),
+        }
+    execution_mode = report.upload.execution_mode
+    stored_items = DatasetInventoryItem.objects.filter(upload=report.upload).values_list("status", flat=True)
+    verified_count = sum(1 for status in stored_items if status in ("STORED_AND_VERIFIED", "VERIFIED"))
+    if execution_mode == "EXECUTION" and verified_count:
+        allocation_label = "ACTUAL STORAGE DISTRIBUTION"
+    elif execution_mode == "EXECUTION":
+        allocation_label = "EXECUTION RECORDED — VERIFICATION PENDING"
+    else:
+        allocation_label = "PROPOSED ALLOCATION — SIMULATION MODE"
+    graph_edges = [
+        {"from": node["parent"], "to": node["id"]}
+        for node in graph_nodes if node["parent"]
+    ]
+    return JsonResponse({
+        "success": True,
+        "report_id": report.report_id,
+        "upload_id": report.upload.upload_id,
+        "file_name": summary.get("file_name") or "Uploaded Dataset",
+        "execution_mode": execution_mode,
+        "tree": tree,
+        "graph_nodes": graph_nodes,
+        "graph_edges": graph_edges,
+        "stats": stats,
+        "partitions": partitions,
+        "allocation": {
+            "label": allocation_label,
+            "simulated": execution_mode != "EXECUTION" or verified_count == 0,
+            "verified_count": verified_count,
+            "tiers": tiers,
+            "proposed": proposed,
+            "backend_snapshot": allocation.get("capacity_snapshot", {}),
+        },
+        "security": {
+            "integrity_verified": bool(security.get("integrity_verified")),
+            "blocked_policy_violations": security.get("blocked_policy_violations", 0),
+            "decompression_ratio": security.get("decompression_ratio", 0),
+        },
+        "analysis": {
+            "method_recorded": ai_analysis.get("method") or "Not available",
+            "runtime_ms": ai_analysis.get("runtime_ms", 0),
+            "energy_formatted": summary.get("energy_consumption_formatted") or "Not available",
+        },
+        "final": final,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def dataset_allocation_confirm_api(request):
+    report_id = str(request.data.get("report_id") or request.POST.get("report_id") or "").strip()
+    if not report_id:
+        return JsonResponse({"success": False, "error": "report_id is required."}, status=400)
+    report = DatasetAnalysisReport.objects.filter(report_id=report_id).select_related("upload").first()
+    if report is None:
+        return JsonResponse({"success": False, "error": "Report not found."}, status=404)
+    stored = DatasetInventoryItem.objects.filter(upload=report.upload)
+    verified_count = sum(
+        1 for status in stored.values_list("status", flat=True)
+        if status in ("STORED_AND_VERIFIED", "VERIFIED")
+    )
+    blocked_count = sum(1 for status in stored.values_list("status", flat=True) if status == "UNASSIGNED")
+    if report.upload.execution_mode == "EXECUTION" and verified_count:
+        return JsonResponse({
+            "success": True,
+            "simulated": False,
+            "label": "ACTUAL STORAGE DISTRIBUTION",
+            "verified_count": verified_count,
+            "blocked_count": blocked_count,
+            "message": "Existing verified storage records were confirmed; no additional placement was performed.",
+        })
+    return JsonResponse({
+        "success": True,
+        "simulated": True,
+        "label": "SIMULATED ALLOCATION CONFIRMATION — NO FILES WRITTEN",
+        "verified_count": verified_count,
+        "blocked_count": blocked_count,
+        "message": "The upload ran in SIMULATION mode; no physical file placement was executed.",
     })

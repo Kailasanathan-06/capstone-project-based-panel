@@ -3,6 +3,7 @@ Comprehensive Integration Tests for SecureDT UI Redesign and Dataset Storage Ana
 """
 
 import io
+import json
 import zipfile
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -30,7 +31,7 @@ class RedesignWorkflowTests(TestCase):
         routes = [
             ('/', 'Operations Dashboard'),
             ('/upload/', 'Manual ZIP Dataset Ingestion'),
-            ('/digital-twin/', 'Digital Twin Resource State Monitor'),
+            ('/digital-twin/', 'SecureDT Dataset Processing &amp; Digital Twin'),
             ('/storage-allocation/', 'AI-Based Storage Allocation'),
             ('/reports/', 'Persistent Dataset Analysis Reports'),
             ('/tasks/', 'Task Execution &amp; Scheduling History'),
@@ -250,7 +251,7 @@ class RedesignWorkflowTests(TestCase):
         """The existing page keeps its heading and embeds the scoped 3D visualization."""
         resp = self.client.get('/digital-twin/')
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'Digital Twin Resource State Monitor')
+        self.assertContains(resp, 'SecureDT Dataset Processing &amp; Digital Twin')
         self.assertContains(resp, 'Interactive 3D Digital Twin Operations Map')
         self.assertContains(resp, 'Protection Policy Visualization')
         self.assertContains(resp, 'id="dt3d-stage"')
@@ -324,3 +325,196 @@ class RedesignWorkflowTests(TestCase):
             'data-dt3d-action="show-security"',
         ]:
             self.assertContains(resp, needle)
+
+    def test_digital_twin_page_includes_full_dataset_workflow_hooks(self):
+        resp = self.client.get('/digital-twin/')
+        self.assertEqual(resp.status_code, 200)
+        for needle in [
+            'id="secure-workflow"',
+            'data-upload-url="/api/app/upload-zip/"',
+            'data-demo-url="/api/app/upload-demo-zip/"',
+            'data-inspect-url="/api/app/dataset-inspect/"',
+            'data-confirm-url="/api/app/dataset-allocation-confirm/"',
+            'id="swf-start-demo"',
+            'id="swf-skip-network"',
+            'id="swf-speed"',
+            'id="swf-step-jump"',
+            'id="swf-dropzone"',
+            'id="swf-analysis-stages"',
+            'id="swf-tree-search"',
+            'id="swf-tree"',
+            'id="swf-graph"',
+            'id="swf-graph-viewport"',
+            'id="swf-allocation-chart"',
+            'id="swf-confirm-allocation"',
+            'id="swf-show-network"',
+            'id="swf-run-scheduling"',
+            'id="swf-show-transfer"',
+            'id="swf-run-attack"',
+            'id="swf-evaluate-failover"',
+            'id="swf-final-report"',
+            'id="dt3d-operations"',
+            'SIMULATION — NO REAL ATTACK PERFORMED',
+            'Transport encryption is not verified',
+            'css/secure_workflow.css',
+            'js/secure_workflow.js',
+        ]:
+            self.assertContains(resp, needle)
+
+    def _upload_workflow_zip(self):
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w') as archive:
+            archive.writestr('clinical/patient_vitals.csv', 'patient_id,heart_rate\nP001,72\n')
+            archive.writestr('imaging/chest_xray.png', b'\x89PNG\r\n\x1a\n' + b'\x00' * 100)
+            archive.writestr('admin/appointment_schedule.json', '{"records": 45}')
+        zip_buffer.seek(0)
+        uploaded = SimpleUploadedFile('workflow_batch.zip', zip_buffer.read(), content_type='application/zip')
+        resp = self.client.post('/api/app/upload-zip/', {
+            'file': uploaded,
+            'execution_mode': 'SIMULATION',
+        })
+        self.assertEqual(resp.status_code, 200)
+        return resp.json()
+
+    def _create_manual_report(self, report_id, item_status, execution_mode='EXECUTION'):
+        upload = DatasetUpload.objects.create(
+            upload_id='UP-' + report_id,
+            file_name='manual.zip',
+            status='COMPLETED',
+            execution_mode=execution_mode,
+            total_files_count=1,
+            total_uncompressed_bytes=10,
+        )
+        inventory = [{
+            'file_name': 'manual.csv',
+            'relative_path': 'clinical/manual.csv',
+            'size': 10,
+            'size_formatted': '10 B',
+            'format': 'CSV',
+            'category': 'CLINICAL',
+            'declared_source': 'MANUAL',
+            'privacy_policy': 'LOCAL_ONLY',
+            'local_eligible': True,
+            'mec_eligible': False,
+            'cloud_eligible': False,
+            'selected_destination': 'LOCAL_STORAGE',
+            'decision_rationale': 'Recorded policy decision',
+            'status': item_status,
+            'sha256': 'secret-checksum-value',
+        }]
+        DatasetInventoryItem.objects.create(
+            upload=upload,
+            file_name='manual.csv',
+            relative_path='clinical/manual.csv',
+            file_size=10,
+            format='CSV',
+            detected_category='CLINICAL',
+            privacy_policy='LOCAL_ONLY',
+            local_eligible=True,
+            mec_eligible=False,
+            cloud_eligible=False,
+            selected_destination='LOCAL_STORAGE',
+            decision_rationale='Recorded policy decision',
+            status=item_status,
+            sha256_checksum='secret-checksum-value',
+        )
+        return DatasetAnalysisReport.objects.create(
+            report_id=report_id,
+            upload=upload,
+            title='Manual workflow report',
+            summary_json=json.dumps({'file_name': 'manual.zip', 'total_files': 1}),
+            inventory_json=json.dumps(inventory),
+            ai_analysis_json=json.dumps({'method': 'recorded', 'runtime_ms': 1}),
+            allocation_json=json.dumps({'capacity_snapshot': {'recorded': True}}),
+            security_audit_json=json.dumps({'integrity_verified': True, 'blocked_policy_violations': 0}),
+            final_result_json=json.dumps({'status': 'COMPLETED'}),
+        )
+
+    def test_dataset_workflow_apis_validate_report_id(self):
+        inspect = self.client.get(reverse('api_dataset_workflow_inspect'))
+        self.assertEqual(inspect.status_code, 400)
+        self.assertFalse(inspect.json()['success'])
+
+        missing_inspect = self.client.get(reverse('api_dataset_workflow_inspect'), {'report_id': 'MISSING'})
+        self.assertEqual(missing_inspect.status_code, 404)
+
+        confirm = self.client.post(reverse('api_dataset_allocation_confirm'), {})
+        self.assertEqual(confirm.status_code, 400)
+
+        missing_confirm = self.client.post(reverse('api_dataset_allocation_confirm'), {'report_id': 'MISSING'})
+        self.assertEqual(missing_confirm.status_code, 404)
+
+    def test_dataset_workflow_inspect_returns_sanitized_simulation_payload(self):
+        upload = self._upload_workflow_zip()
+        report_id = upload['report_id']
+
+        resp = self.client.get(reverse('api_dataset_workflow_inspect'), {'report_id': report_id})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['report_id'], report_id)
+        self.assertEqual(data['execution_mode'], 'SIMULATION')
+        self.assertEqual(data['tree']['id'], 'root')
+        self.assertGreaterEqual(len(data['graph_nodes']), 4)
+        self.assertGreaterEqual(len(data['graph_edges']), 3)
+        self.assertEqual(data['stats']['total_files'], 3)
+        self.assertEqual(data['stats']['total_size_bytes'], sum(
+            int(item['size']) for item in json.loads(
+                DatasetAnalysisReport.objects.get(report_id=report_id).inventory_json
+            )
+        ))
+        self.assertEqual(len(data['partitions']), 3)
+        self.assertEqual(data['allocation']['label'], 'PROPOSED ALLOCATION — SIMULATION MODE')
+        self.assertTrue(data['allocation']['simulated'])
+        for tier_id in ['LOCAL_STORAGE', 'MEC_STORAGE', 'CLOUD_STORAGE']:
+            self.assertIn(tier_id, data['allocation']['tiers'])
+            self.assertIn(tier_id, data['allocation']['proposed'])
+
+        replicas_before = DatasetStorageReplica.objects.count()
+        confirm = self.client.post(reverse('api_dataset_allocation_confirm'), {'report_id': report_id})
+        self.assertEqual(confirm.status_code, 200)
+        confirm_data = confirm.json()
+        self.assertTrue(confirm_data['simulated'])
+        self.assertEqual(confirm_data['label'], 'SIMULATED ALLOCATION CONFIRMATION — NO FILES WRITTEN')
+        self.assertEqual(DatasetStorageReplica.objects.count(), replicas_before)
+
+        raw = resp.content.decode('utf-8')
+        for forbidden in [
+            'absolute_path',
+            'base_path',
+            'sha256_checksum',
+            'secret-checksum-value',
+            'auth_token',
+            'source_ip',
+            '/srv/',
+            'C:\\',
+        ]:
+            self.assertNotIn(forbidden, raw)
+
+    def test_dataset_workflow_labels_recorded_execution_states(self):
+        verified = self._create_manual_report('R-EXEC-VERIFIED', 'STORED_AND_VERIFIED')
+        pending = self._create_manual_report('R-EXEC-PENDING', 'RECOMMENDED')
+
+        verified_inspect = self.client.get(
+            reverse('api_dataset_workflow_inspect'), {'report_id': verified.report_id}
+        ).json()
+        self.assertEqual(verified_inspect['allocation']['label'], 'ACTUAL STORAGE DISTRIBUTION')
+        self.assertFalse(verified_inspect['allocation']['simulated'])
+        self.assertEqual(verified_inspect['allocation']['verified_count'], 1)
+
+        verified_confirm = self.client.post(
+            reverse('api_dataset_allocation_confirm'), {'report_id': verified.report_id}
+        ).json()
+        self.assertEqual(verified_confirm['label'], 'ACTUAL STORAGE DISTRIBUTION')
+        self.assertFalse(verified_confirm['simulated'])
+
+        pending_inspect = self.client.get(
+            reverse('api_dataset_workflow_inspect'), {'report_id': pending.report_id}
+        ).json()
+        self.assertEqual(pending_inspect['allocation']['label'], 'EXECUTION RECORDED — VERIFICATION PENDING')
+        self.assertTrue(pending_inspect['allocation']['simulated'])
+
+        raw = self.client.get(
+            reverse('api_dataset_workflow_inspect'), {'report_id': verified.report_id}
+        ).content.decode('utf-8')
+        self.assertNotIn('secret-checksum-value', raw)

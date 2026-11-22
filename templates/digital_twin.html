@@ -6,19 +6,195 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/digital_twin_3d.css' %}?v=20261122-v3">
+<link rel="stylesheet" href="{% static 'css/secure_workflow.css' %}?v=20261122-v1">
 {% endblock %}
 
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
   <div>
-    <h1 class="page-heading">Digital Twin Resource State Monitor</h1>
-    <p class="body-text">Operational live software representation of Local, MEC/Edge, and Cloud storage resources.</p>
+    <h1 class="page-heading">SecureDT Dataset Processing &amp; Digital Twin</h1>
+    <p class="body-text">Upload a dataset ZIP, inspect its structure, allocate storage, then operate the 3D Edge–Cloud twin.</p>
   </div>
-  <button id="btn-refresh-twin" class="btn btn-secondary">
+  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+    <button type="button" id="swf-start-demo" class="btn btn-primary">Start SecureDT Demonstration</button>
+    <button type="button" id="swf-skip-network" class="btn btn-secondary">Skip to 3D Network</button>
+    <button id="btn-refresh-twin" class="btn btn-secondary">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
     Refresh Telemetry
-  </button>
+    </button>
+  </div>
 </div>
+
+<section class="swf" id="secure-workflow" data-upload-url="{% url 'api_upload_dataset' %}" data-demo-url="{% url 'api_upload_demo_zip' %}" data-inspect-url="{% url 'api_dataset_workflow_inspect' %}" data-confirm-url="{% url 'api_dataset_allocation_confirm' %}">
+  <div class="swf-head">
+    <div>
+      <h2 class="card-title">SecureDT Dataset Processing</h2>
+      <p class="swf-intro">Upload a dataset ZIP file to analyze, visualize, allocate, and securely process it across the Digital Twin Edge–Cloud infrastructure.</p>
+    </div>
+    <span class="swf-badge" id="swf-mode-badge" aria-live="polite">LIVE BACKEND</span>
+  </div>
+
+  <div class="swf-nav" id="swf-steps" aria-label="Workflow steps">
+    <button type="button" data-swf-step="upload" aria-current="step">1. Upload</button>
+    <button type="button" data-swf-step="analysis">2. Analysis</button>
+    <button type="button" data-swf-step="dataset">3. Dataset</button>
+    <button type="button" data-swf-step="allocation">4. Allocation</button>
+    <button type="button" data-swf-step="network">5. Network</button>
+    <button type="button" data-swf-step="scheduling">6. Scheduling</button>
+    <button type="button" data-swf-step="transfer">7. Transfer</button>
+    <button type="button" data-swf-step="security">8. Security</button>
+    <button type="button" data-swf-step="attack">9. Attack</button>
+    <button type="button" data-swf-step="failover">10. Failover</button>
+    <button type="button" data-swf-step="report">11. Report</button>
+  </div>
+
+  <div class="swf-toolbar" aria-label="Demonstration controls">
+    <button type="button" id="swf-prev">Previous</button>
+    <button type="button" id="swf-next">Next</button>
+    <button type="button" id="swf-play" aria-pressed="false">Start Demonstration</button>
+    <button type="button" id="swf-pause" aria-pressed="false">Pause</button>
+    <button type="button" id="swf-restart">Restart</button>
+    <button type="button" id="swf-exit">Exit Demonstration</button>
+    <label for="swf-speed">Speed</label>
+    <select id="swf-speed" title="Set the demonstration playback speed">
+      <option value="0.5">0.5x</option>
+      <option value="1" selected>1x</option>
+      <option value="2">2x</option>
+      <option value="4">4x</option>
+    </select>
+    <label for="swf-step-jump">Jump</label>
+    <select id="swf-step-jump" title="Jump to a demonstration step"></select>
+  </div>
+
+  <div class="swf-screen" data-swf-screen="upload">
+    <div class="swf-upload-grid">
+      <div class="swf-dropzone" id="swf-dropzone" tabindex="0" role="button" aria-label="Choose or drop a dataset ZIP file">
+        <strong>Drop dataset ZIP here</strong>
+        <span>or click to browse · .zip only</span>
+      </div>
+      <input type="file" id="swf-file" accept=".zip,application/zip" hidden>
+      <div class="swf-upload-details">
+        <div class="swf-field"><label for="swf-mode">Execution mode</label><select id="swf-mode"><option value="SIMULATION" selected>SIMULATION — no files written</option><option value="EXECUTION">EXECUTION — real placement</option></select></div>
+        <div class="swf-field"><span>Selected file</span><strong id="swf-file-name">None</strong></div>
+        <div class="swf-field"><span>File size</span><strong id="swf-file-size">Unknown</strong></div>
+        <div class="swf-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="swf-progress"><span id="swf-progress-fill"></span></div>
+        <div id="swf-upload-status" aria-live="polite">Waiting for a ZIP archive.</div>
+        <div class="swf-actions">
+          <button type="button" id="swf-upload" class="btn btn-primary">Upload Dataset</button>
+          <button type="button" id="swf-reset" class="btn btn-secondary">Reset</button>
+        </div>
+      </div>
+    </div>
+    <div class="swf-demo-row">
+      <label for="swf-demo-package">Load bundled demo archive</label>
+      <select id="swf-demo-package">
+        <option value="success_01">success_01_basic_all_storage.zip</option>
+        <option value="success_04">success_04_privacy_aware.zip</option>
+        <option value="failed_01">failed_01_corrupt_archive.zip</option>
+        <option value="failed_08">failed_08_disallowed_executable.zip</option>
+        <option value="failed_09">failed_09_path_traversal_entry.zip</option>
+      </select>
+      <button type="button" id="swf-load-demo" class="btn btn-secondary">Load Demo</button>
+    </div>
+  </div>
+
+  <div class="swf-screen" data-swf-screen="analysis" hidden>
+    <h3>Upload → ZIP Validation → Extraction → Dataset Analysis</h3>
+    <ol class="swf-stage-list" id="swf-analysis-stages"><li>Waiting for upload.</li></ol>
+    <div class="swf-summary" id="swf-analysis-summary">No analysis result loaded.</div>
+    <div class="swf-actions"><button type="button" id="swf-analysis-retry" class="btn btn-secondary">Retry / Choose Another File</button></div>
+  </div>
+
+  <div class="swf-screen swf-light" data-swf-screen="dataset" hidden>
+    <div class="swf-light-head">
+      <div><h3>Dataset Structure</h3><p>Actual archive entries from the persisted analysis report.</p></div>
+      <button type="button" id="swf-to-allocation" class="btn btn-primary">Continue to Storage Allocation</button>
+    </div>
+    <div class="swf-dataset-grid">
+      <div class="swf-card">
+        <h4>Dataset Tree</h4>
+        <div class="swf-search"><input type="search" id="swf-tree-search" placeholder="Search files or folders"></div>
+        <div class="swf-tree" id="swf-tree">No dataset loaded.</div>
+      </div>
+      <div class="swf-card">
+        <div class="swf-light-head">
+          <div><h4>Relationship Graph</h4><p>Folder and file-group relationships, not semantic classification.</p></div>
+          <div class="swf-graph-tools"><button type="button" id="swf-zoom-in">+</button><button type="button" id="swf-zoom-out">−</button><button type="button" id="swf-graph-reset">Reset</button></div>
+        </div>
+        <svg id="swf-graph" class="swf-graph" viewBox="0 0 760 420" role="img" aria-label="Dataset folder and file relationship graph"><g id="swf-graph-viewport"></g></svg>
+        <div class="swf-search"><input type="search" id="swf-graph-search" placeholder="Search graph nodes"></div>
+        <div class="swf-selection" id="swf-selection">Select a node for details.</div>
+      </div>
+      <div class="swf-card">
+        <h4>Dataset Statistics</h4>
+        <div id="swf-stats" class="swf-stats">No dataset loaded.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="swf-screen swf-light" data-swf-screen="allocation" hidden>
+    <div class="swf-light-head">
+      <div><h3>Storage Allocation</h3><p id="swf-allocation-label">No allocation plan loaded.</p></div>
+      <div class="swf-actions"><button type="button" id="swf-confirm-allocation" class="btn btn-primary">Confirm Storage Allocation</button><button type="button" id="swf-to-network" class="btn btn-secondary">Return to 3D Network</button></div>
+    </div>
+    <div class="swf-allocation-grid">
+      <div class="swf-card"><h4>Allocation Chart</h4><div id="swf-allocation-chart" class="swf-chart">No allocation plan loaded.</div></div>
+      <div class="swf-card"><h4>Partition Tree</h4><div id="swf-partitions" class="swf-partitions">No partitions loaded.</div></div>
+      <div class="swf-card"><h4>Storage Tiers</h4><div id="swf-tier-cards" class="swf-tiers">No tiers loaded.</div></div>
+    </div>
+    <div class="swf-summary" id="swf-allocation-summary" aria-live="polite"></div>
+  </div>
+
+  <div class="swf-screen" data-swf-screen="network" hidden>
+    <h3>Return to 3D Digital Twin</h3>
+    <p>The 3D network below uses the live scene API. Click any storage node for actual capacity, usage, policy, and activity details.</p>
+    <p class="swf-hint">Click a storage node to view details</p>
+    <button type="button" id="swf-show-network" class="btn btn-primary">Show 3D Network</button>
+  </div>
+
+  <div class="swf-screen" data-swf-screen="scheduling" hidden>
+    <h3>Genetic Algorithm Scheduling</h3>
+    <p>Task Queue → Candidate Resources → GA Scheduling → Selected Resource → Execution</p>
+    <div id="swf-scheduling-status" aria-live="polite">Waiting to inspect the live scheduler view.</div>
+    <div class="swf-actions"><button type="button" id="swf-run-scheduling" class="btn btn-primary">Show GA Scheduling Decision</button></div>
+  </div>
+
+  <div class="swf-screen" data-swf-screen="transfer" hidden>
+    <h3>File Transfer and Storage Animation</h3>
+    <div id="swf-transfer-status" aria-live="polite">Transfer states come from persisted replica records; live progress and ETA are not available.</div>
+    <div class="swf-actions"><button type="button" id="swf-show-transfer" class="btn btn-primary">Show Recorded Transfer State</button></div>
+  </div>
+
+  <div class="swf-screen" data-swf-screen="security" hidden>
+    <h3>Data Protection and Security</h3>
+    <div id="swf-security-layers" aria-live="polite">Loading security layer statuses.</div>
+    <p class="swf-hint">Shield visuals represent recorded policy enforcement only. Transport encryption is not verified.</p>
+  </div>
+
+  <div class="swf-screen" data-swf-screen="attack" hidden>
+    <h3>Simulated Attacker</h3>
+    <p class="swf-hint">SIMULATION — NO REAL ATTACK PERFORMED</p>
+    <div class="swf-attack-grid">
+      <label>Scenario<select id="swf-attack-scenario"></select></label>
+      <label>Target<select id="swf-attack-target"><option value="MEC-STORAGE">MEC storage tier</option><option value="LOCAL">Local storage</option><option value="CLOUD">Cloud emulator</option></select></label>
+      <button type="button" id="swf-run-attack" class="btn btn-primary">Run Controlled Scenario</button>
+    </div>
+    <div id="swf-attack-status" aria-live="polite">No scenario has been run.</div>
+  </div>
+
+  <div class="swf-screen" data-swf-screen="failover" hidden>
+    <h3>Failover and Scheduler Re-evaluation</h3>
+    <div id="swf-failover-status" aria-live="polite">Choose an affected resource to evaluate eligible remaining resources.</div>
+    <div class="swf-actions"><button type="button" id="swf-evaluate-failover" class="btn btn-primary">Evaluate Failover</button></div>
+  </div>
+
+  <div class="swf-screen" data-swf-screen="report" hidden>
+    <h3>Final Task and Storage Status</h3>
+    <div id="swf-final-report" class="swf-summary">Complete the workflow to generate a status report.</div>
+  </div>
+</section>
+
+<div id="dt3d-operations" hidden>
 
 <div class="card dt3d-shell">
   <div class="dt3d-header">
@@ -394,11 +570,14 @@
     </table>
   </div>
 </div>
+
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'vendor/three.min.js' %}"></script>
 <script src="{% static 'js/digital_twin_3d.js' %}?v=20261122-v3"></script>
+<script src="{% static 'js/secure_workflow.js' %}?v=20261122-v1"></script>
 <script>
   const btnRefresh = document.getElementById('btn-refresh-twin');
   btnRefresh.addEventListener('click', async () => {

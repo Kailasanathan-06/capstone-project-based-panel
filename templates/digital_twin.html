@@ -1,629 +1,249 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Digital Twin - SecureDT{% endblock %}
+{% block title %}Digital Twin Workspace - SecureDT{% endblock %}
 {% block body_page %}digital_twin{% endblock %}
+{% block page_crumb %}Digital Twin Workspace{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/digital_twin_3d.css' %}?v=20261122-v3">
-<link rel="stylesheet" href="{% static 'css/secure_workflow.css' %}?v=20261122-v1">
+<link rel="stylesheet" href="{% static 'css/digital_twin_workspace.css' %}?v=20261122-v1">
 {% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-  <div>
-    <h1 class="page-heading">SecureDT Dataset Processing &amp; Digital Twin</h1>
-    <p class="body-text">Upload a dataset ZIP, inspect its structure, allocate storage, then operate the 3D Edge–Cloud twin.</p>
-  </div>
-  <div style="display:flex; gap:8px; flex-wrap:wrap;">
-    <button type="button" id="swf-start-demo" class="btn btn-primary">Start SecureDT Demonstration</button>
-    <button type="button" id="swf-skip-network" class="btn btn-secondary">Skip to 3D Network</button>
-    <button id="btn-refresh-twin" class="btn btn-secondary">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
-    Refresh Telemetry
-    </button>
-  </div>
-</div>
+<div class="dtw" id="dtw-root"
+  data-scene-url="{% url 'digital_twin_scene' %}"
+  data-compare-url="{% url 'digital_twin_compare' %}"
+  data-upload-url="{% url 'api_upload_dataset' %}"
+  data-demo-url="{% url 'api_upload_demo_zip' %}"
+  data-inspect-url="{% url 'api_dataset_workflow_inspect' %}"
+  data-confirm-url="{% url 'api_dataset_allocation_confirm' %}"
+  data-stage="upload">
 
-<section class="swf" id="secure-workflow" data-upload-url="{% url 'api_upload_dataset' %}" data-demo-url="{% url 'api_upload_demo_zip' %}" data-inspect-url="{% url 'api_dataset_workflow_inspect' %}" data-confirm-url="{% url 'api_dataset_allocation_confirm' %}">
-  <div class="swf-head">
-    <div>
-      <h2 class="card-title">SecureDT Dataset Processing</h2>
-      <p class="swf-intro">Upload a dataset ZIP file to analyze, visualize, allocate, and securely process it across the Digital Twin Edge–Cloud infrastructure.</p>
+  <header class="dtw-topbar">
+    <div class="dtw-title">
+      <span class="dtw-title-mark">DT</span>
+      <div>
+        <h1>SecureDT Digital Twin Workspace</h1>
+        <p>Dataset → Allocation → Scheduling → Transfer → Defense</p>
+      </div>
     </div>
-    <span class="swf-badge" id="swf-mode-badge" aria-live="polite">LIVE BACKEND</span>
-  </div>
+    <div class="dtw-top-actions">
+      <span class="dtw-mode-badge" id="dtw-mode-badge">LIVE BACKEND</span>
+      <button type="button" id="dtw-open-upload" class="dtw-btn dtw-btn-secondary">Upload Dataset</button>
+      <button type="button" id="dtw-start-demo" class="dtw-btn dtw-btn-primary">START SECUREDT DEMONSTRATION</button>
+    </div>
+  </header>
 
-  <div class="swf-nav" id="swf-steps" aria-label="Workflow steps">
-    <button type="button" data-swf-step="upload" aria-current="step">1. Upload</button>
-    <button type="button" data-swf-step="analysis">2. Analysis</button>
-    <button type="button" data-swf-step="dataset">3. Dataset</button>
-    <button type="button" data-swf-step="allocation">4. Allocation</button>
-    <button type="button" data-swf-step="network">5. Network</button>
-    <button type="button" data-swf-step="scheduling">6. Scheduling</button>
-    <button type="button" data-swf-step="transfer">7. Transfer</button>
-    <button type="button" data-swf-step="security">8. Security</button>
-    <button type="button" data-swf-step="attack">9. Attack</button>
-    <button type="button" data-swf-step="failover">10. Failover</button>
-    <button type="button" data-swf-step="report">11. Report</button>
-  </div>
+  <nav class="dtw-steps" id="dtw-steps" aria-label="Digital Twin workflow stages">
+    <button type="button" data-stage="upload" aria-current="step"><span>01</span> Upload</button>
+    <button type="button" data-stage="analyze"><span>02</span> Analyze</button>
+    <button type="button" data-stage="allocate"><span>03</span> Allocate</button>
+    <button type="button" data-stage="schedule"><span>04</span> Schedule</button>
+    <button type="button" data-stage="transfer"><span>05</span> Transfer</button>
+    <button type="button" data-stage="security"><span>06</span> Security</button>
+    <button type="button" data-stage="results"><span>07</span> Results</button>
+  </nav>
 
-  <div class="swf-toolbar" aria-label="Demonstration controls">
-    <button type="button" id="swf-prev">Previous</button>
-    <button type="button" id="swf-next">Next</button>
-    <button type="button" id="swf-play" aria-pressed="false">Start Demonstration</button>
-    <button type="button" id="swf-pause" aria-pressed="false">Pause</button>
-    <button type="button" id="swf-restart">Restart</button>
-    <button type="button" id="swf-exit">Exit Demonstration</button>
-    <label for="swf-speed">Speed</label>
-    <select id="swf-speed" title="Set the demonstration playback speed">
+  <main class="dtw-main">
+    <section class="dtw-viewport" id="dtw-viewport" tabindex="0" aria-label="Interactive 3D Digital Twin network">
+      <canvas id="dtw-canvas"></canvas>
+      <div class="dtw-labels" id="dtw-labels" aria-hidden="true"></div>
+      <div class="dtw-fallback-note" id="dtw-fallback-note" hidden>2D fallback active. All node details remain available in the details panel.</div>
+
+      <div class="dtw-viewport-head">
+        <span id="dtw-view-mode">CONNECTING</span>
+        <span id="dtw-node-count">0 NODES</span>
+        <span id="dtw-motion-note">MOTION ENABLED</span>
+      </div>
+
+      <div class="dtw-legend" aria-label="Visualization legend">
+        <span><i class="dtw-key dtw-key-server"></i>Server / rack</span>
+        <span><i class="dtw-key dtw-key-mec"></i>MEC node</span>
+        <span><i class="dtw-key dtw-key-device"></i>Connected device</span>
+        <span><i class="dtw-key dtw-key-transfer"></i>Data transfer</span>
+        <span><i class="dtw-key dtw-key-protected"></i>Protected data</span>
+        <span><i class="dtw-key dtw-key-offline"></i>Offline resource</span>
+        <span><i class="dtw-key dtw-key-attacker"></i>Simulated attacker</span>
+      </div>
+
+      <div class="dtw-viewport-hint" id="dtw-viewport-hint">Drag to orbit · Shift+drag to pan · Scroll to zoom · Click a node for details</div>
+    </section>
+
+    <aside class="dtw-context" id="dtw-context" aria-live="polite">
+      <div class="dtw-context-head">
+        <div>
+          <span class="dtw-context-kicker" id="dtw-context-kicker">STAGE 01 / 07</span>
+          <h2 id="dtw-context-title">Dataset Upload</h2>
+        </div>
+        <button type="button" id="dtw-context-collapse" class="dtw-icon-btn" aria-label="Collapse contextual panel">›</button>
+      </div>
+
+      <div class="dtw-context-body" id="dtw-context-body">
+        <section data-panel="upload">
+          <p>Select a ZIP archive or load a bundled validation scenario. Upload progress comes from the browser request; no progress value is invented.</p>
+          <div class="dtw-callout dtw-callout-warn">Uploaded files are validated and analyzed. They are never executed.</div>
+          <button type="button" id="dtw-panel-upload" class="dtw-btn dtw-btn-primary">Choose Dataset ZIP</button>
+        </section>
+
+        <section data-panel="analyze" hidden>
+          <p>Select nodes in the 3D graph tree. The outline mirrors the same persisted dataset structure.</p>
+          <label class="dtw-field-label" for="dtw-search">Search dataset nodes</label>
+          <input type="search" id="dtw-search" placeholder="File, folder, or format">
+          <div class="dtw-tree" id="dtw-tree">No dataset loaded.</div>
+          <div class="dtw-stats" id="dtw-stats">No dataset statistics available.</div>
+          <div class="dtw-selection" id="dtw-selection">No node selected.</div>
+        </section>
+
+        <section data-panel="allocate" hidden>
+          <p id="dtw-allocation-label">No allocation plan loaded.</p>
+          <div class="dtw-partitions" id="dtw-partitions">No partitions loaded.</div>
+          <button type="button" id="dtw-confirm-allocation" class="dtw-btn dtw-btn-primary">Confirm Allocation</button>
+          <div class="dtw-callout" id="dtw-allocation-status" aria-live="polite"></div>
+        </section>
+
+        <section data-panel="schedule" hidden>
+          <p>Task Queue → Candidate Resources → GA Decision → Selected Resource → Execution</p>
+          <div class="dtw-callout" id="dtw-ga-status">Scheduling records are loading.</div>
+          <div class="dtw-history" id="dtw-ga-history">No GA history recorded.</div>
+          <button type="button" id="dtw-run-schedule" class="dtw-btn dtw-btn-primary">Show Recorded Decision</button>
+        </section>
+
+        <section data-panel="transfer" hidden>
+          <p>Transfer states come from persisted replica records. Live percentage, speed, and ETA are not available.</p>
+          <div class="dtw-callout" id="dtw-transfer-status">Transfer records are loading.</div>
+          <button type="button" id="dtw-run-transfer" class="dtw-btn dtw-btn-primary">Replay Recorded Transfers</button>
+        </section>
+
+        <section data-panel="security" hidden>
+          <p>Security checkpoints reflect controls actually present in the backend.</p>
+          <div class="dtw-security-list" id="dtw-security-list">Security controls are loading.</div>
+          <div class="dtw-callout dtw-callout-warn">ENCRYPTION NOT VERIFIED · SHIELDS SHOW POLICY ENFORCEMENT ONLY</div>
+          <div class="dtw-field-row">
+            <label class="dtw-field-label" for="dtw-policy">Policy</label>
+            <select id="dtw-policy">
+              <option value="TRUSTED_EDGE">TRUSTED_EDGE</option>
+              <option value="LOCAL_ONLY">LOCAL_ONLY</option>
+              <option value="CLOUD_ALLOWED">CLOUD_ALLOWED</option>
+            </select>
+          </div>
+          <div class="dtw-field-row">
+            <label class="dtw-field-label" for="dtw-attack-scenario">Scenario</label>
+            <select id="dtw-attack-scenario"></select>
+          </div>
+          <div class="dtw-field-row">
+            <label class="dtw-field-label" for="dtw-attack-target">Target</label>
+            <select id="dtw-attack-target"></select>
+          </div>
+          <button type="button" id="dtw-run-attack" class="dtw-btn dtw-btn-danger">Run Simulated Threat</button>
+          <div class="dtw-callout" id="dtw-attack-status" aria-live="polite">SIMULATION — NO REAL ATTACK PERFORMED</div>
+        </section>
+
+        <section data-panel="results" hidden>
+          <p id="dtw-final-report">Complete the workflow to generate a final status report.</p>
+          <div class="dtw-capability-grid" id="dtw-capabilities">Capability snapshot loading.</div>
+        </section>
+      </div>
+    </aside>
+
+    <aside class="dtw-details" id="dtw-details" role="dialog" aria-modal="false" aria-labelledby="dtw-details-title" hidden>
+      <div class="dtw-details-head">
+        <div>
+          <span class="dtw-details-kicker" id="dtw-details-kicker">NODE DETAILS</span>
+          <h2 id="dtw-details-title">Resource</h2>
+          <p id="dtw-details-id">ID: —</p>
+        </div>
+        <button type="button" id="dtw-details-close" class="dtw-icon-btn" aria-label="Close details panel">×</button>
+      </div>
+      <div class="dtw-details-body" id="dtw-details-body"></div>
+    </aside>
+  </main>
+
+  <div class="dtw-toolbar" id="dtw-toolbar" role="toolbar" aria-label="Digital Twin controls">
+    <button type="button" id="dtw-reset-camera">Reset Camera</button>
+    <button type="button" id="dtw-zoom-in">Zoom In</button>
+    <button type="button" id="dtw-zoom-out">Zoom Out</button>
+    <button type="button" id="dtw-toggle-labels" aria-pressed="true">Labels: On</button>
+    <button type="button" id="dtw-toggle-links" aria-pressed="true">Links: On</button>
+    <button type="button" id="dtw-toggle-motion" aria-pressed="false">Reduce Motion</button>
+    <span class="dtw-toolbar-sep" aria-hidden="true"></span>
+    <button type="button" id="dtw-prev">Previous</button>
+    <label for="dtw-jump">Jump</label>
+    <select id="dtw-jump"></select>
+    <button type="button" id="dtw-next">Next</button>
+    <span class="dtw-toolbar-sep" aria-hidden="true"></span>
+    <label for="dtw-speed">Speed</label>
+    <select id="dtw-speed">
       <option value="0.5">0.5x</option>
       <option value="1" selected>1x</option>
       <option value="2">2x</option>
       <option value="4">4x</option>
     </select>
-    <label for="swf-step-jump">Jump</label>
-    <select id="swf-step-jump" title="Jump to a demonstration step"></select>
+    <button type="button" id="dtw-pause" aria-pressed="false">Pause</button>
+    <button type="button" id="dtw-restart">Restart Demo</button>
+    <button type="button" id="dtw-exit">Exit Demo</button>
   </div>
 
-  <div class="swf-screen" data-swf-screen="upload">
-    <div class="swf-upload-grid">
-      <div class="swf-dropzone" id="swf-dropzone" tabindex="0" role="button" aria-label="Choose or drop a dataset ZIP file">
-        <strong>Drop dataset ZIP here</strong>
-        <span>or click to browse · .zip only</span>
-      </div>
-      <input type="file" id="swf-file" accept=".zip,application/zip" hidden>
-      <div class="swf-upload-details">
-        <div class="swf-field"><label for="swf-mode">Execution mode</label><select id="swf-mode"><option value="SIMULATION" selected>SIMULATION — no files written</option><option value="EXECUTION">EXECUTION — real placement</option></select></div>
-        <div class="swf-field"><span>Selected file</span><strong id="swf-file-name">None</strong></div>
-        <div class="swf-field"><span>File size</span><strong id="swf-file-size">Unknown</strong></div>
-        <div class="swf-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="swf-progress"><span id="swf-progress-fill"></span></div>
-        <div id="swf-upload-status" aria-live="polite">Waiting for a ZIP archive.</div>
-        <div class="swf-actions">
-          <button type="button" id="swf-upload" class="btn btn-primary">Upload Dataset</button>
-          <button type="button" id="swf-reset" class="btn btn-secondary">Reset</button>
+  <footer class="dtw-status" aria-label="Digital Twin status strip">
+    <div><span>Selected</span><strong id="dtw-selected">No node selected</strong></div>
+    <div><span>Transfer</span><strong id="dtw-status-transfer">No persisted transfer state</strong></div>
+    <div><span>GA</span><strong id="dtw-status-ga">No recorded decision</strong></div>
+    <div><span>Security</span><strong id="dtw-status-security">ENCRYPTION NOT VERIFIED</strong></div>
+  </footer>
+
+  <div class="dtw-upload-overlay" id="dtw-upload-overlay">
+    <section class="dtw-upload-card" role="dialog" aria-modal="true" aria-labelledby="dtw-upload-title">
+      <div class="dtw-upload-head">
+        <div>
+          <span class="dtw-upload-kicker">STEP 01 · DATASET INGEST</span>
+          <h2 id="dtw-upload-title">Upload Dataset ZIP</h2>
+          <p>Validate, extract, and analyze a dataset inside the existing SecureDT pipeline.</p>
         </div>
+        <button type="button" id="dtw-close-upload" class="dtw-icon-btn" aria-label="Close upload panel">×</button>
       </div>
-    </div>
-    <div class="swf-demo-row">
-      <label for="swf-demo-package">Load bundled demo archive</label>
-      <select id="swf-demo-package">
-        <option value="success_01">success_01_basic_all_storage.zip</option>
-        <option value="success_04">success_04_privacy_aware.zip</option>
-        <option value="failed_01">failed_01_corrupt_archive.zip</option>
-        <option value="failed_08">failed_08_disallowed_executable.zip</option>
-        <option value="failed_09">failed_09_path_traversal_entry.zip</option>
-      </select>
-      <button type="button" id="swf-load-demo" class="btn btn-secondary">Load Demo</button>
-    </div>
-  </div>
 
-  <div class="swf-screen" data-swf-screen="analysis" hidden>
-    <h3>Upload → ZIP Validation → Extraction → Dataset Analysis</h3>
-    <ol class="swf-stage-list" id="swf-analysis-stages"><li>Waiting for upload.</li></ol>
-    <div class="swf-summary" id="swf-analysis-summary">No analysis result loaded.</div>
-    <div class="swf-actions"><button type="button" id="swf-analysis-retry" class="btn btn-secondary">Retry / Choose Another File</button></div>
-  </div>
-
-  <div class="swf-screen swf-light" data-swf-screen="dataset" hidden>
-    <div class="swf-light-head">
-      <div><h3>Dataset Structure</h3><p>Actual archive entries from the persisted analysis report.</p></div>
-      <button type="button" id="swf-to-allocation" class="btn btn-primary">Continue to Storage Allocation</button>
-    </div>
-    <div class="swf-dataset-grid">
-      <div class="swf-card">
-        <h4>Dataset Tree</h4>
-        <div class="swf-search"><input type="search" id="swf-tree-search" placeholder="Search files or folders"></div>
-        <div class="swf-tree" id="swf-tree">No dataset loaded.</div>
-      </div>
-      <div class="swf-card">
-        <div class="swf-light-head">
-          <div><h4>Relationship Graph</h4><p>Folder and file-group relationships, not semantic classification.</p></div>
-          <div class="swf-graph-tools"><button type="button" id="swf-zoom-in">+</button><button type="button" id="swf-zoom-out">−</button><button type="button" id="swf-graph-reset">Reset</button></div>
+        <div class="dtw-callout dtw-callout-warn">SIMULATION MODE — no file placement · DEMONSTRATION MODE — SIMULATED DATA</div>
+        <div class="dtw-dropzone" id="dtw-dropzone" tabindex="0" role="button" aria-label="Choose or drop a dataset ZIP">
+          <strong>Drop dataset ZIP here</strong>
+          <span>or click to browse · .zip only · no file is executed</span>
         </div>
-        <svg id="swf-graph" class="swf-graph" viewBox="0 0 760 420" role="img" aria-label="Dataset folder and file relationship graph"><g id="swf-graph-viewport"></g></svg>
-        <div class="swf-search"><input type="search" id="swf-graph-search" placeholder="Search graph nodes"></div>
-        <div class="swf-selection" id="swf-selection">Select a node for details.</div>
-      </div>
-      <div class="swf-card">
-        <h4>Dataset Statistics</h4>
-        <div id="swf-stats" class="swf-stats">No dataset loaded.</div>
-      </div>
-    </div>
-  </div>
+        <input type="file" id="dtw-file" accept=".zip,application/zip" hidden>
 
-  <div class="swf-screen swf-light" data-swf-screen="allocation" hidden>
-    <div class="swf-light-head">
-      <div><h3>Storage Allocation</h3><p id="swf-allocation-label">No allocation plan loaded.</p></div>
-      <div class="swf-actions"><button type="button" id="swf-confirm-allocation" class="btn btn-primary">Confirm Storage Allocation</button><button type="button" id="swf-to-network" class="btn btn-secondary">Return to 3D Network</button></div>
-    </div>
-    <div class="swf-allocation-grid">
-      <div class="swf-card"><h4>Allocation Chart</h4><div id="swf-allocation-chart" class="swf-chart">No allocation plan loaded.</div></div>
-      <div class="swf-card"><h4>Partition Tree</h4><div id="swf-partitions" class="swf-partitions">No partitions loaded.</div></div>
-      <div class="swf-card"><h4>Storage Tiers</h4><div id="swf-tier-cards" class="swf-tiers">No tiers loaded.</div></div>
-    </div>
-    <div class="swf-summary" id="swf-allocation-summary" aria-live="polite"></div>
-  </div>
-
-  <div class="swf-screen" data-swf-screen="network" hidden>
-    <h3>Return to 3D Digital Twin</h3>
-    <p>The 3D network below uses the live scene API. Click any storage node for actual capacity, usage, policy, and activity details.</p>
-    <p class="swf-hint">Click a storage node to view details</p>
-    <button type="button" id="swf-show-network" class="btn btn-primary">Show 3D Network</button>
-  </div>
-
-  <div class="swf-screen" data-swf-screen="scheduling" hidden>
-    <h3>Genetic Algorithm Scheduling</h3>
-    <p>Task Queue → Candidate Resources → GA Scheduling → Selected Resource → Execution</p>
-    <div id="swf-scheduling-status" aria-live="polite">Waiting to inspect the live scheduler view.</div>
-    <div class="swf-actions"><button type="button" id="swf-run-scheduling" class="btn btn-primary">Show GA Scheduling Decision</button></div>
-  </div>
-
-  <div class="swf-screen" data-swf-screen="transfer" hidden>
-    <h3>File Transfer and Storage Animation</h3>
-    <div id="swf-transfer-status" aria-live="polite">Transfer states come from persisted replica records; live progress and ETA are not available.</div>
-    <div class="swf-actions"><button type="button" id="swf-show-transfer" class="btn btn-primary">Show Recorded Transfer State</button></div>
-  </div>
-
-  <div class="swf-screen" data-swf-screen="security" hidden>
-    <h3>Data Protection and Security</h3>
-    <div id="swf-security-layers" aria-live="polite">Loading security layer statuses.</div>
-    <p class="swf-hint">Shield visuals represent recorded policy enforcement only. Transport encryption is not verified.</p>
-  </div>
-
-  <div class="swf-screen" data-swf-screen="attack" hidden>
-    <h3>Simulated Attacker</h3>
-    <p class="swf-hint">SIMULATION — NO REAL ATTACK PERFORMED</p>
-    <div class="swf-attack-grid">
-      <label>Scenario<select id="swf-attack-scenario"></select></label>
-      <label>Target<select id="swf-attack-target"><option value="MEC-STORAGE">MEC storage tier</option><option value="LOCAL">Local storage</option><option value="CLOUD">Cloud emulator</option></select></label>
-      <button type="button" id="swf-run-attack" class="btn btn-primary">Run Controlled Scenario</button>
-    </div>
-    <div id="swf-attack-status" aria-live="polite">No scenario has been run.</div>
-  </div>
-
-  <div class="swf-screen" data-swf-screen="failover" hidden>
-    <h3>Failover and Scheduler Re-evaluation</h3>
-    <div id="swf-failover-status" aria-live="polite">Choose an affected resource to evaluate eligible remaining resources.</div>
-    <div class="swf-actions"><button type="button" id="swf-evaluate-failover" class="btn btn-primary">Evaluate Failover</button></div>
-  </div>
-
-  <div class="swf-screen" data-swf-screen="report" hidden>
-    <h3>Final Task and Storage Status</h3>
-    <div id="swf-final-report" class="swf-summary">Complete the workflow to generate a status report.</div>
-  </div>
-</section>
-
-<div id="dt3d-operations" hidden>
-
-<div class="card dt3d-shell">
-  <div class="dt3d-header">
-    <div>
-      <h2 class="card-title">Interactive 3D Digital Twin Operations Map</h2>
-      <div class="card-subtitle">Live backend topology, policy eligibility, transfer records, and simulated security scenarios</div>
-    </div>
-    <div class="dt3d-header-badges">
-      <span class="dt3d-mode" id="dt3d-mode" aria-live="polite">CONNECTING TO BACKEND</span>
-      <span class="dt3d-engine" id="dt3d-engine">INITIALIZING RENDERER</span>
-    </div>
-  </div>
-
-  <div class="dt3d-layout">
-    <div class="dt3d-stage-column">
-      <div class="dt3d-stage" id="dt3d-stage" data-scene-url="{% url 'digital_twin_scene' %}" aria-describedby="dt3d-stage-note">
-        <canvas id="dt3d-canvas" tabindex="0" role="img" aria-label="Interactive 3D map of SecureDT central server, storage tiers, registered MEC agents, recorded transfers, and simulated attacker"></canvas>
-        <div class="dt3d-labels" id="dt3d-labels" role="group" aria-label="Device labels; select a label to view details"></div>
-        <div class="dt3d-empty" id="dt3d-empty" hidden>No MEC agents are registered. The view shows only configured storage tiers until an edge agent connects.</div>
-        <div class="dt3d-stage-note" id="dt3d-stage-note">DRAG TO ORBIT &bull; SCROLL TO ZOOM &bull; ARROWS ROTATE &bull; SHIFT+ARROWS STAGES &bull; P PLAY/PAUSE &bull; TAB LABELS / ENTER DETAILS</div>
-        <aside class="dt3d-details" id="dt3d-details" role="dialog" aria-labelledby="dt3d-details-title" tabindex="-1" hidden>
-          <div class="dt3d-details-head">
-            <div>
-              <div class="dt3d-details-kicker" id="dt3d-details-kicker">DEVICE DETAILS</div>
-              <h3 id="dt3d-details-title">Device</h3>
-              <div class="dt3d-details-id" id="dt3d-details-id">ID: -</div>
-            </div>
-            <button type="button" class="dt3d-details-close" data-dt3d-action="close-details" aria-label="Close device details">&times;</button>
-          </div>
-          <div class="dt3d-details-subhead">
-            <span class="dt3d-details-status" id="dt3d-details-status">UNKNOWN</span>
-          </div>
-          <div class="dt3d-details-body" id="dt3d-details-body"></div>
-          <button type="button" class="dt3d-details-close-text" data-dt3d-action="close-details">Close Details</button>
-        </aside>
-      </div>
-
-      <div class="dt3d-legend" aria-label="Visualization legend">
-        <span class="dt3d-legend-item"><span class="dt3d-swatch blue"></span> CENTRAL SERVER / CONNECTION</span>
-        <span class="dt3d-legend-item"><span class="dt3d-swatch green"></span> CONNECTED TIER / MEC</span>
-        <span class="dt3d-legend-item"><span class="dt3d-swatch amber"></span> POLICY OR TRANSFER ACTIVITY</span>
-        <span class="dt3d-legend-item"><span class="dt3d-swatch red"></span> SIMULATED ATTACK PATH</span>
-        <span class="dt3d-legend-item"><span class="dt3d-swatch gray"></span> OFFLINE / UNREGISTERED</span>
-      </div>
-    </div>
-
-    <aside class="dt3d-side" aria-label="Digital twin details">
-      <section class="dt3d-panel" id="dt3d-workflow-panel">
-        <div class="dt3d-panel-head">
-          <h3>Guided Workflow</h3>
-          <span class="dt3d-run-badge" id="dt3d-run-mode-badge">LIVE BACKEND</span>
-        </div>
-        <div class="dt3d-mode-row">
-          <label for="dt3d-run-mode">Mode</label>
-          <select id="dt3d-run-mode" title="Choose recorded backend data or a clearly labeled simulation">
-            <option value="live" selected>LIVE BACKEND</option>
-            <option value="demo">DEMONSTRATION MODE — SIMULATED DATA</option>
+      <div class="dtw-upload-grid">
+        <div><span>Selected file</span><strong id="dtw-file-name">None</strong></div>
+        <div><span>File size</span><strong id="dtw-file-size">Unknown</strong></div>
+        <div><span>Execution mode</span>
+          <select id="dtw-mode">
+            <option value="SIMULATION" selected>SIMULATION — no file placement</option>
+            <option value="EXECUTION">EXECUTION — backend placement</option>
           </select>
         </div>
-        <div class="dt3d-workflow-current">
-          <span class="dt3d-workflow-kicker" id="dt3d-workflow-kicker">STAGE 1 / 15</span>
-          <strong id="dt3d-workflow-status">Infrastructure Overview</strong>
-          <p id="dt3d-workflow-detail">Loading recorded workflow stages from the backend.</p>
-        </div>
-        <div class="dt3d-progress" role="progressbar" aria-label="Guided workflow progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="dt3d-workflow-progress">
-          <span id="dt3d-workflow-progress-fill"></span>
-        </div>
-        <div class="dt3d-workflow-time" id="dt3d-workflow-time">Step 1 / 15 · 00:00 / 01:18</div>
-        <div class="dt3d-workflow-controls">
-          <button type="button" data-dt3d-action="workflow-play" class="dt3d-primary">Run Guided Workflow</button>
-          <button type="button" data-dt3d-action="workflow-prev" title="Previous workflow stage">Previous</button>
-          <button type="button" data-dt3d-action="workflow-next" title="Next workflow stage">Next</button>
-          <button type="button" data-dt3d-action="workflow-restart" title="Restart the workflow from stage one">Restart</button>
-        </div>
-        <div class="dt3d-workflow-jump">
-          <label for="dt3d-workflow-stage">Stage</label>
-          <select id="dt3d-workflow-stage" title="Jump to a workflow stage"></select>
-          <label for="dt3d-workflow-speed">Speed</label>
-          <select id="dt3d-workflow-speed" title="Set the guided walkthrough speed">
-            <option value="0.5">0.5x</option>
-            <option value="1" selected>1x</option>
-            <option value="2">2x</option>
-            <option value="4">4x</option>
-          </select>
-        </div>
-        <div class="dt3d-workflow-steps" id="dt3d-workflow-steps" aria-label="Workflow stages"></div>
-      </section>
-
-      <section class="dt3d-panel" id="dt3d-status-panel">
-        <div class="dt3d-panel-head">
-          <h3>Workflow Status</h3>
-          <span class="dt3d-run-badge" id="dt3d-current-data-source">BACKEND RECORD</span>
-        </div>
-        <div class="dt3d-stats">
-          <div class="dt3d-stat"><span>Source</span><strong id="dt3d-current-source">CLIENT</strong></div>
-          <div class="dt3d-stat"><span>Destination</span><strong id="dt3d-current-destination">CENTRAL</strong></div>
-          <div class="dt3d-stat"><span>Task / Upload</span><strong id="dt3d-current-task">Not available</strong></div>
-          <div class="dt3d-stat"><span>Artifact</span><strong id="dt3d-current-artifact">Not available</strong></div>
-        </div>
-        <p class="dt3d-detail" id="dt3d-current-detail">Waiting for a guided workflow stage.</p>
-      </section>
-
-      <section class="dt3d-panel" id="dt3d-security-panel">
-        <div class="dt3d-panel-head">
-          <h3>Security Layers</h3>
-          <span class="dt3d-run-badge" id="dt3d-security-summary">LOADING</span>
-        </div>
-        <div class="dt3d-security-layers" id="dt3d-security-layers" aria-live="polite">
-          <span class="dt3d-security-placeholder">Loading recorded security controls...</span>
-        </div>
-        <p class="dt3d-protection-note" id="dt3d-security-note">Statuses reflect recorded application controls. They are not claims of transport encryption.</p>
-      </section>
-
-      <section class="dt3d-panel">
-        <h3>Live Snapshot</h3>
-        <div class="dt3d-stats">
-          <div class="dt3d-stat"><span>Connected MECs</span><strong id="dt3d-stat-connected">0</strong></div>
-          <div class="dt3d-stat"><span>Registered MECs</span><strong id="dt3d-stat-registered">0</strong></div>
-          <div class="dt3d-stat"><span>Active Tasks</span><strong id="dt3d-stat-tasks">0</strong></div>
-          <div class="dt3d-stat"><span>Active Transfers</span><strong id="dt3d-stat-transfers">0</strong></div>
-          <div class="dt3d-stat"><span>Audit Events</span><strong id="dt3d-stat-events">0</strong></div>
-        </div>
-      </section>
-
-      <section class="dt3d-panel">
-        <h3>Protection Policy Visualization</h3>
-        <div class="dt3d-protection-stages">
-          <span class="dt3d-stage-chip" id="dt3d-chip-policy">POLICY CHECK: PENDING</span>
-          <span class="dt3d-stage-chip" id="dt3d-chip-destination">DESTINATION VALIDATED: PENDING</span>
-          <span class="dt3d-stage-chip" id="dt3d-chip-authorized">TASK AUTHORIZED: PENDING</span>
-          <span class="dt3d-stage-chip" id="dt3d-chip-transfer">TRANSFER ACTIVITY: PENDING</span>
-          <span class="dt3d-stage-chip" id="dt3d-chip-result">LIVE SNAPSHOT READY</span>
-        </div>
-        <p class="dt3d-protection-note" id="dt3d-protection-note">Protection policy visualization only. The backend enforces placement rules; no transport encryption is confirmed by the application.</p>
-        <p class="dt3d-detail" id="dt3d-detail">Connecting to backend snapshot...</p>
-      </section>
-
-      <section class="dt3d-panel">
-        <h3>Activity Feed</h3>
-        <ul class="dt3d-event-list" id="dt3d-event-list" aria-live="polite">
-          <li><span class="dt3d-event-kind live">LOADING</span>Loading backend topology and recorded audit events...</li>
-        </ul>
-      </section>
-    </aside>
-  </div>
-
-  <div class="dt3d-controls" aria-label="Digital twin visualization controls">
-    <button type="button" data-dt3d-action="reset" title="Return the camera to the default viewpoint">Reset View</button>
-    <button type="button" data-dt3d-action="zoom-in" title="Zoom in">Zoom In</button>
-    <button type="button" data-dt3d-action="zoom-out" title="Zoom out">Zoom Out</button>
-    <button type="button" data-dt3d-action="pause" aria-pressed="false" title="Pause packet animation">Pause Animation</button>
-    <span class="dt3d-control-separator" aria-hidden="true"></span>
-    <button type="button" data-dt3d-action="labels" aria-pressed="true" title="Toggle node labels">Device Labels: On</button>
-    <button type="button" data-dt3d-action="links" aria-pressed="true" title="Toggle connection lines">Connection Lines: On</button>
-    <button type="button" data-dt3d-action="transfers" aria-pressed="true" title="Toggle data transfer animation">Transfer Animation: On</button>
-    <button type="button" data-dt3d-action="security" aria-pressed="true" title="Toggle security layer">Security Layer: On</button>
-    <button type="button" data-dt3d-action="show-details" title="Open details for the selected device">Show Device Details</button>
-    <button type="button" data-dt3d-action="show-security" title="Focus the security layer panel">Show Security Layers</button>
-    <span class="dt3d-control-separator" aria-hidden="true"></span>
-    <span class="text-xs text-dim" style="margin-left:6px;">Tip: click any device node or label for backend details. Press [ / ] to cycle devices.</span>
-    <label for="dt3d-policy">Policy</label>
-    <select id="dt3d-policy" title="Select the backend policy used for eligibility checks">
-      <option value="TRUSTED_EDGE" selected>TRUSTED_EDGE</option>
-      <option value="LOCAL_ONLY">LOCAL_ONLY</option>
-      <option value="CLOUD_ALLOWED">CLOUD_ALLOWED</option>
-    </select>
-    <label for="dt3d-attack-scenario">Attack</label>
-    <select id="dt3d-attack-scenario" title="Select a labeled attack scenario; no real attack is performed"></select>
-    <button type="button" class="dt3d-sim" data-dt3d-action="transfer-sim" title="Animate a policy-checked transfer simulation; no file is transferred">Run Transfer Simulation</button>
-    <button type="button" class="dt3d-sim" data-dt3d-action="attack-sim" title="Animate a labeled attack scenario; no real attack is performed">Run Attack Simulation</button>
-  </div>
-</div>
-
-<!-- Three Clearly Separated Storage Resource Cards -->
-<div class="grid-tri-storage">
-  <!-- A. Local Storage Card -->
-  <div class="storage-card" style="border-top: 3px solid var(--accent-cyan);">
-    <div class="storage-card-header">
-      <div>
-        <div class="text-xs text-dim text-mono">TIER 1 &bull; ON-PREMISES</div>
-        <div class="storage-card-title">{{ local_dest.name }}</div>
       </div>
-      <span class="badge badge-green"><span class="status-dot green"></span> ONLINE</span>
-    </div>
 
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Unique Resource ID</span>
-      <span class="storage-stat-value text-cyan">{{ local_dest.destination_id }}</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Governing Policy</span>
-      <span class="storage-stat-value">{{ local_dest.privacy_tier_allowed }}</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Total Storage Capacity</span>
-      <span class="storage-stat-value">50.00 GB</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Used Storage</span>
-      <span class="storage-stat-value" id="local-used-val">{{ local_dest.used_bytes|filesizeformat }}</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Free Storage Capacity</span>
-      <span class="storage-stat-value" id="local-free-val">Available</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Assigned Datasets / Files</span>
-      <span class="storage-stat-value text-cyan" id="local-files-val">{{ local_items_count }}</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Assigned Workload Tasks</span>
-      <span class="storage-stat-value">{{ local_tasks_count }}</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Health &amp; Error Status</span>
-      <span class="storage-stat-value text-green">HEALTHY (0 Errors)</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Last Telemetry Sync</span>
-      <span class="storage-stat-value text-dim text-sm" id="local-sync-val">Real-time</span>
-    </div>
-  </div>
+      <div class="dtw-progress" id="dtw-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="dtw-progress-fill"></span></div>
+      <div class="dtw-upload-status" id="dtw-upload-status" aria-live="polite">Waiting for a ZIP archive.</div>
 
-  <!-- B. MEC / Edge Storage Card -->
-  <div class="storage-card" style="border-top: 3px solid var(--status-amber);">
-    <div class="storage-card-header">
-      <div>
-        <div class="text-xs text-dim text-mono">TIER 2 &bull; EDGE COMPUTE</div>
-        <div class="storage-card-title">{{ mec_dest.name }}</div>
+      <div class="dtw-upload-actions">
+        <button type="button" id="dtw-upload-btn" class="dtw-btn dtw-btn-primary">Upload &amp; Analyze</button>
+        <button type="button" id="dtw-reset-upload" class="dtw-btn dtw-btn-secondary">Reset / Cancel</button>
       </div>
-      {% if mec_online_count > 0 %}
-        <span class="badge badge-green"><span class="status-dot green"></span> ONLINE</span>
-      {% else %}
-        <span class="badge badge-amber"><span class="status-dot amber"></span> SIMULATION MODE</span>
-      {% endif %}
-    </div>
 
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">MEC Resource ID</span>
-      <span class="storage-stat-value text-amber">
-        {% if mec_agents.first %}{{ mec_agents.first.device_id }}{% else %}MEC-001 (Simulated Edge){% endif %}
-      </span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Connection State</span>
-      <span class="storage-stat-value">
-        {% if mec_online_count > 0 %}Active Edge Daemon{% else %}Simulation Mode{% endif %}
-      </span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Processing / CPU Workload</span>
-      <span class="storage-stat-value text-mono" id="mec-cpu-val">28.4% Load</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Memory Utilization</span>
-      <span class="storage-stat-value text-mono" id="mec-ram-val">34.2% RAM</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Storage Capacity</span>
-      <span class="storage-stat-value">200.00 GB</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Used Storage</span>
-      <span class="storage-stat-value">{{ mec_dest.used_bytes|filesizeformat }}</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Assigned Datasets / Files</span>
-      <span class="storage-stat-value text-amber" id="mec-files-val">{{ mec_items_count }}</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Last Heartbeat</span>
-      <span class="storage-stat-value text-dim text-sm">
-        {% if mec_agents.first and mec_agents.first.last_heartbeat %}{{ mec_agents.first.last_heartbeat|date:"H:i:s" }}{% else %}Operational Sync{% endif %}
-      </span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Connection Errors</span>
-      <span class="storage-stat-value text-green">0 Failed Checks</span>
-    </div>
-  </div>
-
-  <!-- C. Cloud Storage Card -->
-  <div class="storage-card" style="border-top: 3px solid var(--accent-blue);">
-    <div class="storage-card-header">
-      <div>
-        <div class="text-xs text-dim text-mono">TIER 3 &bull; CLOUD SYNC</div>
-        <div class="storage-card-title">{{ cloud_dest.name }}</div>
+      <div class="dtw-demo-row">
+        <label for="dtw-demo-package">Bundled validation archive</label>
+        <select id="dtw-demo-package">
+          <option value="success_01">success_01 — basic all-storage</option>
+          <option value="success_04">success_04 — privacy-aware</option>
+          <option value="failed_01">failed_01 — corrupt archive</option>
+          <option value="failed_08">failed_08 — disallowed executable</option>
+          <option value="failed_09">failed_09 — unsafe path</option>
+        </select>
+        <button type="button" id="dtw-load-demo" class="dtw-btn dtw-btn-secondary">Load Demo</button>
       </div>
-      <span class="badge badge-cyan"><span class="status-dot cyan"></span> VERIFIED EMULATOR</span>
-    </div>
-
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Target Provider</span>
-      <span class="storage-stat-value text-cyan">Google Drive / AWS S3 Stub</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Configured Storage Target</span>
-      <span class="storage-stat-value text-mono text-sm">data_storage/cloud_storage</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Total Storage Capacity</span>
-      <span class="storage-stat-value">1,000.00 GB (1.0 TB)</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Used Storage</span>
-      <span class="storage-stat-value">{{ cloud_dest.used_bytes|filesizeformat }}</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Assigned Datasets / Objects</span>
-      <span class="storage-stat-value text-cyan" id="cloud-files-val">{{ cloud_items_count }}</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Synchronization Status</span>
-      <span class="storage-stat-value text-green">Verified In Sync</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Upload Transfer Errors</span>
-      <span class="storage-stat-value text-green">0 Errors</span>
-    </div>
-    <div class="storage-stat-row">
-      <span class="storage-stat-label">Operating Mode</span>
-      <span class="storage-stat-value text-dim text-sm">Research Testbed Emulator</span>
-    </div>
+    </section>
   </div>
-</div>
-
-<!-- Architecture & Telemetry State Table -->
-<div class="card">
-  <div class="card-header">
-    <div>
-      <h2 class="card-title">Digital Twin Virtual Resource Registry</h2>
-      <div class="card-subtitle">Continuous state metrics exposed to Genetic Algorithm scheduler</div>
-    </div>
-    <span class="badge badge-muted">{{ states|length }} Resources Tracked</span>
-  </div>
-
-  <div class="table-responsive">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Resource ID</th>
-          <th>Type</th>
-          <th>CPU Util</th>
-          <th>Memory Util</th>
-          <th>Network Latency</th>
-          <th>Security Risk</th>
-          <th>Trust Score</th>
-          <th>Health Status</th>
-        </tr>
-      </thead>
-      <tbody id="twin-resources-tbody">
-        {% for r in states %}
-        <tr>
-          <td class="text-mono text-bold text-cyan">{{ r.resource_id }}</td>
-          <td><span class="text-sm text-dim">{{ r.resource_type|upper }}</span></td>
-          <td class="text-mono">{{ r.cpu_utilization|floatformat:2 }}</td>
-          <td class="text-mono">{{ r.memory_utilization|floatformat:2 }}</td>
-          <td class="text-mono">{{ r.network_latency_ms }} ms</td>
-          <td>
-            <span class="badge {% if r.security_risk > 0.6 %}badge-red{% elif r.security_risk > 0.3 %}badge-amber{% else %}badge-green{% endif %}">
-              {{ r.security_risk|floatformat:2 }}
-            </span>
-          </td>
-          <td class="text-mono">{{ r.trust_score|floatformat:2 }}</td>
-          <td>
-            <span class="badge {% if r.status == 'SAFE' %}badge-green{% elif r.status == 'WARNING' %}badge-amber{% else %}badge-red{% endif %}">
-              {{ r.status }}
-            </span>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'vendor/three.min.js' %}"></script>
-<script src="{% static 'js/digital_twin_3d.js' %}?v=20261122-v3"></script>
-<script src="{% static 'js/secure_workflow.js' %}?v=20261122-v1"></script>
-<script>
-  const btnRefresh = document.getElementById('btn-refresh-twin');
-  btnRefresh.addEventListener('click', async () => {
-    btnRefresh.disabled = true;
-    btnRefresh.innerHTML = 'Refreshing...';
-    try {
-      const resp = await fetch('{% url "api_digital_twin_status" %}');
-      const data = await resp.json();
-      if (data.success) {
-        document.getElementById('local-files-val').textContent = data.destinations.LOCAL_STORAGE.assigned_datasets_count;
-        document.getElementById('mec-files-val').textContent = data.destinations.MEC_STORAGE.assigned_datasets_count;
-        document.getElementById('cloud-files-val').textContent = data.destinations.CLOUD_STORAGE.assigned_datasets_count;
-
-        const tbody = document.getElementById('twin-resources-tbody');
-        if (data.resources && data.resources.length) {
-          tbody.innerHTML = data.resources.map(r => `
-            <tr>
-              <td class="text-mono text-bold text-cyan">${r.resource_id}</td>
-              <td><span class="text-sm text-dim">${(r.resource_type || '').toUpperCase()}</span></td>
-              <td class="text-mono">${(r.cpu_utilization || 0).toFixed(2)}</td>
-              <td class="text-mono">${(r.memory_utilization || 0).toFixed(2)}</td>
-              <td class="text-mono">${r.network_latency_ms || 0} ms</td>
-              <td>
-                <span class="badge ${r.security_risk > 0.6 ? 'badge-red' : (r.security_risk > 0.3 ? 'badge-amber' : 'badge-green')}">
-                  ${(r.security_risk || 0).toFixed(2)}
-                </span>
-              </td>
-              <td class="text-mono">${(r.trust || 0.9).toFixed(2)}</td>
-              <td>
-                <span class="badge ${r.status === 'SAFE' ? 'badge-green' : (r.status === 'WARNING' ? 'badge-amber' : 'badge-red')}">
-                  ${r.status || 'SAFE'}
-                </span>
-              </td>
-            </tr>
-          `).join('');
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      btnRefresh.disabled = false;
-      btnRefresh.innerHTML = `
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
-        Refresh Telemetry
-      `;
-    }
-  });
-</script>
+<script type="module" src="{% static 'js/digital_twin/main.js' %}?v=20261122-v1"></script>
 {% endblock %}

@@ -5,6 +5,9 @@ Comprehensive Integration Tests for SecureDT UI Redesign and Dataset Storage Ana
 import io
 import json
 import zipfile
+from pathlib import Path
+
+from django.conf import settings
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
@@ -31,7 +34,7 @@ class RedesignWorkflowTests(TestCase):
         routes = [
             ('/', 'Operations Dashboard'),
             ('/upload/', 'Manual ZIP Dataset Ingestion'),
-            ('/digital-twin/', 'SecureDT Dataset Processing &amp; Digital Twin'),
+            ('/digital-twin/', 'SecureDT Digital Twin Workspace'),
             ('/storage-allocation/', 'AI-Based Storage Allocation'),
             ('/reports/', 'Persistent Dataset Analysis Reports'),
             ('/tasks/', 'Task Execution &amp; Scheduling History'),
@@ -247,22 +250,36 @@ class RedesignWorkflowTests(TestCase):
         self.assertEqual(data['server']['registered_mecs'], 0)
         self.assertEqual(data['server']['connected_mecs'], 0)
 
-    def test_digital_twin_page_includes_3d_panel_and_assets(self):
-        """The existing page keeps its heading and embeds the scoped 3D visualization."""
+    def test_digital_twin_page_is_rebuilt_as_full_screen_workspace(self):
+        """The rebuilt page owns the viewport and loads only the modular frontend assets."""
         resp = self.client.get('/digital-twin/')
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'SecureDT Dataset Processing &amp; Digital Twin')
-        self.assertContains(resp, 'Interactive 3D Digital Twin Operations Map')
-        self.assertContains(resp, 'Protection Policy Visualization')
-        self.assertContains(resp, 'id="dt3d-stage"')
-        self.assertContains(resp, 'id="dt3d-details"')
-        self.assertContains(resp, 'Close Details')
-        self.assertContains(resp, 'id="dt3d-details-body"')
-        self.assertContains(resp, 'data-scene-url="/api/digital-twin/scene/"')
-        self.assertContains(resp, 'Run Transfer Simulation')
-        self.assertContains(resp, 'Run Attack Simulation')
-        self.assertContains(resp, 'vendor/three.min.js')
-        self.assertContains(resp, 'js/digital_twin_3d.js')
+        for needle in [
+            'SecureDT Digital Twin Workspace',
+            'id="dtw-root"',
+            'id="dtw-viewport"',
+            'id="dtw-canvas"',
+            'id="dtw-labels"',
+            'id="dtw-steps"',
+            'id="dtw-context"',
+            'id="dtw-details"',
+            'id="dtw-toolbar"',
+            'data-scene-url="/api/digital-twin/scene/"',
+            'START SECUREDT DEMONSTRATION',
+            'vendor/three.min.js',
+            'js/digital_twin/main.js',
+            'css/digital_twin_workspace.css',
+        ]:
+            self.assertContains(resp, needle)
+        for stale in [
+            'id="dt3d-stage"',
+            'id="swf-start-demo"',
+            'digital_twin_3d.js',
+            'secure_workflow.js',
+            'digital_twin_3d.css',
+            'secure_workflow.css',
+        ]:
+            self.assertNotContains(resp, stale)
 
     def test_digital_twin_scene_exposes_guided_workflow_metadata(self):
         """The scene API supplies labeled workflow, security, and simulation metadata."""
@@ -300,66 +317,82 @@ class RedesignWorkflowTests(TestCase):
         self.assertFalse(data['client_devices'][0]['is_simulated'])
         self.assertFalse(data['capabilities']['encryption_confirmed'])
 
-    def test_digital_twin_page_includes_guided_workflow_controls(self):
-        """The page includes every guided workflow, status, and security panel hook."""
+    def test_digital_twin_page_includes_workflow_controls(self):
+        """The page exposes all seven stages plus demo, data, and attack controls."""
         resp = self.client.get('/digital-twin/')
         self.assertEqual(resp.status_code, 200)
         for needle in [
-            'id="dt3d-run-mode"',
+            'data-stage="upload"',
+            'data-stage="analyze"',
+            'data-stage="allocate"',
+            'data-stage="schedule"',
+            'data-stage="transfer"',
+            'data-stage="security"',
+            'data-stage="results"',
+            'id="dtw-start-demo"',
+            'id="dtw-open-upload"',
+            'id="dtw-prev"',
+            'id="dtw-next"',
+            'id="dtw-jump"',
+            'id="dtw-speed"',
+            'id="dtw-pause"',
+            'id="dtw-restart"',
+            'id="dtw-exit"',
+            'id="dtw-dropzone"',
+            'id="dtw-file"',
+            'id="dtw-search"',
+            'id="dtw-tree"',
+            'id="dtw-confirm-allocation"',
+            'id="dtw-run-schedule"',
+            'id="dtw-run-transfer"',
+            'id="dtw-attack-scenario"',
+            'id="dtw-attack-target"',
+            'id="dtw-run-attack"',
+            'id="dtw-final-report"',
             'DEMONSTRATION MODE — SIMULATED DATA',
-            'id="dt3d-workflow-status"',
-            'id="dt3d-workflow-progress"',
-            'data-dt3d-action="workflow-play"',
-            'data-dt3d-action="workflow-prev"',
-            'data-dt3d-action="workflow-next"',
-            'data-dt3d-action="workflow-restart"',
-            'id="dt3d-workflow-speed"',
-            'id="dt3d-workflow-steps"',
-            'id="dt3d-current-source"',
-            'id="dt3d-current-destination"',
-            'id="dt3d-current-task"',
-            'id="dt3d-current-artifact"',
-            'id="dt3d-security-layers"',
-            'id="dt3d-attack-scenario"',
-            'data-dt3d-action="show-details"',
-            'data-dt3d-action="show-security"',
+            'ENCRYPTION NOT VERIFIED',
         ]:
             self.assertContains(resp, needle)
 
-    def test_digital_twin_page_includes_full_dataset_workflow_hooks(self):
+    def test_digital_twin_page_loads_workflow_api_urls(self):
         resp = self.client.get('/digital-twin/')
         self.assertEqual(resp.status_code, 200)
         for needle in [
-            'id="secure-workflow"',
             'data-upload-url="/api/app/upload-zip/"',
             'data-demo-url="/api/app/upload-demo-zip/"',
             'data-inspect-url="/api/app/dataset-inspect/"',
             'data-confirm-url="/api/app/dataset-allocation-confirm/"',
-            'id="swf-start-demo"',
-            'id="swf-skip-network"',
-            'id="swf-speed"',
-            'id="swf-step-jump"',
-            'id="swf-dropzone"',
-            'id="swf-analysis-stages"',
-            'id="swf-tree-search"',
-            'id="swf-tree"',
-            'id="swf-graph"',
-            'id="swf-graph-viewport"',
-            'id="swf-allocation-chart"',
-            'id="swf-confirm-allocation"',
-            'id="swf-show-network"',
-            'id="swf-run-scheduling"',
-            'id="swf-show-transfer"',
-            'id="swf-run-attack"',
-            'id="swf-evaluate-failover"',
-            'id="swf-final-report"',
-            'id="dt3d-operations"',
-            'SIMULATION — NO REAL ATTACK PERFORMED',
-            'Transport encryption is not verified',
-            'css/secure_workflow.css',
-            'js/secure_workflow.js',
+            'data-compare-url="/api/digital-twin/compare/"',
         ]:
             self.assertContains(resp, needle)
+
+    def test_required_simulation_labels_are_present_in_workspace_modules(self):
+        module_dir = Path(settings.BASE_DIR) / 'static' / 'js' / 'digital_twin'
+        template_path = Path(settings.BASE_DIR) / 'templates' / 'digital_twin.html'
+        source = '\n'.join(
+            path.read_text(encoding='utf-8') for path in sorted(module_dir.glob('*.js'))
+        ) + '\n' + template_path.read_text(encoding='utf-8')
+        for label in [
+            'SIMULATION MODE',
+            'DEMONSTRATION MODE — SIMULATED DATA',
+            'SIMULATED ATTACKER',
+            'EXTERNAL THREAT SIMULATOR',
+            'CLOUD EMULATOR',
+            'PROTECTION POLICY VISUALIZATION',
+            'ENCRYPTION NOT VERIFIED',
+            'TASK BLOCKED — NO ELIGIBLE RESOURCE',
+        ]:
+            self.assertIn(label, source)
+
+    def test_legacy_digital_twin_assets_are_removed(self):
+        static_dir = Path(settings.BASE_DIR) / 'static'
+        for relative_path in [
+            'js/digital_twin_3d.js',
+            'css/digital_twin_3d.css',
+            'js/secure_workflow.js',
+            'css/secure_workflow.css',
+        ]:
+            self.assertFalse((static_dir / relative_path).exists(), relative_path)
 
     def _upload_workflow_zip(self):
         zip_buffer = io.BytesIO()

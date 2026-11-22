@@ -62,7 +62,7 @@ Open http://127.0.0.1:8000 in your browser. Create a `config.yaml` next to
 
 ## 5. One-Command Launchers
 
-- Windows: `run_windows.bat`
+- Windows: `run.bat` (use `run.bat build` to build the MEC Agent)
 - Linux/macOS: `./run.sh` (chmod +x first)
 
 ## 6. Run the Tests

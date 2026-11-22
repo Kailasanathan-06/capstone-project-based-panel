@@ -259,7 +259,7 @@ class SecureDTDocGenerator:
                 -----------------------------------------
                 1. On Windows build machine:
                    cd mec_agent
-                   build_mec_agent.bat
+                   run.bat build
                 2. Copy release/MEC_Agent.exe to target machine
                 3. Register:
                    MEC_Agent.exe register --server http://YOUR_SERVER:8000 --pairing-code YOUR_CODE

@@ -164,7 +164,7 @@ def check_mec_agent():
         "mec_agent/agent.py",
         "mec_agent/__init__.py",
         "mec_agent.spec",
-        "build_mec_agent.bat",
+        "run.bat",
     ]
     
     for agent_file in agent_files:

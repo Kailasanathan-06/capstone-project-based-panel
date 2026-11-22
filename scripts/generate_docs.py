@@ -218,7 +218,7 @@ def build_installation():
         Spacer(1, 4 * mm),
         Paragraph("5. Alternative One-Command Launchers", st["h2"]),
         Paragraph(
-            "Windows:  run_windows.bat<br/>" "Linux/macOS: ./run.sh (chmod +x first)",
+            "Windows:  run.bat<br/>" "Linux/macOS: ./run.sh (chmod +x first)",
             st["body"],
         ),
         Spacer(1, 4 * mm),

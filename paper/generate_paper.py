@@ -1,282 +1,203 @@
-﻿import os
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.units import inch
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.platypus import (BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer,
-                                Image, FrameBreak, Table, TableStyle, NextPageTemplate)
+﻿from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER, TA_LEFT
 from reportlab.lib import colors
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak, KeepTogether, FrameBreak, NextPageTemplate, CondPageBreak
+from reportlab.platypus import Frame, PageTemplate, BaseDocTemplate
+from reportlab.platypus.flowables import HRFlowable
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
+import os, datetime
 
-BASE = os.path.dirname(os.path.abspath(__file__))
-FIG = os.path.join(BASE, 'figures')
-OUT = os.path.join(BASE, 'SecureDT_IEEE_Paper.pdf')
+ROOT = os.path.dirname(os.path.abspath(__file__))
+FIG = os.path.join(ROOT, 'figures')
+OUT = os.path.join(ROOT, 'SecureDT_IEEE_Paper.pdf')
 
-# Page layout (IEEE-like, letter)
-page_w, page_h = letter
-margin_top = 0.75 * inch
-margin_bottom = 1.0 * inch
-margin_side = 0.625 * inch
-gutter = 0.2 * inch
-col_w = (page_w - 2*margin_side - gutter) / 2.0
+PAGE_W, PAGE_H = letter
+MARGIN = 0.62*inch
+GUTTER = 0.22*inch
+COL_W = (PAGE_W - 2*MARGIN - GUTTER) / 2
 
-title_h = 3.15 * inch
-# Frames
-full_frame = Frame(margin_side, page_h - margin_top - title_h, page_w - 2*margin_side, title_h,
-                   id='full', leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=4)
-f_left = Frame(margin_side, margin_bottom, col_w, page_h - margin_top - margin_bottom - title_h - 0.05*inch,
-               id='fleft', leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
-f_right = Frame(margin_side + col_w + gutter, margin_bottom, col_w, page_h - margin_top - margin_bottom - title_h - 0.05*inch,
-                id='fright', leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
-left = Frame(margin_side, margin_bottom, col_w, page_h - margin_top - margin_bottom,
-             id='left', leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
-right = Frame(margin_side + col_w + gutter, margin_bottom, col_w, page_h - margin_top - margin_bottom,
-              id='right', leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
+styles = getSampleStyleSheet()
+styles.add(ParagraphStyle(name='PaperTitle', parent=styles['Title'], fontSize=18, leading=22, alignment=TA_CENTER, spaceAfter=10, textColor=colors.HexColor('#111111'), fontName='Times-Bold'))
+styles.add(ParagraphStyle(name='PaperAuthor', parent=styles['Normal'], fontSize=9.5, leading=12, alignment=TA_CENTER, spaceAfter=2, fontName='Times-Roman'))
+styles.add(ParagraphStyle(name='PaperAffil', parent=styles['Normal'], fontSize=8.5, leading=10.5, alignment=TA_CENTER, spaceAfter=1, fontName='Times-Italic', textColor=colors.HexColor('#222222')))
+styles.add(ParagraphStyle(name='PaperEmail', parent=styles['Normal'], fontSize=8.2, leading=10, alignment=TA_CENTER, spaceAfter=8, fontName='Courier', textColor=colors.HexColor('#1a365d')))
+styles.add(ParagraphStyle(name='AbstractHead', parent=styles['Normal'], fontSize=9, leading=11, fontName='Times-BoldItalic', alignment=TA_CENTER, spaceBefore=2, spaceAfter=2))
+styles.add(ParagraphStyle(name='AbstractBody', parent=styles['Normal'], fontSize=8.8, leading=10.8, fontName='Times-Italic', alignment=TA_JUSTIFY, leftIndent=10, rightIndent=10, spaceAfter=4))
+styles.add(ParagraphStyle(name='Keywords', parent=styles['Normal'], fontSize=8.6, leading=10.4, fontName='Times-Italic', alignment=TA_JUSTIFY, leftIndent=10, rightIndent=10, spaceAfter=10))
+styles.add(ParagraphStyle(name='Section', parent=styles['Normal'], fontSize=10, leading=12, fontName='Times-Bold', spaceBefore=7, spaceAfter=3, textColor=colors.HexColor('#111111'), keepWithNext=True))
+styles.add(ParagraphStyle(name='SubSection', parent=styles['Normal'], fontSize=9.2, leading=11, fontName='Times-BoldItalic', spaceBefore=4, spaceAfter=2, keepWithNext=True))
+styles.add(ParagraphStyle(name='Body', parent=styles['Normal'], fontSize=9, leading=11.2, fontName='Times-Roman', alignment=TA_JUSTIFY, spaceAfter=4, firstLineIndent=10))
+styles.add(ParagraphStyle(name='BodyNoIndent', parent=styles['Normal'], fontSize=9, leading=11.2, fontName='Times-Roman', alignment=TA_JUSTIFY, spaceAfter=4))
+styles.add(ParagraphStyle(name='Caption', parent=styles['Normal'], fontSize=8, leading=9.5, fontName='Times-Italic', alignment=TA_CENTER, spaceBefore=2, spaceAfter=6))
+styles.add(ParagraphStyle(name='TableCaption', parent=styles['Normal'], fontSize=8, leading=9.5, fontName='Times-Bold', alignment=TA_CENTER, spaceBefore=2, spaceAfter=2))
+styles.add(ParagraphStyle(name='Ref', parent=styles['Normal'], fontSize=8, leading=9.8, fontName='Times-Roman', alignment=TA_LEFT, leftIndent=12, firstLineIndent=-12, spaceAfter=2))
+styles.add(ParagraphStyle(name='Cell', parent=styles['Normal'], fontSize=7.4, leading=9, fontName='Times-Roman'))
+styles.add(ParagraphStyle(name='CellH', parent=styles['Normal'], fontSize=7.4, leading=9, fontName='Times-Bold', textColor=colors.white))
+styles.add(ParagraphStyle(name='Small', parent=styles['Normal'], fontSize=7.8, leading=9.4, fontName='Times-Roman', alignment=TA_JUSTIFY, spaceAfter=3))
 
-def on_page(canvas, doc):
-    canvas.saveState()
-    canvas.setFont('Times-Roman', 10)
-    canvas.drawCentredString(page_w/2.0, 0.55*inch, str(doc.page))
-    canvas.restoreState()
 
-doc = BaseDocTemplate(OUT, pagesize=letter,
-                      leftMargin=margin_side, rightMargin=margin_side,
-                      topMargin=margin_top, bottomMargin=margin_bottom)
-doc.addPageTemplates([
-    PageTemplate(id='first', frames=[full_frame, f_left, f_right], onPage=on_page),
-    PageTemplate(id='later', frames=[left, right], onPage=on_page),
-])
+def H(txt, style='Section'):
+    return Paragraph(txt, styles[style])
 
-# Styles
-paper_title = ParagraphStyle('PaperTitle', fontName='Times-Bold', fontSize=24, leading=28,
-                             alignment=TA_CENTER, spaceAfter=10)
-author_s = ParagraphStyle('Author', fontName='Times-Roman', fontSize=11, leading=14,
-                          alignment=TA_CENTER, spaceAfter=2)
-affil_s = ParagraphStyle('Affil', fontName='Times-Roman', fontSize=10, leading=12,
-                         alignment=TA_CENTER, spaceAfter=4)
-abstract_s = ParagraphStyle('Abstract', fontName='Times-Bold', fontSize=9, leading=11,
-                            alignment=TA_JUSTIFY, leftIndent=18, rightIndent=18, spaceAfter=4)
-keywords_s = ParagraphStyle('Keywords', fontName='Times-Italic', fontSize=9, leading=11,
-                            alignment=TA_JUSTIFY, leftIndent=18, rightIndent=18, spaceAfter=4)
-h1 = ParagraphStyle('H1', fontName='Times-Roman', fontSize=10, leading=12,
-                    alignment=TA_CENTER, spaceBefore=10, spaceAfter=4)
-h2 = ParagraphStyle('H2', fontName='Times-Italic', fontSize=10, leading=12,
-                    alignment=TA_LEFT, spaceBefore=6, spaceAfter=2)
-body = ParagraphStyle('Body', fontName='Times-Roman', fontSize=10, leading=12,
-                      alignment=TA_JUSTIFY, spaceAfter=3, firstLineIndent=14)
-body0 = ParagraphStyle('Body0', fontName='Times-Roman', fontSize=10, leading=12,
-                       alignment=TA_JUSTIFY, spaceAfter=3, firstLineIndent=0)
-bullet = ParagraphStyle('Bullet', fontName='Times-Roman', fontSize=10, leading=12,
-                        alignment=TA_JUSTIFY, spaceAfter=2, leftIndent=10, firstLineIndent=0)
-cap = ParagraphStyle('Cap', fontName='Times-Roman', fontSize=8, leading=9.5,
-                     alignment=TA_CENTER, spaceBefore=2, spaceAfter=6)
-ref = ParagraphStyle('Ref', fontName='Times-Roman', fontSize=8, leading=9.5,
-                     alignment=TA_JUSTIFY, spaceAfter=2, leftIndent=12, firstLineIndent=-12)
-small = ParagraphStyle('Small', fontName='Times-Roman', fontSize=8, leading=9.5,
-                       alignment=TA_JUSTIFY, spaceAfter=2)
-cell = ParagraphStyle('Cell', fontName='Times-Roman', fontSize=8, leading=9.5, alignment=TA_LEFT)
-cell_c = ParagraphStyle('CellC', fontName='Times-Roman', fontSize=8, leading=9.5, alignment=TA_CENTER)
-cell_h = ParagraphStyle('CellH', fontName='Times-Bold', fontSize=8, leading=9.5, alignment=TA_CENTER)
+def P(txt, style='Body'):
+    return Paragraph(txt, styles[style])
 
-story = []
+def fig(name, caption, width=COL_W, max_h=2.4*inch):
+    path = os.path.join(FIG, name)
+    img = ImageReader(path)
+    iw, ih = img.getSize()
+    scale = min(width/iw, max_h/ih)
+    im = Image(path, width=iw*scale, height=ih*scale)
+    im.hAlign = 'CENTER'
+    return KeepTogether([im, P(caption, 'Caption')])
 
-def add_fig(filename, width, caption_text, max_h=2.25*inch):
-    path = os.path.join(FIG, filename)
-    elems = []
-    if os.path.exists(path):
-        im = Image(path)
-        iw, ih = im.imageWidth, im.imageHeight
-        aspect = ih / float(iw)
-        h = width * aspect
-        if h > max_h:
-            h = max_h
-            width = h / aspect
-        elems.append(Image(path, width=width, height=h))
-    elems.append(Paragraph(caption_text, cap))
-    return elems
-
-def make_table(data, col_widths, caption_text):
-    t = Table(data, colWidths=col_widths, repeatRows=1, hAlign='CENTER')
+def tbl(caption, header, rows, colWidths):
+    data = [[Paragraph(h, styles['CellH']) for h in header]]
+    for r in rows:
+        data.append([Paragraph(c, styles['Cell']) for c in r])
+    t = Table(data, colWidths=colWidths, repeatRows=1)
     t.setStyle(TableStyle([
-        ('FONTNAME', (0,0), (-1,0), 'Times-Bold'),
-        ('FONTNAME', (0,1), (-1,-1), 'Times-Roman'),
-        ('FONTSIZE', (0,0), (-1,-1), 8),
-        ('ALIGN', (0,0), (-1,0), 'CENTER'),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
-        ('BACKGROUND', (0,0), (-1,0), colors.Color(0.93,0.93,0.93)),
-        ('TOPPADDING', (0,0), (-1,-1), 3),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-        ('LEFTPADDING', (0,0), (-1,-1), 3),
-        ('RIGHTPADDING', (0,0), (-1,-1), 3),
+        ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#2D3748')),
+        ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white, colors.HexColor('#F7FAFC')]),
+        ('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#A0AEC0')),
+        ('VALIGN',(0,0),(-1,-1),'TOP'),
+        ('PADDING',(0,0),(-1,-1),2.5),
     ]))
-    return [t, Paragraph(caption_text, cap)]
+    return KeepTogether([P(caption, 'TableCaption'), t, Spacer(1,4)])
 
-# ---------- TITLE BLOCK ----------
-story.append(Paragraph('Intelligent and Secure Task Scheduling for Digital Twin-Enabled Edge&ndash;Cloud Networks', paper_title))
-story.append(Paragraph('Dr. R. G. Suresh Kumar', author_s))
-story.append(Paragraph('Professor and Head of the Department<br/>Department of Computer Science and Engineering<br/>Rajiv Gandhi College of Engineering and Technology<br/>Puducherry &ndash; 607 403, India<br/>Email: sureshkumar_rg@rgcet.edu.in', affil_s))
-story.append(Spacer(1, 4))
-story.append(Paragraph('DEVANAND P, HARISH T, KAILASANATHAN M', author_s))
-story.append(Paragraph('Department of Computer Science and Engineering<br/>Rajiv Gandhi College of Engineering and Technology<br/>Puducherry &ndash; 607 403, India<br/>Email: devanand.slp@gmail.com, harishthirunavukkarasu24@gmail.com, m.kailasam.06@gmail.com', affil_s))
-story.append(Paragraph('<i><b>Abstract</b></i>&mdash;Latency-sensitive and privacy-critical applications increasingly rely on coordinated use of local devices, edge servers, and cloud platforms. Distributing workloads across these tiers, however, raises difficult questions about where tasks should execute, where data should be stored, and how a system should respond to node failures, stale telemetry, or unsafe inputs. This paper presents SecureDT, an implemented digital twin&ndash;enabled framework for secure task scheduling, dataset analysis, and policy-driven storage allocation in edge&ndash;cloud environments. SecureDT integrates measured local workstation telemetry, heartbeat-based Multi-access Edge Computing (MEC) monitoring, and an explicitly modeled cloud tier within a unified resource view. A multi-objective genetic algorithm (GA) optimizes task placement by considering latency, energy, privacy loss, and security risk, while hard feasibility rules enforce placement policies before and during assignment. The platform also provides a 10-stage ZIP dataset ingestion pipeline with integrity verification, schema validation, dependency-cycle detection, timeout handling, and persistent reporting, applying policy-aware allocation logic to dataset and storage placement decisions. To demonstrate domain relevance and robustness, SecureDT includes 14 hospital workload processing scenarios and a 30-case structured test suite covering success, failure, and loop/timeout conditions. We describe the architecture, algorithms, implementation, and a Phase&nbsp;1 evidence-based qualitative assessment of the framework, and discuss its strengths, current limitations, and a roadmap toward adaptive, trust-aware edge&ndash;cloud orchestration.', abstract_s))
-story.append(Paragraph('<i><b>Index Terms</b></i>&mdash;Digital twin, edge computing, MEC, cloud storage, task scheduling, genetic algorithm, privacy-aware placement, trust-aware systems, secure data management, workload analysis.', keywords_s))
-story.append(FrameBreak())
-story.append(NextPageTemplate('later'))
+class Doc(BaseDocTemplate):
+    def __init__(self, filename, **kw):
+        self.allowSplitting = 0
+        BaseDocTemplate.__init__(self, filename, **kw)
+        f1 = Frame(MARGIN, MARGIN, COL_W, PAGE_H-2*MARGIN, id='col1')
+        f2 = Frame(MARGIN+COL_W+GUTTER, MARGIN, COL_W, PAGE_H-2*MARGIN, id='col2')
+        self.addPageTemplates([
+            PageTemplate(id='first', frames=[f1,f2]),
+            PageTemplate(id='later', frames=[f1,f2]),
+        ])
 
-# ---------- I. INTRODUCTION ----------
-story.append(Paragraph('I. INTRODUCTION', h1))
-story.append(Paragraph('Modern computing systems increasingly operate at the intersection of centralized clouds and resource-constrained endpoints. Applications in healthcare, smart infrastructure, transportation, and industrial monitoring generate continuous streams of data that must often be processed within tight time bounds while preserving confidentiality and integrity. Cloud platforms provide elasticity and large-scale storage, but exclusive dependence on remote data centers can introduce network delay, bandwidth pressure, and unnecessary exposure for sensitive records. Local processing reduces communication overhead and improves control over data, yet individual devices may lack sufficient compute, memory, or storage capacity to handle sustained or bursty workloads [1], [6], [7].', body0))
-story.append(Paragraph('Edge computing and Multi-access Edge Computing (MEC) address this tension by placing computational resources closer to data sources [2], [5]. In principle, this enables lower latency, reduced backhaul traffic, and more flexible placement decisions. In practice, however, edge&ndash;cloud collaboration creates a complex orchestration problem. A platform must determine not only where a task can run efficiently, but also whether a destination is currently available, trustworthy, and permitted under privacy or organizational policies. Storage decisions add further constraints: some data must remain on-premises, some may be shared with trusted edge nodes, and only selected workloads may be eligible for cloud placement.', body))
-story.append(Paragraph('Digital twin technology offers a promising abstraction for managing such complexity [3], [10]. By maintaining a software representation of physical and logical resources, a system can observe current state, reason about constraints, and support informed decisions. SecureDT applies this concept in an implemented research testbed for privacy-aware task scheduling and tri-tier storage management. The platform integrates a Django-based web interface and REST APIs with modular engines for digital twin state, policy enforcement, scheduling, dataset analysis, and storage operations. It is designed to make the interactions among performance, policy, and security explicit and traceable.', body))
-story.append(Paragraph('The key contributions of this work are:', body0))
-story.append(Paragraph('1) <b>Privacy-aware tri-tier architecture:</b> A unified model spanning local, MEC, and cloud tiers with explicit placement scopes (LOCAL_ONLY, TRUSTED_EDGE, CLOUD_ALLOWED) and integrity-verified storage handling.', bullet))
-story.append(Paragraph('2) <b>Digital twin resource model:</b> A consistent view of heterogeneous resources combining measured local hardware telemetry, heartbeat-based MEC status with stale detection, and an explicitly simulated cloud tier.', bullet))
-story.append(Paragraph('3) <b>Multi-objective scheduling:</b> A genetic algorithm for task-to-resource mapping that considers latency, energy, privacy loss, and security risk, together with hard feasibility checks and support for baseline comparison; policy-aware allocation is applied within the dataset analysis workflow.', bullet))
-story.append(Paragraph('4) <b>Defensive analysis pipeline:</b> A 10-stage ZIP ingestion workflow with archive validation, schema checks, dependency-cycle detection, timeout handling, SHA-256 verification, and persistent reporting.', bullet))
-story.append(Paragraph('5) <b>Scenario-based evaluation assets:</b> Fourteen hospital workload scenarios and a 30-case structured ZIP test suite covering success, failure, security, and loop/timeout conditions.', bullet))
-story.append(Paragraph('The remainder of this paper is organized as follows. Section II reviews background and motivation. Section III describes the system architecture. Section IV presents the methodology, including the analysis pipeline, policy model, and scheduling approach. Section V details implementation and the evaluation setup. Section VI presents a Phase&nbsp;1 qualitative assessment, limitations, and future directions, and Section VII concludes the paper.', body))
 
-# ---------- II. BACKGROUND ----------
-story.append(Paragraph('II. BACKGROUND AND MOTIVATION', h1))
-story.append(Paragraph('<i>A. Edge&ndash;Cloud Task Offloading</i>', h2))
-story.append(Paragraph('Task offloading aims to decide whether computation should execute locally, on an edge/MEC server, or in the cloud. The decision is influenced by factors such as input size, processing demand, network conditions, queueing delay, and energy consumption [1], [6], [12]. Because these factors vary across nodes and over time, offloading is commonly formulated as a multi-objective optimization problem. Heuristic and metaheuristic methods, including genetic algorithms, are widely used to explore large assignment spaces and balance competing objectives without requiring simple convex formulations [4], [11].', body0))
-story.append(Paragraph('<i>B. Digital Twins for Distributed Systems</i>', h2))
-story.append(Paragraph('A digital twin is a virtual counterpart that reflects the state of a corresponding entity or system [3]. In distributed computing, digital twins can aggregate telemetry, represent capacity and health, and provide a basis for monitoring and decision support [10]. For orchestration, a twin is valuable not only because it stores current values, but because it presents heterogeneous sources&mdash;such as measured hardware metrics, remote heartbeats, and modeled resources&mdash;through a common interface. SecureDT uses this abstraction to expose availability, utilization, latency, trust, and risk attributes to both users and scheduling logic.', body0))
-story.append(Paragraph('<i>C. Privacy, Security, and Safe Failure Handling</i>', h2))
-story.append(Paragraph('In privacy-sensitive domains, placement policies must be treated as constraints rather than soft preferences. Data may include confidential attributes that restrict movement across administrative or network boundaries. Systems must also cope with faulty or adversarial conditions: malformed archives, schema violations, unauthorized actions, stalled workers, and dependency errors can all disrupt processing. Effective platforms therefore require validation, integrity checks, bounded failure handling, and auditable outcomes. SecureDT incorporates these concerns into its ingestion, storage, and scheduling workflows to support traceable and defensive operation.', body0))
-story.append(Paragraph('<i>D. Need for an Integrated Platform</i>', h2))
-story.append(Paragraph('Although scheduling, storage management, and security are often studied separately, real deployments require them to work together. A placement that minimizes latency may violate privacy policy; a node that becomes stale affects both feasibility and reliability; and a storage action without integrity verification undermines trust in results. SecureDT is motivated by the need for an integrated testbed in which these interactions are explicit, observable, and reproducible through structured scenarios and reports.', body))
 
-# ---------- III. ARCHITECTURE ----------
-story.append(Paragraph('III. SYSTEM ARCHITECTURE', h1))
-story.append(Paragraph('Fig. 1 shows the high-level architecture of SecureDT. The platform is organized into four cooperating layers: (i) a web and API interface, (ii) policy, digital twin, and scheduling engines, (iii) security and audit mechanisms, and (iv) a tri-tier execution and storage substrate. This separation allows user interaction, decision logic, and data handling to evolve independently while sharing a common resource and reporting model.', body0))
-story.extend(add_fig('architecture.png', col_w, 'Fig. 1. High-level architecture of the SecureDT platform.', max_h=2.2*inch))
+def build():
+    doc = Doc(OUT, pagesize=letter, leftMargin=MARGIN, rightMargin=MARGIN, topMargin=MARGIN, bottomMargin=MARGIN)
+    story = []
 
-story.append(Paragraph('<i>A. Application and API Layer</i>', h2))
-story.append(Paragraph('The user-facing layer is implemented with Django views and templates. Core pages include the dashboard, dataset upload, digital twin, edge system, storage allocation, dataset reports, report details, and task history. These pages are backed by application APIs that provide dashboard statistics, upload and demo-upload processing, digital twin status, edge system checks and registration, storage allocation records, report retrieval and export, and task history. Modular endpoints also support authentication, MEC management, cloud operations, analytics, and dataset services, enabling the platform to function as an integrated environment rather than a collection of isolated tools.', body0))
+    # Title/authors
+    story.append(Paragraph('Intelligent and Secure Task Scheduling for Digital Twin-Enabled Edge&#8211;Cloud Networks', styles['PaperTitle']))
+    story.append(Paragraph('<b>Dr. R. G. Suresh Kumar</b><super>1</super>, <b>DEVANAND P</b><super>2</super>, <b>HARISH T</b><super>2</super>, <b>KAILASANATHAN M</b><super>2</super>', styles['PaperAuthor']))
+    story.append(Paragraph('<super>1</super>Professor and Head of the Department, Department of Computer Science and Engineering, Rajiv Gandhi College of Engineering and Technology, Puducherry &#8211; 607 403, India', styles['PaperAffil']))
+    story.append(Paragraph('<super>2</super>Department of Computer Science and Engineering, Rajiv Gandhi College of Engineering and Technology, Puducherry &#8211; 607 403, India', styles['PaperAffil']))
+    story.append(Paragraph('sureshkumar_rg@rgcet.edu.in | devanand.slp@gmail.com | harishthirunavukkarasu24@gmail.com | m.kailasam.06@gmail.com', styles['PaperEmail']))
+    story.append(HRFlowable(width='100%', thickness=0.7, color=colors.HexColor('#444444'), spaceBefore=0, spaceAfter=6))
 
-story.append(Paragraph('<i>B. Tri-Tier Storage and Execution Substrate</i>', h2))
-story.append(Paragraph('SecureDT defines three storage tiers outside the public web root, summarized in Table I and Fig. 2. LOCAL_STORAGE provides 50 GB of on-premises capacity for data that must remain local. MEC_STORAGE provides 200 GB of edge micro-datacenter capacity for trusted low-latency workloads. CLOUD_STORAGE provides a 1 TB centralized emulator for data eligible for broader placement. The storage manager initializes directories, tracks usage metadata, computes SHA-256 checksums for stored artifacts, and supports idempotent handling when a verified copy already exists. These mechanisms provide a basis for traceable and policy-aware storage operations.', body0))
+    story.append(P('<i><b>Abstract&#8212;</b>Digital Twin-enabled edge&#8211;cloud systems require scheduling decisions that simultaneously satisfy latency, energy, privacy, security, and resource constraints. This paper presents a rebuilt research baseline for SecureDT, an as-implemented Django-based platform for intelligent and secure task scheduling across Local, Mobile Edge Computing (MEC), and Cloud tiers. The system combines a policy engine enforcing LOCAL_ONLY, TRUSTED_EDGE, and CLOUD_ALLOWED constraints; a mixed-fidelity Digital Twin with measured local hardware telemetry, measured MEC heartbeat telemetry, and simulated cloud state; a multi-objective Genetic Algorithm (GA) and five baseline schedulers for task dispatch; a 10-stage dataset ingestion/analysis pipeline; tri-tier storage with SHA-256 integrity and privacy-boundary enforcement; and virtualized security/risk monitoring. A Phase 1 code audit of the repository identifies implemented strengths, partial components, and critical research gaps. Key findings include a real GA in the task scheduling path, a methodological inconsistency where dataset upload allocation uses deterministic heuristic scoring while reports label GA/policy engine behavior, and reliance on model-based/simulated cloud and security components. The paper distinguishes measured, simulated, and model-based evidence and defines a SecureDT 2.0 roadmap toward adaptive, trust-aware, and reproducible edge&#8211;cloud scheduling.</i>', 'AbstractBody'))
+    story.append(P('<i><b>Keywords&#8212;</b>Digital Twin, edge&#8211;cloud computing, task scheduling, genetic algorithm, privacy policy, MEC, security monitoring, tri-tier storage, SecureDT</i>', 'Keywords'))
 
-t1_data = [
-    [Paragraph('<b>Tier</b>', cell_h), Paragraph('<b>Type</b>', cell_h), Paragraph('<b>Capacity</b>', cell_h), Paragraph('<b>Policy Scope</b>', cell_h)],
-    [Paragraph('LOCAL_STORAGE', cell), Paragraph('On-prem local', cell_c), Paragraph('50 GB', cell_c), Paragraph('LOCAL_ONLY', cell_c)],
-    [Paragraph('MEC_STORAGE', cell), Paragraph('Edge micro-datacenter', cell_c), Paragraph('200 GB', cell_c), Paragraph('TRUSTED_EDGE', cell_c)],
-    [Paragraph('CLOUD_STORAGE', cell), Paragraph('Cloud emulator', cell_c), Paragraph('1000 GB', cell_c), Paragraph('CLOUD_ALLOWED', cell_c)],
-]
-story.extend(make_table(t1_data, [1.0*inch, 1.05*inch, 0.55*inch, 0.85*inch], 'TABLE I<br/>TRI-TIER STORAGE CONFIGURATION'))
-story.extend(add_fig('storage_tiers.png', col_w, 'Fig. 2. Storage tier capacities and privacy placement scopes.', max_h=1.95*inch))
+    # I. Intro
+    story.append(H('I. Introduction'))
+    story.append(P('Edge&#8211;cloud infrastructures support latency-sensitive and privacy-sensitive workloads by distributing computation across local workstations, edge nodes, and centralized cloud resources. Digital Twins (DTs) improve observability by maintaining virtual representations of physical resources, but scheduling decisions remain challenging when workloads have heterogeneous deadlines, privacy policies, security exposure, and resource demands. A practical scheduler must not only optimize latency and energy but also enforce hard privacy constraints and account for trust and security risk.'))
+    story.append(P('SecureDT is an implemented research platform that explores this problem in a hospital-oriented edge&#8211;cloud testbed scenario. This paper remakes the SecureDT report from the current repository state rather than from prior narrative claims. It is grounded in a Phase 1 audit of the codebase and explicitly separates fully implemented, partially implemented, simulated, model-based, and unverified behaviors. The objective is to provide an honest, reproducible baseline for evolving the system into SecureDT 2.0: an AI-driven adaptive and trust-aware task scheduling framework for secure Digital Twin-enabled edge&#8211;cloud networks.'))
+    story.append(P('<b>Contributions.</b> (1) A repository-grounded architecture and workflow description of SecureDT; (2) a code-audit-based component inventory with implementation status; (3) identification of methodological and fidelity gaps, including GA labeling inconsistency in the dataset upload path; (4) a research gap analysis and incremental roadmap for SecureDT 2.0.'))
 
-story.append(Paragraph('<i>C. Digital Twin Resource Model</i>', h2))
-story.append(Paragraph('The digital twin maintains virtual representations of local, MEC, and cloud resources with mixed-fidelity telemetry. The local workstation is modeled using measured hardware indicators (e.g., CPU and memory utilization via system monitoring), providing a measured view of on-prem capacity. MEC nodes are tracked through heartbeat updates and associated freshness information; stale or unavailable nodes can be excluded from eligible placement. The cloud tier is explicitly represented as a simulated environment with modeled latency and capacity characteristics. Each resource state exposes attributes such as availability, utilization, latency, trust, and security risk, enabling consistent use by monitoring views and decision logic; trust and risk values are currently model-derived or scenario-influenced rather than continuously learned from longitudinal evidence.', body0))
-story.extend(add_fig('telemetry_fidelity.png', col_w, 'Fig. 3. Digital twin telemetry fidelity by tier (as implemented).', max_h=1.55*inch))
-story.append(Paragraph('This explicit separation of telemetry sources supports provenance-aware interpretation: scheduling and monitoring can react to real workstation and MEC conditions where available, while cloud behavior remains a controlled model for experimental comparison. Representing freshness and availability in the twin helps avoid assignments to stale or disconnected edge nodes and makes the boundary between measured and simulated evidence visible to users and reports.', body))
+    # II. Related/Context
+    story.append(H('II. Background and System Context'))
+    story.append(P('SecureDT combines concepts from edge&#8211;cloud offloading, Digital Twins, multi-objective optimization, and security-aware computing. Traditional schedulers such as Round Robin, First Fit, Random, Greedy, and privacy-aware heuristics provide useful baselines but do not jointly optimize multiple constraints with policy-aware feasibility. Genetic Algorithms (GAs) are suitable for multi-objective task-to-resource assignment because they can encode assignments as chromosomes and optimize weighted fitness under constraints.'))
+    story.append(P('The current SecureDT implementation is a Django/Python platform with Django REST Framework, optional MySQL/SQLite persistence, psutil-based local telemetry, and modular engines for scheduling, policy enforcement, Digital Twin state, dataset analysis, storage, risk, attack simulation, and benchmarking. The repository also contains 14 hospital workload scenarios and 30 ZIP evaluation assets used as a realistic clinical demonstration scenario. Runtime validation of these assets is not claimed as executed in this Phase 1 paper.'))
+    story.append(fig('architecture.png', 'Fig. 1. SecureDT as-implemented architecture showing policy, Digital Twin, scheduling, security, tri-tier execution/storage, and persistent observability.', width=COL_W, max_h=2.3*inch))
 
-story.append(Paragraph('<i>D. Security and Traceability Mechanisms</i>', h2))
-story.append(Paragraph('SecureDT incorporates defensive measures across the workflow. Archive ingestion validates structure and content, rejects path traversal entries, blocks disallowed executable types, and enforces decompression limits. Policy checks prevent privacy-incompatible placement, while storage actions use SHA-256 checksums to verify artifact integrity. Security monitoring and attack-handling components in the current testbed operate primarily through model-based risk computation and virtual (in-process) simulation to demonstrate defensive behavior. Analysis results, scheduler outputs, and storage actions are recorded in persistent reports and task histories. These features support auditability and safe failure handling within the research testbed, without implying formal regulatory certification or real adversarial hardening.', body))
+    # III. Architecture
+    story.append(H('III. SecureDT Architecture and Implementation'))
+    story.append(P('Fig. 1 summarizes the implemented architecture. The Django application layer exposes dashboard, upload, Digital Twin, storage allocation, reports, task history, and REST APIs. The engine layer contains the scheduling, policy, twin, dataset analysis, storage, risk, attack, and benchmark logic. Persistence stores tasks, datasets, MEC agents, heartbeats, decisions, experiment runs, reports, audit events, and storage replicas.'))
+    story.append(tbl('Table I. Core Django Applications and Responsibilities', ['App', 'Responsibility', 'Key Evidence'], [
+        ['datasets', 'Dataset upload, 10-stage analysis, reports, storage allocation, dashboard/history pages.', 'datasets/models.py, views_pages.py'],
+        ['tasks', 'Task lifecycle, dispatch, queue/history, benchmark APIs.', 'tasks/models.py, services.py, views.py'],
+        ['mec_manager', 'MEC pairing, token auth, heartbeat telemetry, online/offline, revoke/requeue.', 'mec_manager/models.py, services.py, views.py'],
+        ['digital_twin', 'Twin state APIs, virtual attack/mitigation/quarantine, compare/export.', 'digital_twin/views.py, engine/digital_twin.py'],
+        ['analytics', 'Aggregated MEC/task/energy/security/cloud metrics and data flow.', 'analytics/views.py'],
+        ['cloud', 'Cloud/Drive metadata, upload/download/status/folders; simulated/fallback capable.', 'cloud/models.py, views.py'],
+    ], [0.95*inch, 2.15*inch, 2.0*inch]))
 
-# ---------- IV. METHODOLOGY ----------
-story.append(Paragraph('IV. METHODOLOGY', h1))
-story.append(Paragraph('<i>A. Dataset Ingestion and 10-Stage Analysis Pipeline</i>', h2))
-story.append(Paragraph('A central component of SecureDT is its ZIP-based dataset analysis workflow. As shown in Fig. 4, each submission is processed through ten stages: (1) upload receipt, (2) archive validation, (3) dataset inventory, (4) feature extraction, (5) resource status check, (6) privacy and security validation, (7) scheduling/allocation decision, (8) allocation recommendation, (9) storage execution or simulation, and (10) persistent report generation.', body0))
-story.extend(add_fig('workflow_pipeline.png', col_w, 'Fig. 4. Ten-stage dataset upload and analysis pipeline.', max_h=1.45*inch))
-story.append(Paragraph('Archive validation confirms that the input is a readable ZIP file, computes an archive checksum, and applies safety checks. The pipeline rejects path traversal entries, blocks disallowed executable extensions, and enforces decompression size limits. Manifest validation requires key fields such as a scenario identifier and a resource list with at least three tiers. Task metadata is examined for dependency cycles using graph traversal; when a cycle is detected, the submission is rejected safely rather than allowed to enter an unbounded execution state. Timeout conditions are identified when simulated latency exceeds configured bounds, and bounded retry behavior is recorded where applicable.', body))
-story.append(Paragraph('The workflow supports two operating modes. In simulation mode, placement decisions are computed and reported without physically writing tier artifacts. In execution mode, selected files are written to the corresponding storage directories, checksums are verified, storage usage is updated, and replica records are created. In both modes, the system produces a structured, persistent report that can be inspected through the web interface or exported as CSV for further analysis.', body))
+    story.append(H('A. Mixed-Fidelity Digital Twin'))
+    story.append(P('The Digital Twin maintains resource states for Local, MEC, and Cloud tiers. Local resources are measured from workstation hardware using psutil and labeled <i>MEASURED_HARDWARE</i>. MEC resources are derived from authenticated heartbeats and labeled <i>MEASURED_HEARTBEAT</i>; stale heartbeats trigger offline/unavailable treatment. Cloud is explicitly labeled <i>SIMULATED_CLOUD</i> with modeled latency/capacity behavior. This mixed-fidelity design is useful for experimentation, but it requires careful provenance labeling in reports and research claims.'))
+    story.append(fig('telemetry_fidelity.png', 'Fig. 2. Digital Twin telemetry fidelity: measured local, measured heartbeat MEC, and simulated cloud.', width=COL_W, max_h=1.7*inch))
 
-story.append(Paragraph('<i>B. Privacy Placement Policies and Eligibility</i>', h2))
-story.append(Paragraph('SecureDT enforces privacy placement as a hard eligibility constraint. Each workload or dataset component is associated with a policy scope that determines allowable destinations, as summarized in Table II. LOCAL_ONLY data must remain on the local workstation. TRUSTED_EDGE data may be placed on the local tier or on authenticated, non-stale MEC nodes. CLOUD_ALLOWED data may use any eligible tier, subject to availability and operational checks. Filtering candidates before optimization reduces the likelihood that performance-oriented scoring selects a non-compliant assignment.', body0))
-t2_data = [
-    [Paragraph('<b>Policy</b>', cell_h), Paragraph('<b>Eligible Destinations</b>', cell_h), Paragraph('<b>Placement Intent</b>', cell_h)],
-    [Paragraph('LOCAL_ONLY', cell_c), Paragraph('Local workstation only', cell), Paragraph('Strict on-prem confinement', cell)],
-    [Paragraph('TRUSTED_EDGE', cell_c), Paragraph('Local and authenticated MEC', cell), Paragraph('Trusted low-latency edge use', cell)],
-    [Paragraph('CLOUD_ALLOWED', cell_c), Paragraph('Local, MEC, and Cloud', cell), Paragraph('Flexible placement when permitted', cell)],
-]
-story.extend(make_table(t2_data, [0.9*inch, 1.3*inch, 1.25*inch], 'TABLE II<br/>PRIVACY PLACEMENT POLICIES'))
+    story.append(H('B. Policy Engine and Scheduling'))
+    story.append(P('The PolicyEngine enforces hard placement constraints: <i>LOCAL_ONLY</i> restricts execution to local resources; <i>TRUSTED_EDGE</i> permits local or authenticated, online, non-stale MEC resources; <i>CLOUD_ALLOWED</i> permits local, eligible MEC, or cloud. The engine also checks availability, staleness, memory capacity, and supported workload types before dispatch.'))
+    story.append(P('The task scheduling path uses a real GA implementation in <font name="Courier" size="7.5">engine/genetic_algorithm.py</font>. Each chromosome encodes per-task resource assignments. The GA applies tournament selection, single-point crossover, per-gene mutation, elitism, and policy-aware candidate filtering. The fitness function combines latency, energy, privacy loss, security risk, and deadline penalty; unassignable tasks are represented as blocked assignments. The scheduler also implements Round Robin, First Fit, Random, Greedy, and Privacy-Aware baselines through a common evaluation model.'))
+    story.append(fig('scheduler_comparison.png', 'Fig. 3. Illustrative scheduler comparison showing the design target of GA under multi-objective constraints. Values are illustrative only, not measured benchmark results.', width=COL_W, max_h=2.0*inch))
 
-story.append(Paragraph('At dispatch time, policy validation can be applied again to confirm that the selected resource remains compliant. This two-stage view&mdash;eligibility filtering followed by dispatch validation&mdash;helps maintain consistency when resource availability or freshness changes between planning and execution.', body))
+    # IV. Dataset pipeline and storage
+    story.append(H('IV. Dataset Pipeline and Tri-Tier Storage'))
+    story.append(P('SecureDT includes a 10-stage dataset ZIP ingestion and analysis pipeline. The implemented stages cover upload receipt, archive validation, inventory extraction, feature extraction, resource status collection, privacy/security assessment, scheduling/allocation, allocation recommendation, storage execution/simulation, and report generation. The pipeline includes ZIP safety checks for path traversal, executable content, and decompression/size limits, along with SHA-256 checksums and report persistence.'))
+    story.append(fig('pipeline.png', 'Fig. 4. Ten-stage dataset ingestion, validation, allocation, and reporting pipeline.', width=COL_W*2+GUTTER, max_h=1.25*inch))
+    story.append(NextPageTemplate('later'))
+    story.append(FrameBreak())
 
-story.append(Paragraph('<i>C. Multi-Objective Genetic Algorithm Scheduling</i>', h2))
-story.append(Paragraph('Task scheduling in heterogeneous edge&ndash;cloud environments involves trade-offs among multiple objectives. SecureDT includes a genetic algorithm (GA) scheduler for task-to-resource assignment and dispatch. In this formulation, a chromosome encodes the resource index selected for each task. The population evolves through tournament selection, single-point crossover, per-gene mutation, and elitism over a configured number of generations. Resources that are offline, stale, or policy-ineligible are excluded from candidate generation, and tasks without feasible placements can be marked as blocked. In the current implementation, the GA and baseline schedulers are applied in the task scheduling/benchmarking path, while the dataset-upload pipeline performs deterministic, policy-aware multi-objective allocation scoring for storage placement recommendations; aligning these decision mechanisms and their reporting is an identified improvement target.', body0))
-story.append(Paragraph('The fitness function combines latency, energy, privacy loss, and security risk, with additional penalties for deadline violations and infeasible assignments (Fig. 5). Conceptually, the objective can be expressed as:', body0))
-story.append(Paragraph('Fitness = w<sub>1</sub>&middot;Latency + w<sub>2</sub>&middot;Energy + w<sub>3</sub>&middot;PrivacyLoss + w<sub>4</sub>&middot;SecurityRisk + P', 
-                        ParagraphStyle('Eq', parent=body0, leftIndent=16, firstLineIndent=0, spaceBefore=2, spaceAfter=2, fontName='Times-Italic')))
-story.append(Paragraph('where <i>w<sub>1</sub></i>&ndash;<i>w<sub>4</sub></i> are weighting coefficients and <i>P</i> represents penalty terms for constraint violations or missed deadlines. The GA implementation in the engine is designed to explore diverse assignments while preserving feasible, policy-compliant solutions. For comparative evaluation, the platform also supports baseline strategies such as round-robin, first-fit, random, greedy, and privacy-aware scheduling in its broader benchmarking design. Current objective weights and decision logic are largely static, and AI-based risk analysis (where used) is offline or rule-based rather than continuously adaptive.', body))
-story.extend(add_fig('ga_fitness.png', col_w, 'Fig. 5. Multi-objective fitness components used in GA-based scheduling.', max_h=1.9*inch))
-story.extend(add_fig('ga_convergence.png', col_w, 'Fig. 6. Illustrative GA convergence behavior over generations (lower fitness is better).', max_h=1.85*inch))
-story.append(Paragraph('Fig. 6 illustrates representative convergence behavior of an evolutionary search in which best-so-far solutions improve over successive generations while population diversity is maintained through mutation and crossover. In SecureDT, convergence characteristics depend on workload mix, candidate resource availability, and feasibility constraints; empirical convergence and runtime profiling are therefore identified as part of future reproducible evaluation.', body))
+    story.append(P('The storage manager provides three destinations outside the webroot: LOCAL_STORAGE (50 GB), MEC_STORAGE (200 GB), and CLOUD_STORAGE (1000 GB, emulator-flagged). It supports SHA-256 verification, privacy-boundary enforcement, idempotent replication, and audit logging for violations. This design supports confidentiality-aware data placement but requires clear labeling where cloud behavior is emulated rather than backed by a verified public cloud.'))
+    story.append(fig('storage_tiers.png', 'Fig. 5. Tri-tier storage capacities and privacy scope.', width=COL_W, max_h=1.9*inch))
 
-story.append(Paragraph('<i>D. Hospital Workload and Scenario Model</i>', h2))
-story.append(Paragraph('To demonstrate applicability to privacy-sensitive domains, SecureDT defines 14 hospital workload scenarios grouped into four categories (Table III). These scenarios exercise both normal processing and controlled fault conditions. Success cases include medical image preprocessing, clinical record risk scoring, laboratory panel analysis, medical document metadata extraction, and appointment scheduling. Controlled error cases validate malformed input handling, missing mandatory fields, and unsupported formats. Defensive security cases address unauthorized submission, invalid MEC credentials, and blocked unauthorized cloud replication. Timeout and retry cases assess execution time limits, unresponsive workers, and bounded retry exhaustion.', body0))
-t3_data = [
-    [Paragraph('<b>Category</b>', cell_h), Paragraph('<b>Count</b>', cell_h), Paragraph('<b>Examples / Focus</b>', cell_h)],
-    [Paragraph('Success', cell_c), Paragraph('5', cell_c), Paragraph('Image preprocessing, EHR scoring, lab analysis, metadata extraction, scheduling', cell)],
-    [Paragraph('Controlled error', cell_c), Paragraph('3', cell_c), Paragraph('Malformed image, missing fields, unsupported format rejection', cell)],
-    [Paragraph('Defensive security', cell_c), Paragraph('3', cell_c), Paragraph('Unauthorized submission, invalid MEC auth, blocked replication', cell)],
-    [Paragraph('Timeout / retry', cell_c), Paragraph('3', cell_c), Paragraph('Execution timeout, unresponsive worker, retry exhaustion', cell)],
-]
-story.extend(make_table(t3_data, [1.0*inch, 0.4*inch, 2.05*inch], 'TABLE III<br/>HOSPITAL WORKLOAD SCENARIO CATEGORIES'))
-story.extend(add_fig('hospital_workload_categories.png', col_w, 'Fig. 7. Distribution of the 14 hospital workload scenarios by category.', max_h=1.8*inch))
-story.append(Paragraph('Together, these scenarios provide a structured way to evaluate correctness, safety, and resilience across nominal and adverse conditions. They complement the archive-based test suite by focusing on domain-oriented processing behaviors, policy enforcement outcomes, and bounded handling of errors, security violations, and timeout/retry situations.', body))
+    story.append(tbl('Table II. Data Provenance and Execution Fidelity', ['Component', 'Fidelity/Status', 'Evidence'], [
+        ['Local telemetry', 'Measured hardware (psutil).', 'engine/digital_twin.py'],
+        ['MEC telemetry', 'Measured heartbeat with stale detection.', 'engine/digital_twin.py, mec_manager/services.py'],
+        ['Cloud tier', 'Simulated/emulated cloud state and execution path.', 'engine/digital_twin.py, tasks/services.py'],
+        ['Task GA scheduler', 'Implemented algorithmic GA in task path.', 'engine/genetic_algorithm.py, scheduler.py'],
+        ['Dataset upload allocation', 'Deterministic heuristic scoring; GA/policy label inconsistency in reports.', 'engine/dataset_analysis_service.py'],
+        ['Security/attacks', 'Model-based risk and virtual in-process attack simulation.', 'engine/risk_engine.py, attack_simulator.py'],
+    ], [1.35*inch, 2.25*inch, 1.5*inch]))
 
-# ---------- V. IMPLEMENTATION ----------
-story.append(Paragraph('V. IMPLEMENTATION AND EVALUATION SETUP', h1))
-story.append(Paragraph('<i>A. Software Implementation</i>', h2))
-story.append(Paragraph('SecureDT is implemented primarily in Python. The backend uses Django and Django REST Framework for web views and APIs, with SQLite as the default database and optional MySQL support. The engine layer includes modules for digital twin state management, genetic algorithm and baseline scheduling, policy enforcement, dataset analysis, storage management, hospital workload processing, risk/security monitoring, and related support functions. Data processing and analysis components use libraries such as NumPy, pandas, scikit-learn, SciPy, Pillow, and scikit-image. Local telemetry is collected through system monitoring utilities (e.g., psutil), and reporting/export features support structured inspection of results. A Random Forest&ndash;based risk classifier with rule-based fallback is included for offline/model-based risk analysis. The platform also includes components for MEC agent pairing, authentication, heartbeat-based status tracking, and interaction within the broader edge workflow.', body0))
+    # V. Security, MEC, evaluation assets
+    story.append(H('V. Security, MEC Lifecycle, and Evaluation Assets'))
+    story.append(P('MEC management includes one-time pairing, device/token authentication, heartbeat processing, timeout-based online/offline state, revocation, and task reassignment hooks. These mechanisms provide a practical edge-agent lifecycle for the testbed. The security layer computes normalized risk from attack, severity, privacy, trust, workload, and exposure factors; simulates virtual attacks over Digital Twin state; and aggregates events through a security monitor. An AI risk module uses an offline RandomForest classifier with rule-based fallback and optional cached Groq explanation. These components are useful for controlled experiments but should be described as model-based or simulated unless validated against real adversarial telemetry.'))
+    story.append(P('The repository includes 14 hospital workload scenarios across success, error, security, and timeout categories, plus 30 ZIP test-case assets. The scenarios cover realistic clinical operations such as image preprocessing, EHR scoring, lab panels, document metadata extraction, appointment scheduling, malformed input handling, policy violations, and timeout/retry behavior. This paper does not claim runtime pass/fail results for all assets because Phase 1 did not execute end-to-end validation.'))
+    story.append(fig('scenario_assets.png', 'Fig. 6. Evaluation assets included in the repository: 14 hospital workload scenarios and 30 ZIP test cases.', width=COL_W, max_h=1.9*inch))
 
-story.append(Paragraph('<i>B. Structured ZIP Test Suite</i>', h2))
-story.append(Paragraph('To validate ingestion and analysis behavior, SecureDT provides 30 standardized ZIP archives: 10 success, 10 failure, and 10 loop/timeout scenarios (Fig. 5). Success cases exercise valid multi-tier allocation, mixed file formats, capacity-aware and privacy-aware decisions, and multi-task scheduling. Failure cases include corrupt archives, invalid or malformed manifests, missing or mistyped fields, insufficient resource tiers, disallowed executable content, path traversal entries, and decompression-limit violations. Loop/timeout cases cover large bounded queues, dependency cycles (including self, mutual, and multi-node cycles), watchdog timeouts, retry storms, retry exhaustion, and mixed cycle-timeout conditions.', body0))
-story.extend(add_fig('scenario_distribution.png', col_w, 'Fig. 8. Distribution of the 30-case ZIP scenario test suite.', max_h=1.85*inch))
-story.append(Paragraph('Each valid archive follows a consistent internal structure containing <i>manifest.json</i>, per-tier <i>resource.json</i> descriptors and dataset files under local/MEC/cloud directories, <i>tasks/task_metadata.json</i>, and <i>expected_results/expected_result.json</i>. This consistency enables repeatable functional testing and comparison between expected and observed outcomes across the analysis pipeline.', body))
+    # VI. Audit findings
+    story.append(H('VI. Phase 1 Audit Findings'))
+    story.append(P('The Phase 1 audit reviewed configuration, models, engines, APIs, UI routes, storage, tests, and documentation. The system is a substantial research prototype with real implementations in key scheduling and lifecycle components, but several claims require tighter provenance and validation.'))
+    story.append(fig('audit_status.png', 'Fig. 7. Phase 1 audit status summary by component category.', width=COL_W, max_h=1.8*inch))
+    story.append(tbl('Table III. Key Audit Findings', ['Finding', 'Impact', 'Status'], [
+        ['Task path uses real GA and baselines with policy-aware evaluation.', 'Supports multi-objective scheduling research baseline.', 'Implemented'],
+        ['Dataset upload allocation uses deterministic heuristic scoring but reports GA/policy engine.', 'Methodological traceability gap; can overstate GA use.', 'Critical gap'],
+        ['Digital Twin mixes measured local/MEC and simulated cloud.', 'Valid for prototype; requires explicit provenance in claims.', 'Partial/mixed'],
+        ['Cloud execution/storage includes simulation/emulation.', 'Not evidence of real public-cloud performance.', 'Simulated'],
+        ['Security/risk/attack modules are model-based or virtual.', 'Useful for controlled testing, not real adversarial hardening.', 'Model-based'],
+        ['Tests and 30-case runtime outcomes not executed in Phase 1.', 'No runtime pass/fail or benchmark claim made.', 'Unverified'],
+    ], [2.25*inch, 1.95*inch, 0.9*inch]))
 
-story.append(Paragraph('<i>C. Reporting, Metrics, and Observability</i>', h2))
-story.append(Paragraph('For every analyzed submission, SecureDT generates a persistent structured report that records validation outcomes, scheduler/allocation decisions, allocation recommendations, storage actions, and timing information. Reports can be reviewed through the web interface and exported for offline analysis. Reporting fields include processing duration, scheduler duration, and a simulated energy estimate, which is explicitly treated as model-based rather than hardware-measured. The dashboard aggregates operational indicators such as upload counts, report status, task queue states, storage usage, recent audit events, and digital twin summaries. Consistent provenance labeling of measured, simulated, and model-based values across all outputs remains an important refinement goal.', body0))
+    # VII. Gaps and roadmap
+    story.append(H('VII. Research Gaps and SecureDT 2.0 Roadmap'))
+    story.append(P('The main gap between the current system and the SecureDT 2.0 objective is the absence of continuously adaptive, trust-aware intelligence grounded in observed behavior. Scheduling weights are largely static, trust is coarse/model-driven, and security evidence is primarily virtual. The dataset allocation path must be made methodologically consistent with the task scheduler or clearly labeled as a separate heuristic. Digital Twin fidelity must improve through calibration, uncertainty/provenance metadata, and stronger MEC/cloud synchronization.'))
+    story.append(P('The roadmap preserves reusable foundations: PolicyEngine, GA/baselines, MEC lifecycle, Digital Twin abstraction, storage integrity mechanisms, and report/benchmark persistence. Future phases should add decision provenance, trust scoring from longitudinal evidence, anomaly/fault detection, stronger measured evaluation, and calibrated twin synchronization before major architectural redesign.'))
+    story.append(fig('roadmap.png', 'Fig. 8. Incremental SecureDT 2.0 roadmap from audit baseline to adaptive, trust-aware evaluation.', width=COL_W*2+GUTTER, max_h=1.1*inch))
 
-# ---------- VI. DISCUSSION ----------
-story.append(Paragraph('VI. PHASE 1 ASSESSMENT AND DISCUSSION', h1))
-story.append(Paragraph('<i>A. Baseline Qualitative Assessment</i>', h2))
-story.append(Paragraph('A Phase&nbsp;1 code and architecture audit of the repository indicates that scheduling, storage management, and defensive checks are coordinated within a single digital twin&ndash;enabled workflow. The 10-stage ingestion pipeline provides structured handling of archive inputs, from validation and inventory to allocation and reporting. Policy-aware eligibility checks help ensure that placement decisions respect defined privacy scopes, while SHA-256 verification and persistent reports improve traceability of storage and analysis actions. The scenario suites and test assets provide a basis for structured validation of successful operations and controlled failure conditions; comprehensive runtime verification of all cases remains part of ongoing evaluation.', body0))
+    # VIII. Conclusion
+    story.append(H('VIII. Conclusion'))
+    story.append(P('This paper reconstructed the SecureDT report from the current repository implementation and Phase 1 audit. SecureDT already provides a meaningful baseline: a Django-based edge&#8211;cloud testbed with policy-constrained multi-objective GA scheduling, mixed-fidelity Digital Twin telemetry, MEC lifecycle management, tri-tier storage with integrity controls, dataset analysis/reporting, and simulated security tooling. At the same time, the audit identifies critical gaps that must be addressed before stronger research claims: methodological consistency between scheduling paths, explicit measured/simulated/model-based labeling, runtime validation of evaluation assets, and evolution toward adaptive trust-aware decision-making. The resulting baseline is suitable for incremental SecureDT 2.0 development without premature architectural rewrite.'))
 
-story.append(Paragraph('<i>B. Scheduler Comparison Perspective</i>', h2))
-story.append(Paragraph('Fig. 9 provides an illustrative comparison between a GA-oriented scheduling approach and several baseline strategies in terms of normalized makespan and policy violation count. The figure reflects an important design principle of SecureDT: performance gains should not come at the expense of feasibility or policy compliance. In sensitive environments, a placement that is fast but violates locality or trust constraints is unacceptable. Accordingly, the platform emphasizes constraint-aware decision-making alongside optimization objectives.', body0))
-story.extend(add_fig('scheduler_comparison.png', col_w, 'Fig. 9. Illustrative comparison of scheduling strategies by normalized makespan and policy violations.', max_h=2.0*inch))
-story.append(Paragraph('Because the values shown are illustrative design targets rather than benchmark measurements from a single controlled run reported here, future work will pair such comparisons with reproducible experiment configurations, fixed seeds, and explicit separation of measured, simulated, and model-based metrics for each algorithm and workload class.', body))
+    story.append(H('Acknowledgment'))
+    story.append(P('The authors acknowledge the Department of Computer Science and Engineering, Rajiv Gandhi College of Engineering and Technology, Puducherry, for academic guidance and project support.', 'BodyNoIndent'))
 
-story.append(Paragraph('<i>C. Alignment and Practical Implications</i>', h2))
-story.append(Paragraph('By combining digital twin state, policy enforcement, and structured reporting, SecureDT supports a workflow in which decisions can be inspected and justified. This is particularly relevant for domains where operators need to understand not only the final placement, but also why a destination was eligible, what validations were performed, and how failures were handled. The modular architecture also allows individual components&mdash;such as telemetry sources, schedulers, or storage backends&mdash;to be refined without redesigning the entire system.', body0))
+    story.append(H('References'))
+    refs = [
+        '[1] W. Shi, J. Cao, Q. Zhang, Y. Li, and L. Xu, "Edge Computing: Vision and Challenges," <i>IEEE Internet of Things Journal</i>, vol. 3, no. 5, pp. 637&#8211;646, 2016.',
+        '[2] M. Grieves and J. Vickers, "Digital Twin: Mitigating Unpredictable, Undesirable Emergent Behavior in Complex Systems," in <i>Transdisciplinary Perspectives on Complex Systems</i>, Springer, 2017.',
+        '[3] D. E. Goldberg, <i>Genetic Algorithms in Search, Optimization, and Machine Learning</i>. Addison-Wesley, 1989.',
+        '[4] K. Deb, A. Pratap, S. Agarwal, and T. Meyarivan, "A Fast and Elitist Multiobjective Genetic Algorithm: NSGA-II," <i>IEEE Transactions on Evolutionary Computation</i>, vol. 6, no. 2, pp. 182&#8211;197, 2002.',
+        '[5] Y. Mao, C. You, J. Zhang, K. Huang, and K. B. Letaief, "A Survey on Mobile Edge Computing: The Communication Perspective," <i>IEEE Communications Surveys &amp; Tutorials</i>, vol. 19, no. 4, pp. 2322&#8211;2358, 2017.',
+        '[6] T. Taleb, K. Samdanis, B. Mada, H. Flinck, S. Dutta, and D. Sabella, "On Multi-Access Edge Computing: A Survey of the Emerging 5G Network Edge Cloud Architecture and Orchestration," <i>IEEE Communications Surveys &amp; Tutorials</i>, vol. 19, no. 3, pp. 1657&#8211;1681, 2017.',
+        '[7] A. M. Rahmani et al., "Exploiting Smart e-Health Gateways at the Edge of Healthcare Internet-of-Things: A Fog Computing Approach," <i>Future Generation Computer Systems</i>, vol. 78, pp. 641&#8211;658, 2018.',
+        '[8] R. Buyya et al., "A Manifesto for Future Generation Cloud Computing: Research Directions for the Next Decade," <i>ACM Computing Surveys</i>, vol. 51, no. 5, 2018.',
+        '[9] NIST, "Zero Trust Architecture," NIST Special Publication 800-207, 2020.',
+        '[10] SecureDT Project Repository, "Phase 1 Audit and Existing Implementation Baseline," internal audit docs: <font name="Courier" size="7">docs/SECUREDT_EXISTING_ARCHITECTURE.md</font>, <font name="Courier" size="7">docs/SECUREDT_CODE_AUDIT.md</font>, <font name="Courier" size="7">docs/RESEARCH_GAP_ANALYSIS.md</font>, 2026.'
+    ]
+    for r in refs:
+        story.append(P(r, 'Ref'))
 
-story.append(Paragraph('<i>D. Limitations and Future Work</i>', h2))
-story.append(Paragraph('Several limitations of the current implementation should be acknowledged. First, the cloud tier is represented as a simulated/emulated environment, so cloud-side results do not constitute measurements from a production deployment. Second, while a genetic algorithm scheduler is implemented for task scheduling, some dataset-upload allocation paths currently use deterministic heuristic scoring with GA-style reporting metadata; unifying optimization behavior and method labeling across all workflows is an important area for improvement. Third, energy, risk, and some performance values are simulation/model-based estimates rather than direct hardware measurements, and provenance labeling should be made fully consistent across reports and interfaces. Fourth, trust representation and AI-based risk analysis are presently coarse, offline, or rule-based rather than continuously adaptive and evidence-driven, limiting alignment with trust-aware SecureDT&nbsp;2.0 objectives. Fifth, security evaluation is primarily virtual/simulated within the testbed and requires broader validation under realistic conditions.', body))
-story.append(Paragraph('Future work will focus on tighter integration and consistent reporting of optimization methods across all scheduling and allocation paths; hardware-backed telemetry and calibrated energy/latency measurement; and expanded deployment on physical MEC nodes. Advancing toward SecureDT&nbsp;2.0 will require adaptive, evidence-based trust modeling integrated into scheduling objectives, feedback-driven optimization, and anomaly-informed security responses. Additional empirical studies using the 14 scenarios and 30-case suite with reproducible protocols and clear measured/simulated/model-based provenance will further strengthen validity. Enhancing security evaluation with broader adversarial scenarios and formal verification of selected policy properties would also be valuable extensions.', body))
+    doc.build(story)
+    print('WROTE', OUT)
 
-# ---------- VII. CONCLUSION ----------
-story.append(Paragraph('VII. CONCLUSION', h1))
-story.append(Paragraph('This paper presented SecureDT, an implemented digital twin&ndash;enabled framework for secure task scheduling and tri-tier storage management in edge&ndash;cloud environments, together with a Phase&nbsp;1 evidence-based assessment of its current capabilities. The platform integrates heterogeneous (measured and simulated) resource telemetry, privacy-aware placement policies, multi-objective scheduling, and a defensive dataset analysis pipeline within a unified system. Through its tri-tier storage model, 10-stage ingestion workflow, hospital workload scenarios, and 30-case structured test suite, SecureDT provides a practical baseline for policy-compliant, traceable edge&ndash;cloud orchestration. While some components remain simulated, model-based, or methodologically inconsistent across workflows, the framework and audit findings establish a solid foundation for incremental evolution toward adaptive, trust-aware, and rigorously validated SecureDT&nbsp;2.0 capabilities.', body0))
-
-# ---------- ACKNOWLEDGMENT ----------
-story.append(Paragraph('ACKNOWLEDGMENT', h1))
-story.append(Paragraph('The authors thank the Department of Computer Science and Engineering, Rajiv Gandhi College of Engineering and Technology, Puducherry, for the guidance and support provided during this capstone project.', body0))
-
-# ---------- REFERENCES ----------
-story.append(Paragraph('REFERENCES', h1))
-refs = [
-    '[1] W. Shi, J. Cao, Q. Zhang, Y. Li, and L. Xu, &ldquo;Edge computing: Vision and challenges,&rdquo; <i>IEEE Internet of Things Journal</i>, vol. 3, no. 5, pp. 637&ndash;646, Oct. 2016.',
-    '[2] P. Mach and Z. Becvar, &ldquo;Mobile edge computing: A survey on architecture and computation offloading,&rdquo; <i>IEEE Communications Surveys &amp; Tutorials</i>, vol. 19, no. 3, pp. 1628&ndash;1656, 2017.',
-    '[3] M. Grieves and J. Vickers, &ldquo;Digital twin: Mitigating unpredictable, undesirable emergent behavior in complex systems,&rdquo; in <i>Transdisciplinary Perspectives on Complex Systems</i>. Cham, Switzerland: Springer, 2017, pp. 85&ndash;113.',
-    '[4] D. E. Goldberg, <i>Genetic Algorithms in Search, Optimization, and Machine Learning</i>. Reading, MA, USA: Addison-Wesley, 1989.',
-    '[5] T. Taleb, K. Samdanis, B. Mada, H. Flinck, S. Dutta, and D. Sabella, &ldquo;On multi-access edge computing: A survey of the emerging 5G network edge cloud architecture and orchestration,&rdquo; <i>IEEE Communications Surveys &amp; Tutorials</i>, vol. 19, no. 3, pp. 1657&ndash;1681, 2017.',
-    '[6] Y. Mao, C. You, J. Zhang, K. Huang, and K. B. Letaief, &ldquo;A survey on mobile edge computing: The communication perspective,&rdquo; <i>IEEE Communications Surveys &amp; Tutorials</i>, vol. 19, no. 4, pp. 2322&ndash;2358, 2017.',
-    '[7] R. Buyya <i>et al.</i>, &ldquo;A manifesto for future generation cloud computing: Research directions for the next decade,&rdquo; <i>ACM Computing Surveys</i>, vol. 51, no. 5, pp. 1&ndash;38, Nov. 2018.',
-    '[8] J. Gubbi, R. Buyya, S. Marusic, and M. Palaniswami, &ldquo;Internet of Things (IoT): A vision, architectural elements, and future directions,&rdquo; <i>Future Generation Computer Systems</i>, vol. 29, no. 7, pp. 1645&ndash;1660, Sep. 2013.',
-    '[9] N. Abbas, Y. Zhang, A. Taherkordi, and T. Skeie, &ldquo;Mobile edge computing: A survey,&rdquo; <i>IEEE Internet of Things Journal</i>, vol. 5, no. 1, pp. 450&ndash;465, Feb. 2018.',
-    '[10] F. Tao, H. Zhang, A. Liu, and A. Y. C. Nee, &ldquo;Digital twin in industry: State-of-the-art,&rdquo; <i>IEEE Transactions on Industrial Informatics</i>, vol. 15, no. 4, pp. 2405&ndash;2415, Apr. 2019.',
-    '[11] Z. Zhou, X. Chen, E. Li, L. Zeng, K. Luo, and J. Zhang, &ldquo;Edge intelligence: Paving the last mile of artificial intelligence with edge computing,&rdquo; <i>Proceedings of the IEEE</i>, vol. 107, no. 8, pp. 1738&ndash;1762, Aug. 2019.',
-    '[12] S. Wang, X. Zhang, Y. Zhang, L. Wang, J. Yang, and W. Wang, &ldquo;A survey on mobile edge networks: Convergence of computing, caching and communications,&rdquo; <i>IEEE Access</i>, vol. 5, pp. 6757&ndash;6779, 2017.',
-]
-for r in refs:
-    story.append(Paragraph(r, ref))
-
-story.append(Spacer(1, 4))
-story.append(Paragraph('<i>Note:</i> This paper reflects a Phase&nbsp;1 repository audit of the current implementation. Energy, cloud-tier behavior, and several risk/performance values are simulation/model-based unless explicitly identified as measured. Dataset-upload allocation in the current pipeline may use deterministic heuristic scoring distinct from GA-based task scheduling, and reporting consistency is a target for refinement. Privacy policy labels denote placement controls within this research testbed and do not constitute formal regulatory compliance claims.', small))
-
-doc.build(story)
-print('PDF_CREATED', OUT)
+if __name__ == '__main__':
+    build()

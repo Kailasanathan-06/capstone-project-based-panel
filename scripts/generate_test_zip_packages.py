@@ -14,6 +14,59 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 
+def build_manifest(
+    scenario_id: str,
+    package_name: str,
+    description: str,
+    dataset_meta: dict,
+    scenario_category: str = "success",
+    **extra,
+) -> dict:
+    """Build a manifest that satisfies the mandatory Section 5 schema fields."""
+    return {
+        "scenario_id": scenario_id,
+        "scenario_name": package_name,
+        "scenario_category": scenario_category,
+        "package_name": package_name,
+        "description": description,
+        "resources": [
+            {
+                "resource_id": "LOCAL-01",
+                "resource_name": "Hospital Local Workstation Storage",
+                "resource_type": "local",
+                "capacity_mb": 51200,
+                "available_mb": 40000,
+                "status": "online",
+                "trusted": True,
+                "privacy_tier_allowed": "LOCAL_ONLY",
+            },
+            {
+                "resource_id": "MEC-01",
+                "resource_name": "Hospital MEC Edge Node Cluster",
+                "resource_type": "mec",
+                "capacity_mb": 204800,
+                "available_mb": 150000,
+                "status": "online",
+                "trusted": True,
+                "privacy_tier_allowed": "TRUSTED_EDGE",
+            },
+            {
+                "resource_id": "CLOUD-01",
+                "resource_name": "Central Cloud Storage Repository",
+                "resource_type": "cloud",
+                "capacity_mb": 1024000,
+                "available_mb": 800000,
+                "status": "online",
+                "trusted": True,
+                "privacy_tier_allowed": "CLOUD_ALLOWED",
+            },
+        ],
+        "datasets": dataset_meta,
+        **extra,
+        **dataset_meta,
+    }
+
+
 def create_synthetic_xray_image() -> bytes:
     """Create a realistic synthetic 224x224 grayscale medical image."""
     img = Image.new("L", (224, 224), color=20)
@@ -169,28 +222,30 @@ def generate_packages():
     # Package 1: COMPLETE SUITE (11 Datasets)
     # -------------------------------------------------------------------------
     complete_zip_path = output_dir / "complete_hospital_suite_11_datasets.zip"
-    manifest_complete = {
-        "package_name": "Complete Hospital Multi-Tier Suite (11 Datasets)",
-        "description": "Includes 5 success datasets for Local/MEC/Cloud, 3 failed datasets, and 3 loop/timeout datasets.",
-        "storage_architecture": {
+    manifest_complete = build_manifest(
+        scenario_id="complete_suite_11",
+        package_name="Complete Hospital Multi-Tier Suite (11 Datasets)",
+        description="Includes 5 success datasets for Local/MEC/Cloud, 3 failed datasets, and 3 loop/timeout datasets.",
+        scenario_category="mixed",
+        dataset_meta={
+            "hospital_ehr_patient_vitals.csv": {"tier": "LOCAL_STORAGE", "policy": "LOCAL_ONLY", "privacy_policy": "LOCAL_ONLY", "category": "SUCCESS", "type": "Clinical Vitals", "source_device": "LOCAL-01"},
+            "chest_xray_scan_radiology.png": {"tier": "MEC_STORAGE", "policy": "TRUSTED_EDGE", "privacy_policy": "TRUSTED_EDGE", "category": "SUCCESS", "type": "Radiological Scan", "source_device": "MEC-01"},
+            "outpatient_appointments_schedule.json": {"tier": "CLOUD_STORAGE", "policy": "CLOUD_ALLOWED", "privacy_policy": "CLOUD_ALLOWED", "category": "SUCCESS", "type": "Scheduling Batch", "source_device": "CLOUD-01"},
+            "laboratory_metabolic_panel.json": {"tier": "MEC_STORAGE", "policy": "TRUSTED_EDGE", "privacy_policy": "TRUSTED_EDGE", "category": "SUCCESS", "type": "Lab Report", "source_device": "MEC-01"},
+            "clinical_encounter_document.json": {"tier": "LOCAL_STORAGE", "policy": "LOCAL_ONLY", "privacy_policy": "LOCAL_ONLY", "category": "SUCCESS", "type": "Physician Documentation", "source_device": "LOCAL-01"},
+            "corrupted_medical_scan.png": {"category": "ERROR", "expected_status": "FAILED", "reason": "Corrupted Header", "privacy_policy": "TRUSTED_EDGE", "source_device": "MEC-01"},
+            "incomplete_patient_record.json": {"category": "ERROR", "expected_status": "REJECTED", "reason": "Missing Fields", "privacy_policy": "LOCAL_ONLY", "source_device": "LOCAL-01"},
+            "unsupported_legacy_format.dat": {"category": "ERROR", "expected_status": "REJECTED", "reason": "Invalid Schema", "privacy_policy": "LOCAL_ONLY", "source_device": "LOCAL-01"},
+            "loop_workload_infinite_compute.json": {"category": "TIMEOUT", "expected_status": "TIMED_OUT", "reason": "Compute Exceeded", "privacy_policy": "TRUSTED_EDGE", "source_device": "MEC-01"},
+            "loop_worker_unresponsive_heartbeat.json": {"category": "TIMEOUT", "expected_status": "TIMED_OUT", "reason": "Worker Dropped", "privacy_policy": "TRUSTED_EDGE", "source_device": "MEC-01"},
+            "loop_retry_exhaustion_batch.json": {"category": "TIMEOUT", "expected_status": "FAILED", "reason": "Max Retries Reached", "privacy_policy": "CLOUD_ALLOWED", "source_device": "CLOUD-01"},
+        },
+        storage_architecture={
             "tier_1": "LOCAL_STORAGE (On-Premises High-Privacy Vault, 50 GB)",
             "tier_2": "MEC_STORAGE (Hospital Edge Compute Node, 200 GB)",
             "tier_3": "CLOUD_STORAGE (Central Cloud Synchronizer, 1000 GB)"
         },
-        "datasets": {
-            "hospital_ehr_patient_vitals.csv": {"tier": "LOCAL_STORAGE", "policy": "LOCAL_ONLY", "category": "SUCCESS", "type": "Clinical Vitals"},
-            "chest_xray_scan_radiology.png": {"tier": "MEC_STORAGE", "policy": "TRUSTED_EDGE", "category": "SUCCESS", "type": "Radiological Scan"},
-            "outpatient_appointments_schedule.json": {"tier": "CLOUD_STORAGE", "policy": "CLOUD_ALLOWED", "category": "SUCCESS", "type": "Scheduling Batch"},
-            "laboratory_metabolic_panel.json": {"tier": "MEC_STORAGE", "policy": "TRUSTED_EDGE", "category": "SUCCESS", "type": "Lab Report"},
-            "clinical_encounter_document.json": {"tier": "LOCAL_STORAGE", "policy": "LOCAL_ONLY", "category": "SUCCESS", "type": "Physician Documentation"},
-            "corrupted_medical_scan.png": {"category": "ERROR", "expected_status": "FAILED", "reason": "Corrupted Header"},
-            "incomplete_patient_record.json": {"category": "ERROR", "expected_status": "REJECTED", "reason": "Missing Fields"},
-            "unsupported_legacy_format.dat": {"category": "ERROR", "expected_status": "REJECTED", "reason": "Invalid Schema"},
-            "loop_workload_infinite_compute.json": {"category": "TIMEOUT", "expected_status": "TIMED_OUT", "reason": "Compute Exceeded"},
-            "loop_worker_unresponsive_heartbeat.json": {"category": "TIMEOUT", "expected_status": "TIMED_OUT", "reason": "Worker Dropped"},
-            "loop_retry_exhaustion_batch.json": {"category": "TIMEOUT", "expected_status": "FAILED", "reason": "Max Retries Reached"}
-        }
-    }
+    )
 
     with zipfile.ZipFile(complete_zip_path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("manifest.json", json.dumps(manifest_complete, indent=2))
@@ -212,17 +267,18 @@ def generate_packages():
     # Package 2: SUCCESS BATCH (5 Datasets across 3 Storage Tiers)
     # -------------------------------------------------------------------------
     success_zip_path = output_dir / "success_5_datasets_tri_storage.zip"
-    manifest_success = {
-        "package_name": "5 Success Datasets Across 3 Storage Systems",
-        "description": "All 5 datasets succeed and allocate to Local (2), MEC (2), and Cloud (1).",
-        "datasets": {
-            "hospital_ehr_patient_vitals.csv": {"tier": "LOCAL_STORAGE", "policy": "LOCAL_ONLY"},
-            "chest_xray_scan_radiology.png": {"tier": "MEC_STORAGE", "policy": "TRUSTED_EDGE"},
-            "outpatient_appointments_schedule.json": {"tier": "CLOUD_STORAGE", "policy": "CLOUD_ALLOWED"},
-            "laboratory_metabolic_panel.json": {"tier": "MEC_STORAGE", "policy": "TRUSTED_EDGE"},
-            "clinical_encounter_document.json": {"tier": "LOCAL_STORAGE", "policy": "LOCAL_ONLY"}
-        }
-    }
+    manifest_success = build_manifest(
+        scenario_id="success_tri_storage_05",
+        package_name="5 Success Datasets Across 3 Storage Systems",
+        description="All 5 datasets succeed and allocate to Local (2), MEC (2), and Cloud (1).",
+        dataset_meta={
+            "hospital_ehr_patient_vitals.csv": {"tier": "LOCAL_STORAGE", "policy": "LOCAL_ONLY", "privacy_policy": "LOCAL_ONLY", "source_device": "LOCAL-01"},
+            "chest_xray_scan_radiology.png": {"tier": "MEC_STORAGE", "policy": "TRUSTED_EDGE", "privacy_policy": "TRUSTED_EDGE", "source_device": "MEC-01"},
+            "outpatient_appointments_schedule.json": {"tier": "CLOUD_STORAGE", "policy": "CLOUD_ALLOWED", "privacy_policy": "CLOUD_ALLOWED", "source_device": "CLOUD-01"},
+            "laboratory_metabolic_panel.json": {"tier": "MEC_STORAGE", "policy": "TRUSTED_EDGE", "privacy_policy": "TRUSTED_EDGE", "source_device": "MEC-01"},
+            "clinical_encounter_document.json": {"tier": "LOCAL_STORAGE", "policy": "LOCAL_ONLY", "privacy_policy": "LOCAL_ONLY", "source_device": "LOCAL-01"},
+        },
+    )
     with zipfile.ZipFile(success_zip_path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("manifest.json", json.dumps(manifest_success, indent=2))
         z.writestr("hospital_ehr_patient_vitals.csv", vitals_csv_content)
@@ -237,15 +293,17 @@ def generate_packages():
     # Package 3: FAILED BATCH (3 Error Datasets)
     # -------------------------------------------------------------------------
     failed_zip_path = output_dir / "failed_3_datasets_error_batch.zip"
-    manifest_failed = {
-        "package_name": "3 Failed / Error Hospital Workload Datasets",
-        "description": "Contains corrupted image, missing fields, and unsupported schema mismatch.",
-        "datasets": {
-            "corrupted_medical_scan.png": {"expected_status": "FAILED", "code": "ERR_MALFORMED_HEADER"},
-            "incomplete_patient_record.json": {"expected_status": "REJECTED", "code": "ERR_MISSING_MANDATORY_FIELDS"},
-            "unsupported_legacy_format.dat": {"expected_status": "REJECTED", "code": "ERR_UNSUPPORTED_FORMAT"}
-        }
-    }
+    manifest_failed = build_manifest(
+        scenario_id="failed_error_batch_03",
+        package_name="3 Failed / Error Hospital Workload Datasets",
+        description="Contains corrupted image, missing fields, and unsupported schema mismatch.",
+        scenario_category="failed",
+        dataset_meta={
+            "corrupted_medical_scan.png": {"expected_status": "FAILED", "code": "ERR_MALFORMED_HEADER", "privacy_policy": "TRUSTED_EDGE", "source_device": "MEC-01"},
+            "incomplete_patient_record.json": {"expected_status": "REJECTED", "code": "ERR_MISSING_MANDATORY_FIELDS", "privacy_policy": "LOCAL_ONLY", "source_device": "LOCAL-01"},
+            "unsupported_legacy_format.dat": {"expected_status": "REJECTED", "code": "ERR_UNSUPPORTED_FORMAT", "privacy_policy": "LOCAL_ONLY", "source_device": "LOCAL-01"},
+        },
+    )
     with zipfile.ZipFile(failed_zip_path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("manifest.json", json.dumps(manifest_failed, indent=2))
         z.writestr("corrupted_medical_scan.png", corrupt_image_bytes)
@@ -258,15 +316,17 @@ def generate_packages():
     # Package 4: LOOP BATCH (3 Timeout / Retry Loop Datasets)
     # -------------------------------------------------------------------------
     loop_zip_path = output_dir / "loop_3_datasets_timeout_batch.zip"
-    manifest_loop = {
-        "package_name": "3 Looping / Timeout Hospital Workload Datasets",
-        "description": "Contains infinite compute watchdog loop, unresponsive worker node, and retry exhaustion loop.",
-        "datasets": {
-            "loop_workload_infinite_compute.json": {"expected_status": "TIMED_OUT", "trigger": "Watchdog Timeout"},
-            "loop_worker_unresponsive_heartbeat.json": {"expected_status": "TIMED_OUT", "trigger": "Dropped Node"},
-            "loop_retry_exhaustion_batch.json": {"expected_status": "FAILED", "trigger": "Max Retries Reached"}
-        }
-    }
+    manifest_loop = build_manifest(
+        scenario_id="loop_timeout_batch_03",
+        package_name="3 Looping / Timeout Hospital Workload Datasets",
+        description="Contains infinite compute watchdog loop, unresponsive worker node, and retry exhaustion loop.",
+        scenario_category="loop",
+        dataset_meta={
+            "loop_workload_infinite_compute.json": {"expected_status": "TIMED_OUT", "trigger": "Watchdog Timeout", "privacy_policy": "TRUSTED_EDGE", "source_device": "MEC-01"},
+            "loop_worker_unresponsive_heartbeat.json": {"expected_status": "TIMED_OUT", "trigger": "Dropped Node", "privacy_policy": "TRUSTED_EDGE", "source_device": "MEC-01"},
+            "loop_retry_exhaustion_batch.json": {"expected_status": "FAILED", "trigger": "Max Retries Reached", "privacy_policy": "CLOUD_ALLOWED", "source_device": "CLOUD-01"},
+        },
+    )
     with zipfile.ZipFile(loop_zip_path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("manifest.json", json.dumps(manifest_loop, indent=2))
         z.writestr("loop_workload_infinite_compute.json", json.dumps(loop_compute_json, indent=2))

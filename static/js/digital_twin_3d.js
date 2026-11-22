@@ -1064,7 +1064,7 @@
     addPacket({
       id: 'workflow-' + definition.id + '-' + state.workflow.token + '-' + index,
       linkId: linkId,
-      label: (demo ? 'SIM-' : 'LIVE-') + definition.id.toUpperCase(),
+      label: (demo ? 'SIM-' : 'REC-') + definition.id.toUpperCase(),
       kind: definition.visual === 'audit' ? 'attack' : definition.visual === 'task' ? 'task' : 'transfer',
       simulated: demo,
       duration: reducedMotion ? 900 : Math.min(3000, definition.duration / speed * 0.7),
@@ -1144,7 +1144,7 @@
   function finishWorkflow() {
     state.workflow.playing = false;
     state.workflow.completed = true;
-    state.workflow.elapsed = 0;
+    state.workflow.elapsed = WORKFLOW_STAGES[WORKFLOW_STAGES.length - 1].duration / (state.workflow.speed || 1);
     renderWorkflowUI();
     syncWorkflowPlayButton();
     addEvent(state.workflow.mode === 'demo' ? 'sim' : 'workflow',

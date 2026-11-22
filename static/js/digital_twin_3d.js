@@ -15,6 +15,28 @@
   var policySelect = byId('dt3d-policy');
   var detailNode = byId('dt3d-detail');
   var protectionNote = byId('dt3d-protection-note');
+  var detailsPanel = byId('dt3d-details');
+  var runModeSelect = byId('dt3d-run-mode');
+  var runModeBadge = byId('dt3d-run-mode-badge');
+  var workflowKicker = byId('dt3d-workflow-kicker');
+  var workflowStatus = byId('dt3d-workflow-status');
+  var workflowDetail = byId('dt3d-workflow-detail');
+  var workflowProgress = byId('dt3d-workflow-progress');
+  var workflowProgressFill = byId('dt3d-workflow-progress-fill');
+  var workflowTime = byId('dt3d-workflow-time');
+  var workflowSteps = byId('dt3d-workflow-steps');
+  var workflowStageSelect = byId('dt3d-workflow-stage');
+  var workflowSpeedSelect = byId('dt3d-workflow-speed');
+  var currentDataSource = byId('dt3d-current-data-source');
+  var currentSource = byId('dt3d-current-source');
+  var currentDestination = byId('dt3d-current-destination');
+  var currentTask = byId('dt3d-current-task');
+  var currentArtifact = byId('dt3d-current-artifact');
+  var currentDetail = byId('dt3d-current-detail');
+  var securityPanel = byId('dt3d-security-panel');
+  var securityLayers = byId('dt3d-security-layers');
+  var securitySummary = byId('dt3d-security-summary');
+  var attackSelect = byId('dt3d-attack-scenario');
   var stageChips = {
     policy: byId('dt3d-chip-policy'),
     destination: byId('dt3d-chip-destination'),
@@ -41,10 +63,26 @@
     seenTransfers: {},
     seenTasks: {},
     selectedResource: null,
+    selectedDeviceId: null,
+    hoverId: null,
+    returnFocus: null,
+    detailsTimer: 0,
     eligible: [],
     simulationActive: false,
     simulationToken: 0,
-    attackIndex: 0
+    attackIndex: 0,
+    forceSim: false,
+    workflow: {
+      active: false,
+      playing: false,
+      completed: false,
+      index: 0,
+      elapsed: 0,
+      speed: 1,
+      mode: 'live',
+      token: 0,
+      lastPaint: 0
+    }
   };
 
   var model = { nodes: [], links: [], packets: [] };
@@ -59,10 +97,34 @@
 
   var ATTACK_SCENARIOS = [
     { type: 'UNAUTHORIZED_TASK_SUBMISSION', target: 'CENTRAL', label: 'Unauthorized task submission' },
-    { type: 'INVALID_MEC_AUTH', target: 'MEC', label: 'Invalid MEC agent credentials' },
-    { type: 'ZIP_VALIDATION_ERROR', target: 'CENTRAL', label: 'Invalid dataset archive' },
-    { type: 'PRIVACY_POLICY_VIOLATION', target: 'CLOUD', label: 'Privacy policy violation' }
+    { type: 'INVALID_MEC_AUTH', target: 'MEC', label: 'Invalid MEC credentials' },
+    { type: 'ZIP_VALIDATION_ERROR', target: 'CENTRAL', label: 'Invalid ZIP archive' },
+    { type: 'PRIVACY_POLICY_VIOLATION', target: 'CLOUD', label: 'Privacy policy violation' },
+    { type: 'OFFLINE_MEC_RESOURCE', target: 'MEC', label: 'Offline MEC resource' },
+    { type: 'TASK_QUEUE_ACCESS', target: 'CENTRAL', label: 'Unauthorized queue access' },
+    { type: 'REPEATED_SUSPICIOUS_REQUESTS', target: 'CENTRAL', label: 'Repeated suspicious requests' },
+    { type: 'TRANSFER_INTERRUPTION', target: 'MEC_STORAGE', label: 'Transfer interruption' }
   ];
+
+  var WORKFLOW_STAGES = [
+    { id: 'infrastructure', title: 'Infrastructure Overview', description: 'Confirm the live control plane, configured storage tiers, and registered MEC agents.', source: 'CENTRAL', destination: 'CENTRAL', duration: 3000, visual: 'overview' },
+    { id: 'dataset_source', title: 'Dataset Source Selection', description: 'Select the dataset submission client and identify the upload record without exposing filenames.', source: 'CLIENT', destination: 'CENTRAL', duration: 4000, visual: 'client' },
+    { id: 'zip_upload', title: 'ZIP Upload', description: 'Review the recorded archive upload state and execution mode.', source: 'CLIENT', destination: 'CENTRAL', duration: 5500, visual: 'upload' },
+    { id: 'zip_validation', title: 'Archive Validation', description: 'Show recorded readability, corruption, traversal, and extension checks without opening data.', source: 'CENTRAL', destination: 'CENTRAL', duration: 5000, visual: 'validation' },
+    { id: 'dataset_analysis', title: 'Dataset Analysis', description: 'Summarize the persisted analysis report; no file contents are displayed.', source: 'CENTRAL', destination: 'CENTRAL', duration: 5500, visual: 'analysis' },
+    { id: 'privacy_policy', title: 'Privacy Policy Check', description: 'Apply the selected backend policy and show eligible destinations only.', source: 'CENTRAL', destination: 'CENTRAL', duration: 4500, visual: 'policy' },
+    { id: 'resource_monitoring', title: 'Digital Twin Resource State', description: 'Read CPU, memory, latency, trust, and heartbeat telemetry from the resource registry.', source: 'CENTRAL', destination: 'LOCAL', duration: 5000, visual: 'monitor' },
+    { id: 'ga_scheduling', title: 'Genetic Algorithm Scheduling', description: 'Show GA cost metrics only when a recorded decision exists; otherwise mark the stage as a backend capability.', source: 'CENTRAL', destination: 'LOCAL', duration: 6000, visual: 'ga' },
+    { id: 'resource_selection', title: 'Resource Selection', description: 'Highlight the selected storage or MEC resource from the recorded schedule.', source: 'CENTRAL', destination: 'LOCAL', duration: 4500, visual: 'selection' },
+    { id: 'file_transfer', title: 'Data Transfer', description: 'Display recorded replication states; live percentages and ETA are not available.', source: 'LOCAL', destination: 'MEC_STORAGE', duration: 6500, visual: 'transfer' },
+    { id: 'task_processing', title: 'Task Processing', description: 'Show task dispatch and local execution state from persisted task records.', source: 'CENTRAL', destination: 'LOCAL', duration: 6500, visual: 'task' },
+    { id: 'result_delivery', title: 'Result Delivery', description: 'Show completed task records being acknowledged by the control plane.', source: 'LOCAL', destination: 'CENTRAL', duration: 5000, visual: 'result' },
+    { id: 'storage_allocation', title: 'Storage Allocation', description: 'Map used and free capacity for configured storage tiers without exposing dataset paths.', source: 'CENTRAL', destination: 'MEC_STORAGE', duration: 5000, visual: 'storage' },
+    { id: 'task_completion', title: 'Task Completion', description: 'Summarize confirmed completion records only.', source: 'CENTRAL', destination: 'LOCAL', duration: 5000, visual: 'completion' },
+    { id: 'security_audit', title: 'Security Audit Summary', description: 'Close with recorded audit events and clearly separated simulated attacker behavior.', source: 'ATTACKER', destination: 'CENTRAL', duration: 4500, visual: 'audit' }
+  ];
+
+  var WORKFLOW_TOTAL_MS = WORKFLOW_STAGES.reduce(function (sum, item) { return sum + item.duration; }, 0);
 
   function on(target, type, handler, options) {
     target.addEventListener(type, handler, options);
@@ -80,131 +142,237 @@
     return text.length > 18 ? text.slice(0, 15) + '...' : text;
   }
 
-  function storageDestForNode(nodeId) {
-    if (nodeId === 'LOCAL') return 'LOCAL_STORAGE';
-    if (nodeId === 'MEC_STORAGE') return 'MEC_STORAGE';
-    if (nodeId === 'CLOUD') return 'CLOUD_STORAGE';
-    return null;
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
   }
 
-  function ensureStorageModal() {
-    var modal = byId('dt3d-storage-modal');
-    if (modal) return modal;
-    modal = document.createElement('div');
-    modal.id = 'dt3d-storage-modal';
-    modal.className = 'dt3d-modal';
-    modal.hidden = true;
-    modal.innerHTML = '' +
-      '<div class="dt3d-modal-backdrop" data-dt3d-close="1"></div>' +
-      '<div class="dt3d-modal-panel" role="dialog" aria-modal="true" aria-labelledby="dt3d-storage-title">' +
-        '<div class="dt3d-modal-head">' +
-          '<div><div class="dt3d-modal-kicker">STORAGE NODE DETAILS</div><h3 id="dt3d-storage-title">Storage</h3><div class="dt3d-modal-sub" id="dt3d-storage-sub"></div></div>' +
-          '<button type="button" class="dt3d-ctrl" data-dt3d-close="1">Close</button>' +
-        '</div>' +
-        '<div class="dt3d-modal-stats" id="dt3d-storage-stats"></div>' +
-        '<div class="dt3d-modal-body" id="dt3d-storage-body"><p class="dt3d-empty-note">Click a storage node to load details.</p></div>' +
-      '</div>';
-    document.body.appendChild(modal);
-    modal.addEventListener('click', function (e) {
-      if (e.target && e.target.getAttribute('data-dt3d-close')) closeStorageModal();
-    });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && !modal.hidden) closeStorageModal();
-    });
-    return modal;
+  function safeText(value) {
+    if (value === null || value === undefined || value === '') return 'Not available';
+    return String(value);
   }
 
-  function closeStorageModal() {
-    var modal = byId('dt3d-storage-modal');
-    if (modal) modal.hidden = true;
-  }
-
-  function openStorageModal(nodeId) {
-    var dest = storageDestForNode(nodeId);
-    if (!dest) return;
-    var modal = ensureStorageModal();
-    var title = byId('dt3d-storage-title');
-    var sub = byId('dt3d-storage-sub');
-    var stats = byId('dt3d-storage-stats');
-    var body = byId('dt3d-storage-body');
-    modal.hidden = false;
-    if (title) title.textContent = dest.replace('_', ' ');
-    if (sub) sub.textContent = 'Loading stored data details...';
-    if (stats) stats.innerHTML = '';
-    if (body) body.innerHTML = '<p class="dt3d-empty-note">Loading...</p>';
-
-    fetch('/api/digital-twin/storage/detail/?destination=' + encodeURIComponent(dest), { credentials: 'same-origin' })
-      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
-      .then(function (res) {
-        if (!res.ok) throw new Error(res.data.error || 'Failed to load storage details');
-        renderStorageDetail(res.data);
-      })
-      .catch(function (err) {
-        if (sub) sub.textContent = 'Unable to load storage details';
-        if (body) body.innerHTML = '<p class="dt3d-empty-note" style="color:#f87171;">' + esc(err.message || 'Error') + '</p>';
-      });
-  }
-
-  function renderStorageDetail(d) {
-    var title = byId('dt3d-storage-title');
-    var sub = byId('dt3d-storage-sub');
-    var stats = byId('dt3d-storage-stats');
-    var body = byId('dt3d-storage-body');
-    if (title) title.textContent = d.name || d.destination_id;
-    if (sub) sub.textContent = d.destination_id + ' | ' + (d.destination_type || '') + (d.is_emulator ? ' | Emulator' : '');
-    if (stats) {
-      stats.innerHTML = [
-        ['Capacity', d.capacity], ['Used', d.used], ['Free', d.free],
-        ['Replicas', d.replicas_count], ['Inventory Items', d.inventory_items_count], ['Uploads', d.uploads_count]
-      ].map(function (kv) {
-        return '<div class="dt3d-modal-stat"><span>' + esc(kv[0]) + '</span><strong>' + esc(String(kv[1] == null ? '-' : kv[1])) + '</strong></div>';
-      }).join('');
+  function formatBytes(value) {
+    if (value === null || value === undefined || value === '') return 'Not available';
+    var number = Number(value);
+    if (!isFinite(number) || number < 0) return 'Not available';
+    var units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    var index = 0;
+    while (number >= 1024 && index < units.length - 1) {
+      number /= 1024;
+      index += 1;
     }
+    var digits = index === 0 ? 0 : number >= 100 ? 0 : number >= 10 ? 1 : 2;
+    return number.toFixed(digits) + ' ' + units[index];
+  }
+
+  function formatPercent(value) {
+    if (value === null || value === undefined || value === '') return 'Not available';
+    var number = Number(value);
+    if (!isFinite(number) || number < 0) return 'Not available';
+    return clamp(number, 0, 100).toFixed(1) + '%';
+  }
+
+  function formatInteger(value) {
+    if (value === null || value === undefined || value === '') return 'Not available';
+    var number = Number(value);
+    if (!isFinite(number) || number < 0) return 'Not available';
+    return String(Math.round(number));
+  }
+
+  function formatAge(value) {
+    if (value === null || value === undefined || value === '') return 'Not available';
+    var number = Number(value);
+    if (!isFinite(number) || number < 0) return 'Not available';
+    if (number < 2) return 'just now';
+    if (number < 60) return Math.round(number) + 's ago';
+    return Math.round(number / 60) + 'm ago';
+  }
+
+  function isClickableNode(node) {
+    if (!node) return false;
+    return node.kind === 'central' || node.kind === 'local' || node.kind === 'cloud'
+      || node.kind === 'edge-store' || node.kind === 'mec' || node.kind === 'client'
+      || node.kind === 'attacker';
+  }
+
+  function statRow(label, value, tone) {
+    return '<div class="dt3d-details-stat"><span>' + esc(label) + '</span><strong'
+      + (tone ? ' class="' + tone + '"' : '') + '>' + esc(safeText(value)) + '</strong></div>';
+  }
+
+  function renderDeviceDetails(nodeId) {
+    if (!detailsPanel) return;
+    var node = findNode(nodeId);
+    var details = state.data && state.data.device_details ? state.data.device_details[nodeId] : null;
+    if (!details && nodeId === 'CLIENT' && state.data && state.data.client_devices && state.data.client_devices.length) {
+      var client = state.data.client_devices[0];
+      details = {
+        device_id: client.client_id,
+        label: client.label,
+        device_type: 'WEB_UPLOAD_CLIENT',
+        status: 'CONNECTED',
+        telemetry_mode: client.client_type,
+        details_note: client.note,
+        is_simulated: !!client.is_simulated
+      };
+    }
+    if (!node && !details) return;
+    details = details || {
+      device_id: nodeId,
+      label: node.label,
+      device_type: 'DEVICE',
+      node_kind: node.kind,
+      status: node.status
+    };
+
+    var title = byId('dt3d-details-title');
+    var kicker = byId('dt3d-details-kicker');
+    var idNode = byId('dt3d-details-id');
+    var statusNode = byId('dt3d-details-status');
+    var body = byId('dt3d-details-body');
+    var kindNames = {
+      STORAGE_TIER: 'STORAGE TIER DETAILS',
+      EDGE_AGENT: 'MEC AGENT DETAILS',
+      CONTROL_PLANE: 'CONTROL PLANE DETAILS',
+      WEB_UPLOAD_CLIENT: 'WEB UPLOAD CLIENT DETAILS',
+      SIMULATION: 'SIMULATED SCENARIO'
+    };
+    var status = safeText(details.status || (node && node.status) || 'UNKNOWN');
+    var statusTone = /ONLINE|CONNECTED|SAFE/.test(status) ? 'is-online'
+      : /SIMULATED/.test(status) ? 'is-simulated'
+        : /CONNECTING|PENDING/.test(status) ? 'is-connecting' : 'is-offline';
+    if (kicker) kicker.textContent = kindNames[details.device_type] || 'DEVICE DETAILS';
+    if (title) title.textContent = safeText(details.label || (node && node.label) || nodeId);
+    if (idNode) idNode.textContent = 'ID: ' + safeText(details.device_id || nodeId);
+    if (statusNode) {
+      statusNode.textContent = status;
+      statusNode.className = 'dt3d-details-status ' + statusTone;
+    }
+
     var html = '';
-    html += '<section class="dt3d-modal-section"><h4>Stored Replicas / Files</h4>';
-    if (d.replicas && d.replicas.length) {
-      html += '<div class="dt3d-table-wrap"><table class="dt3d-modal-table"><thead><tr><th>File</th><th>Size</th><th>Status</th><th>Stored Date/Time</th><th>Verified</th><th>SHA-256</th></tr></thead><tbody>';
-      d.replicas.forEach(function (r) {
-        html += '<tr><td title="' + esc(r.relative_key || '') + '">' + esc(r.file_name || r.replica_id) + '<div class="dt3d-muted">' + esc(r.dataset_id || '') + '</div></td>' +
-          '<td>' + esc(r.file_size || '') + '</td>' +
-          '<td><span class="dt3d-pill">' + esc(r.replication_status || '') + '</span></td>' +
-          '<td>' + esc(r.stored_at_display || '-') + '</td>' +
-          '<td>' + esc(r.last_verified_display || '-') + '</td>' +
-          '<td class="dt3d-mono" title="' + esc(r.sha256_checksum || '') + '">' + esc((r.sha256_checksum || '').slice(0, 16)) + (r.sha256_checksum ? '…' : '-') + '</td></tr>';
-      });
-      html += '</tbody></table></div>';
-    } else {
-      html += '<p class="dt3d-empty-note">No stored replicas found for this tier.</p>';
+    if (details.is_simulated) {
+      html += '<div class="dt3d-details-badge">'
+        + (details.device_type === 'STORAGE_TIER' ? 'SIMULATED STORAGE DATA' : 'SIMULATED / NOT LIVE')
+        + '</div>';
     }
-    html += '</section>';
+    html += '<div class="dt3d-details-stats">';
+    if (details.device_type === 'STORAGE_TIER') {
+      var free = details.free_bytes === null || details.free_bytes === undefined
+        ? null : Math.max(0, Number(details.free_bytes));
+      html += statRow('Total Capacity', formatBytes(details.capacity_bytes));
+      html += statRow('Used Storage', formatBytes(details.used_bytes));
+      html += statRow('Free Capacity', formatBytes(free));
+      var utilization = details.utilization_percent === null || details.utilization_percent === undefined
+        || details.utilization_percent === '' ? NaN : Number(details.utilization_percent);
+      html += statRow('Utilization', formatPercent(details.utilization_percent));
+      if (isFinite(utilization)) {
+        html += '<div class="dt3d-util-bar" role="img" aria-label="Storage utilization '
+          + esc(clamp(utilization, 0, 100).toFixed(1)) + ' percent"><span style="width:'
+          + esc(clamp(utilization, 0, 100).toFixed(1)) + '%"></span></div>';
+      }
+      html += statRow('Replicas', formatInteger(details.replica_count));
+      html += statRow('Inventory Items', formatInteger(details.inventory_item_count));
+    } else if (details.device_type === 'EDGE_AGENT') {
+      html += statRow('Heartbeat Age', formatAge(details.freshness_seconds));
+      html += statRow('CPU Load', formatPercent(details.cpu_utilization === null ? null : Number(details.cpu_utilization) * 100));
+      html += statRow('Memory', formatPercent(details.memory_utilization === null ? null : Number(details.memory_utilization) * 100));
+      html += statRow('Network Latency', safeText(details.network_latency_ms) === 'Not available' ? 'Not available' : formatInteger(details.network_latency_ms) + ' ms');
+      html += statRow('Active Tasks', formatInteger(details.active_tasks));
+      html += statRow('Storage Source', safeText(details.shared_storage_tier_id || 'Not available'));
+    } else if (details.device_type === 'CONTROL_PLANE') {
+      html += statRow('Registered MECs', formatInteger(details.registered_mecs));
+      html += statRow('Connected MECs', formatInteger(details.connected_mecs));
+      html += statRow('Active Tasks', formatInteger(details.active_tasks));
+      html += statRow('Active Transfers', formatInteger(details.active_transfers));
+      html += statRow('Policy Enforcement', details.policy_enforcement ? 'ENABLED' : 'NOT REPORTED');
+      html += statRow('Transport Encryption', details.encryption_confirmed ? 'CONFIRMED' : 'NOT CONFIRMED');
+    } else {
+      html += statRow('Node Type', safeText(details.device_type));
+      html += statRow('Telemetry', safeText(details.telemetry_mode));
+    }
+    html += '</div>';
 
-    html += '<section class="dt3d-modal-section"><h4>Dataset Inventory Items</h4>';
-    if (d.inventory_items && d.inventory_items.length) {
-      html += '<div class="dt3d-table-wrap"><table class="dt3d-modal-table"><thead><tr><th>File</th><th>Format</th><th>Size</th><th>Policy</th><th>Status</th><th>Stored Date/Time</th></tr></thead><tbody>';
-      d.inventory_items.forEach(function (i) {
-        html += '<tr><td title="' + esc(i.relative_path || '') + '">' + esc(i.file_name || '') + '<div class="dt3d-muted">' + esc(i.upload_id || '') + '</div></td>' +
-          '<td>' + esc(i.format || '-') + '</td><td>' + esc(i.file_size || '') + '</td>' +
-          '<td>' + esc(i.privacy_policy || '-') + '</td><td><span class="dt3d-pill">' + esc(i.status || '') + '</span></td>' +
-          '<td>' + esc(i.stored_at_display || '-') + '</td></tr>';
-      });
-      html += '</tbody></table></div>';
-    } else {
-      html += '<p class="dt3d-empty-note">No inventory items assigned to this tier.</p>';
+    html += '<div class="dt3d-details-section"><h4>Backend Fields</h4><div class="dt3d-details-fields">';
+    html += statRow('Device ID', details.device_id);
+    html += statRow('Telemetry Mode', details.telemetry_mode);
+    if (details.device_type === 'STORAGE_TIER') {
+      html += statRow('Assigned Tasks', formatInteger(details.assigned_task_count));
+      html += statRow('Allowed Policy', details.privacy_tier_allowed);
     }
-    html += '</section>';
+    if (details.device_type === 'EDGE_AGENT') {
+      html += statRow('Connection State', details.status);
+      html += statRow('Telemetry Freshness', formatAge(details.freshness_seconds));
+    }
+    if (details.device_type === 'SIMULATION') {
+      html += statRow('Real Host Impact', 'NONE');
+    }
+    html += '</div></div>';
 
-    html += '<section class="dt3d-modal-section"><h4>Recent Uploads to Tier</h4>';
-    if (d.uploads && d.uploads.length) {
-      html += '<div class="dt3d-table-wrap"><table class="dt3d-modal-table"><thead><tr><th>Upload ID</th><th>File</th><th>Size</th><th>Files</th><th>Status</th><th>Date/Time</th></tr></thead><tbody>';
-      d.uploads.forEach(function (u) {
-        html += '<tr><td class="dt3d-mono">' + esc(u.upload_id || '') + '</td><td>' + esc(u.file_name || '') + '</td><td>' + esc(u.file_size || '') + '</td><td>' + esc(String(u.file_count == null ? '-' : u.file_count)) + '</td><td><span class="dt3d-pill">' + esc(u.status || '') + '</span></td><td>' + esc(u.uploaded_at_display || '-') + '</td></tr>';
-      });
-      html += '</tbody></table></div>';
-    } else {
-      html += '<p class="dt3d-empty-note">No uploads recorded for this tier.</p>';
+    html += '<div class="dt3d-details-note">' + esc(safeText(details.details_note)) + '</div>';
+    html += '<div class="dt3d-details-source">'
+      + (details.device_type === 'SIMULATION' ? 'LOCAL SIMULATION' : 'LIVE BACKEND SNAPSHOT')
+      + '</div>';
+    if (body) {
+      body.innerHTML = html;
+      body.scrollTop = 0;
     }
-    html += '</section>';
-    if (body) body.innerHTML = html;
+  }
+
+  function openDeviceDetails(nodeId) {
+    if (!detailsPanel || !isClickableNode(findNode(nodeId))) return;
+    var wasHidden = detailsPanel.hidden;
+    if (wasHidden) state.returnFocus = document.activeElement;
+    state.selectedDeviceId = nodeId;
+    model.selectedDeviceId = nodeId;
+    renderDeviceDetails(nodeId);
+    window.clearTimeout(state.detailsTimer);
+    detailsPanel.hidden = false;
+    detailsPanel.classList.remove('is-open');
+    window.requestAnimationFrame(function () {
+      if (!detailsPanel.hidden) detailsPanel.classList.add('is-open');
+    });
+    if (stage) stage.classList.add('has-details');
+    dirty = true;
+    if (wasHidden) detailsPanel.focus();
+  }
+
+  function closeDeviceDetails() {
+    if (!detailsPanel || detailsPanel.hidden) return;
+    detailsPanel.classList.remove('is-open');
+    if (stage) stage.classList.remove('has-details');
+    state.selectedDeviceId = null;
+    model.selectedDeviceId = null;
+    dirty = true;
+    var panel = detailsPanel;
+    state.detailsTimer = window.setTimeout(function () {
+      if (!panel.classList.contains('is-open')) panel.hidden = true;
+    }, 160);
+    var target = state.returnFocus;
+    state.returnFocus = null;
+    if (target && document.contains(target) && target.focus) target.focus();
+    else if (canvas && canvas.focus) canvas.focus();
+  }
+
+  function setHoverNode(nodeId) {
+    if (state.hoverId === nodeId) return;
+    state.hoverId = nodeId;
+    model.hoverId = nodeId;
+    if (canvas) {
+      canvas.style.cursor = nodeId ? 'pointer' : '';
+      canvas.title = nodeId ? 'Click to view device details' : '';
+    }
+    dirty = true;
+  }
+
+  function cycleDeviceSelection(step) {
+    var devices = model.nodes.filter(isClickableNode);
+    if (!devices.length) return;
+    var index = -1;
+    for (var i = 0; i < devices.length; i += 1) {
+      if (devices[i].id === state.selectedDeviceId) index = i;
+    }
+    var next = devices[(index + step + devices.length) % devices.length];
+    openDeviceDetails(next.id);
   }
 
   function colorFor(node) {
@@ -215,6 +383,7 @@
     if (node.kind === 'central') return 0x38bdf8;
     if (node.kind === 'cloud') return 0x60a5fa;
     if (node.kind === 'local') return 0x2dd4bf;
+    if (node.kind === 'client') return 0xa78bfa;
     if (node.kind === 'task') return 0xfbbf24;
     return 0x10b981;
   }
@@ -402,9 +571,16 @@
     nextModel.nodes.forEach(function (n) {
       if (!self.nodes[n.id]) self.nodes[n.id] = self.buildNode(n);
       var entry = self.nodes[n.id];
-      entry.select.visible = nextModel.highlightIds.indexOf(n.id) !== -1;
-      entry.ring.material.color.setHex(colorFor(n));
+      var selected = nextModel.selectedDeviceId === n.id;
+      var hovered = nextModel.hoverId === n.id;
+      entry.select.visible = selected || nextModel.highlightIds.indexOf(n.id) !== -1;
+      entry.select.material.color.setHex(selected ? 0xfbbf24 : 0x2dd4bf);
+      entry.mesh.scale.setScalar(hovered ? 1.12 : 1);
       entry.mesh.material.color.setHex(colorFor(n));
+      entry.mesh.material.emissive.setHex(hovered || selected ? 0x1e3a5f : 0x000000);
+      entry.mesh.material.emissiveIntensity = hovered ? 0.45 : selected ? 0.25 : 0;
+      entry.ring.material.color.setHex(colorFor(n));
+      entry.ring.material.opacity = hovered ? 1 : 0.8;
     });
 
     var linkIds = {};
@@ -618,9 +794,14 @@
       ctx.strokeRect(p.x - size / 2, p.y - size / 2, size, size);
       ctx.globalAlpha = 1;
       if (nextModel.highlightIds.indexOf(node.id) !== -1) {
-        ctx.strokeStyle = '#fbbf24';
+        ctx.strokeStyle = '#2dd4bf';
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(p.x, p.y, size + 7, 0, Math.PI * 2); ctx.stroke();
+      }
+      if (nextModel.selectedDeviceId === node.id || nextModel.hoverId === node.id) {
+        ctx.strokeStyle = nextModel.selectedDeviceId === node.id ? '#fbbf24' : '#7dd3fc';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(p.x, p.y, size + 11, 0, Math.PI * 2); ctx.stroke();
       }
     });
 
@@ -693,9 +874,21 @@
   }
 
   function setMode(simulated) {
+    state.forceSim = !!simulated;
+    updateModeBadge();
+  }
+
+  function updateModeBadge() {
     if (!modeBadge) return;
-    modeBadge.textContent = simulated ? 'SIMULATED EVENT - NOT LIVE' : 'LIVE BACKEND DATA';
-    modeBadge.classList.toggle('is-simulated', !!simulated);
+    var demo = state.workflow.mode === 'demo';
+    var simulated = state.forceSim || state.simulatedCount > 0;
+    modeBadge.textContent = demo ? 'DEMONSTRATION MODE — SIMULATED DATA'
+      : simulated ? 'SIMULATED EVENT - NOT LIVE' : 'LIVE BACKEND DATA';
+    modeBadge.classList.toggle('is-simulated', demo || simulated);
+    if (runModeBadge) {
+      runModeBadge.textContent = demo ? 'DEMONSTRATION MODE' : 'LIVE BACKEND';
+      runModeBadge.classList.toggle('is-demo', demo);
+    }
   }
 
   function setChip(name, text, mode) {
@@ -724,6 +917,364 @@
     });
   }
 
+  function workflowBackendStage(index) {
+    var stages = state.data && state.data.workflow && state.data.workflow.stages
+      ? state.data.workflow.stages : [];
+    return stages[index] || null;
+  }
+
+  function formatWorkflowTime(ms) {
+    var seconds = Math.max(0, Math.floor(ms / 1000));
+    return String(Math.floor(seconds / 60)).padStart(2, '0') + ':'
+      + String(seconds % 60).padStart(2, '0');
+  }
+
+  function workflowTarget() {
+    if (state.policy === 'CLOUD_ALLOWED') return 'CLOUD';
+    if (state.policy === 'TRUSTED_EDGE') {
+      var mec = state.eligible.filter(function (id) { return id.indexOf('MEC-') === 0; })[0];
+      if (mec && findNode(mec)) return mec;
+      var connected = (state.data && state.data.mec_devices || []).filter(function (item) {
+        return item.connection_state === 'CONNECTED';
+      })[0];
+      if (connected && findNode(connected.device_id)) return connected.device_id;
+    }
+    return 'LOCAL';
+  }
+
+  function workflowRecordId() {
+    var latest = state.data && state.data.workflow ? state.data.workflow.latest_upload : null;
+    return latest && latest.upload_id ? latest.upload_id : 'Not available';
+  }
+
+  function populateWorkflowUI() {
+    if (workflowStageSelect && workflowStageSelect.options.length !== WORKFLOW_STAGES.length) {
+      workflowStageSelect.textContent = '';
+      WORKFLOW_STAGES.forEach(function (definition, index) {
+        var option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = (index + 1) + '. ' + definition.title;
+        workflowStageSelect.appendChild(option);
+      });
+    }
+    if (workflowSteps && !workflowSteps.children.length) {
+      WORKFLOW_STAGES.forEach(function (definition, index) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'dt3d-workflow-step';
+        button.setAttribute('data-workflow-step', String(index));
+        button.title = definition.title;
+        on(button, 'click', function () { jumpToWorkflowStage(index); });
+        workflowSteps.appendChild(button);
+      });
+    }
+    renderWorkflowSteps();
+  }
+
+  function renderWorkflowSteps() {
+    if (!workflowSteps) return;
+    var index = state.workflow.index;
+    Array.prototype.forEach.call(workflowSteps.querySelectorAll('[data-workflow-step]'), function (button) {
+      var step = Number(button.getAttribute('data-workflow-step'));
+      var backendStage = workflowBackendStage(step);
+      var status = backendStage ? backendStage.status : 'PENDING';
+      button.className = 'dt3d-workflow-step'
+        + (step < index || state.workflow.completed ? ' is-complete' : '')
+        + (step === index && !state.workflow.completed ? ' is-active' : '');
+      button.textContent = (step + 1) + '. ' + WORKFLOW_STAGES[step].title + ' — ' + status;
+    });
+  }
+
+  function renderWorkflowUI() {
+    var index = state.workflow.index;
+    var definition = WORKFLOW_STAGES[index];
+    var backendStage = workflowBackendStage(index);
+    var demo = state.workflow.mode === 'demo';
+    var speed = state.workflow.speed || 1;
+    var prior = 0;
+    for (var i = 0; i < index; i += 1) prior += WORKFLOW_STAGES[i].duration / speed;
+    var elapsed = prior + state.workflow.elapsed;
+    var total = WORKFLOW_TOTAL_MS / speed;
+    var percent = state.workflow.completed ? 100 : clamp((elapsed / total) * 100, 0, 99);
+    if (workflowKicker) {
+      workflowKicker.textContent = 'STAGE ' + (index + 1) + ' / ' + WORKFLOW_STAGES.length
+        + (demo ? ' · SIMULATED' : '');
+    }
+    if (workflowStatus) {
+      workflowStatus.textContent = state.workflow.completed ? 'Workflow Complete' : definition.title;
+    }
+    if (workflowDetail) {
+      workflowDetail.textContent = demo ? definition.description + ' DEMONSTRATION MODE — SIMULATED DATA.'
+        : backendStage && backendStage.detail ? backendStage.detail : definition.description;
+    }
+    if (workflowProgressFill) workflowProgressFill.style.width = percent.toFixed(1) + '%';
+    if (workflowProgress) workflowProgress.setAttribute('aria-valuenow', String(Math.round(percent)));
+    if (workflowTime) {
+      workflowTime.textContent = 'Step ' + (index + 1) + ' / ' + WORKFLOW_STAGES.length
+        + ' · ' + formatWorkflowTime(elapsed) + ' / ' + formatWorkflowTime(total);
+    }
+    if (workflowStageSelect) workflowStageSelect.value = String(index);
+    renderWorkflowSteps();
+  }
+
+  function updateWorkflowStatusPanel() {
+    var index = state.workflow.index;
+    var definition = WORKFLOW_STAGES[index];
+    var backendStage = workflowBackendStage(index);
+    var demo = state.workflow.mode === 'demo';
+    if (currentDataSource) {
+      currentDataSource.textContent = demo ? 'SIMULATED DATA'
+        : backendStage && backendStage.data_source === 'BACKEND_CAPABILITY' ? 'BACKEND CAPABILITY'
+          : 'BACKEND RECORD';
+      currentDataSource.classList.toggle('is-demo', demo);
+    }
+    if (currentSource) currentSource.textContent = definition.source;
+    if (currentDestination) currentDestination.textContent = definition.destination;
+    if (currentTask) currentTask.textContent = demo
+      ? 'DEMO-TASK-' + String(index + 1).padStart(3, '0') : workflowRecordId();
+    if (currentArtifact) currentArtifact.textContent = demo
+      ? 'SIMULATED STAGE ARTIFACT' : backendStage ? backendStage.status : 'BACKEND RECORD';
+    if (currentDetail) {
+      currentDetail.textContent = demo ? definition.description + ' No backend record was created.'
+        : backendStage && backendStage.detail ? backendStage.detail : definition.description;
+    }
+  }
+
+  function applyWorkflowVisuals(index, quiet) {
+    var definition = WORKFLOW_STAGES[index];
+    var demo = state.workflow.mode === 'demo';
+    var target = workflowTarget();
+    var destination = definition.destination;
+    if (definition.visual === 'selection' || definition.visual === 'transfer'
+      || definition.visual === 'task' || definition.visual === 'result' || definition.visual === 'completion') {
+      destination = target;
+    }
+    if (!findNode(destination)) destination = 'CENTRAL';
+    model.highlightIds = definition.visual === 'policy' ? state.eligible.slice()
+      : definition.visual === 'audit' ? ['ATTACKER', 'CENTRAL']
+        : [definition.source, destination];
+
+    var packetVisuals = ['client', 'upload', 'transfer', 'task', 'result', 'audit'];
+    if (packetVisuals.indexOf(definition.visual) === -1 || quiet || !state.showTransfers) {
+      dirty = true;
+      return;
+    }
+    var linkId = ensureTransferLink(definition.source, destination, 'workflow');
+    var speed = state.workflow.speed || 1;
+    addPacket({
+      id: 'workflow-' + definition.id + '-' + state.workflow.token + '-' + index,
+      linkId: linkId,
+      label: (demo ? 'SIM-' : 'LIVE-') + definition.id.toUpperCase(),
+      kind: definition.visual === 'audit' ? 'attack' : definition.visual === 'task' ? 'task' : 'transfer',
+      simulated: demo,
+      duration: reducedMotion ? 900 : Math.min(3000, definition.duration / speed * 0.7),
+      onDone: quiet ? null : function () {
+        addEvent(demo ? 'sim' : 'workflow', (demo ? 'SIMULATED ' : 'BACKEND ') + definition.title
+          + ': ' + definition.source + ' -> ' + destination + '.');
+      }
+    });
+  }
+
+  function syncWorkflowPlayButton() {
+    var button = document.querySelector('[data-dt3d-action="workflow-play"]');
+    if (!button) return;
+    if (!state.workflow.active || state.workflow.completed) button.textContent = 'Run Guided Workflow';
+    else if (state.workflow.playing) button.textContent = 'Pause Workflow';
+    else button.textContent = 'Resume Workflow';
+  }
+
+  function setAnimationPaused(paused) {
+    state.paused = !!paused;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-dt3d-action="pause"]'), function (button) {
+      button.setAttribute('aria-pressed', state.paused ? 'true' : 'false');
+      button.textContent = state.paused ? 'Resume Animation' : 'Pause Animation';
+    });
+    dirty = true;
+  }
+
+  function beginWorkflowStage(index, quiet) {
+    state.workflow.index = clamp(index, 0, WORKFLOW_STAGES.length - 1);
+    state.workflow.elapsed = 0;
+    renderWorkflowUI();
+    updateWorkflowStatusPanel();
+    applyWorkflowVisuals(state.workflow.index, !!quiet);
+    syncWorkflowPlayButton();
+  }
+
+  function startWorkflow() {
+    state.workflow.token += 1;
+    state.workflow.active = true;
+    state.workflow.playing = true;
+    state.workflow.completed = false;
+    state.workflow.index = 0;
+    state.workflow.elapsed = 0;
+    setAnimationPaused(false);
+    updateModeBadge();
+    beginWorkflowStage(0, false);
+    addEvent(state.workflow.mode === 'demo' ? 'sim' : 'workflow',
+      (state.workflow.mode === 'demo' ? 'SIMULATED ' : 'BACKEND ')
+      + 'guided workflow started: ' + WORKFLOW_STAGES.length + ' stages.');
+    syncWorkflowPlayButton();
+  }
+
+  function toggleWorkflowPlay() {
+    if (!state.workflow.active || state.workflow.completed) {
+      startWorkflow();
+      return;
+    }
+    state.workflow.playing = !state.workflow.playing;
+    if (state.workflow.playing) setAnimationPaused(false);
+    syncWorkflowPlayButton();
+  }
+
+  function advanceWorkflow(direction) {
+    if (!state.workflow.active || state.workflow.completed) startWorkflow();
+    beginWorkflowStage(state.workflow.index + direction, false);
+  }
+
+  function jumpToWorkflowStage(index) {
+    if (!state.workflow.active || state.workflow.completed) startWorkflow();
+    beginWorkflowStage(index, false);
+  }
+
+  function restartWorkflow() {
+    startWorkflow();
+  }
+
+  function finishWorkflow() {
+    state.workflow.playing = false;
+    state.workflow.completed = true;
+    state.workflow.elapsed = 0;
+    renderWorkflowUI();
+    syncWorkflowPlayButton();
+    addEvent(state.workflow.mode === 'demo' ? 'sim' : 'workflow',
+      state.workflow.mode === 'demo'
+        ? 'SIMULATED guided workflow complete. No backend records were created.'
+        : 'Guided walkthrough complete using recorded backend data.');
+  }
+
+  function updateWorkflow(ms, now) {
+    var workflow = state.workflow;
+    if (!workflow.active || !workflow.playing || document.hidden) return;
+    var definition = WORKFLOW_STAGES[workflow.index];
+    var duration = definition.duration / (workflow.speed || 1);
+    workflow.elapsed += ms;
+    if (workflow.elapsed >= duration) {
+      if (workflow.index >= WORKFLOW_STAGES.length - 1) finishWorkflow();
+      else beginWorkflowStage(workflow.index + 1, false);
+      return;
+    }
+    if (now - workflow.lastPaint > 120) {
+      workflow.lastPaint = now;
+      renderWorkflowUI();
+    }
+  }
+
+  function setWorkflowMode(mode) {
+    state.workflow.mode = mode === 'demo' ? 'demo' : 'live';
+    if (runModeSelect) runModeSelect.value = state.workflow.mode;
+    updateModeBadge();
+    renderWorkflowUI();
+    updateWorkflowStatusPanel();
+    if (state.workflow.active) beginWorkflowStage(state.workflow.index, true);
+    addEvent(state.workflow.mode === 'demo' ? 'sim' : 'workflow', state.workflow.mode === 'demo'
+      ? 'Demonstration mode enabled. All walkthrough data is simulated.'
+      : 'Live backend mode enabled. Recorded data only.');
+  }
+
+  function populateAttackScenarios() {
+    if (!attackSelect || attackSelect.options.length) return;
+    var catalog = state.data && state.data.simulation_catalog && state.data.simulation_catalog.length
+      ? state.data.simulation_catalog : ATTACK_SCENARIOS;
+    catalog.forEach(function (scenario) {
+      var option = document.createElement('option');
+      option.value = scenario.id || scenario.type;
+      option.textContent = scenario.label;
+      attackSelect.appendChild(option);
+    });
+  }
+
+  function selectedAttackScenario() {
+    var selectedId = attackSelect && attackSelect.value;
+    var catalog = state.data && state.data.simulation_catalog && state.data.simulation_catalog.length
+      ? state.data.simulation_catalog : ATTACK_SCENARIOS;
+    for (var i = 0; i < catalog.length; i += 1) {
+      if ((catalog[i].id || catalog[i].type) === selectedId) return catalog[i];
+    }
+    return catalog[0] || ATTACK_SCENARIOS[0];
+  }
+
+  function renderSecurityLayers() {
+    if (!securityLayers) return;
+    var layers = state.data && state.data.security_layers ? state.data.security_layers : [];
+    if (!layers.length) {
+      securityLayers.innerHTML = '<span class="dt3d-security-placeholder">No security layer records available.</span>';
+      return;
+    }
+    securityLayers.textContent = '';
+    layers.forEach(function (layer) {
+      var item = document.createElement('div');
+      item.className = 'dt3d-security-layer';
+      var head = document.createElement('div');
+      head.className = 'dt3d-security-layer-head';
+      var label = document.createElement('strong');
+      label.textContent = layer.label;
+      var status = document.createElement('span');
+      var statusClass = layer.status === 'ENFORCED' ? 'is-enforced'
+        : layer.status === 'PARTIAL' ? 'is-partial'
+          : layer.status === 'POLICY_ONLY' ? 'is-policy-only' : '';
+      status.className = 'dt3d-security-status ' + statusClass;
+      status.textContent = layer.status.replace('_', ' ');
+      var focus = document.createElement('button');
+      focus.type = 'button';
+      focus.textContent = 'Focus';
+      focus.title = 'Highlight the nodes related to ' + layer.label;
+      on(focus, 'click', function () { focusSecurityLayer(layer); });
+      head.appendChild(label);
+      head.appendChild(status);
+      head.appendChild(focus);
+      var evidence = document.createElement('p');
+      evidence.textContent = layer.evidence;
+      item.appendChild(head);
+      item.appendChild(evidence);
+      securityLayers.appendChild(item);
+    });
+    var enforced = layers.filter(function (layer) { return layer.status === 'ENFORCED'; }).length;
+    if (securitySummary) securitySummary.textContent = enforced + ' / ' + layers.length + ' ENFORCED';
+  }
+
+  function focusSecurityLayer(layer) {
+    var targets = {
+      upload_validation: ['CLIENT', 'CENTRAL'],
+      authentication_authorization: ['CENTRAL', 'MEC'],
+      privacy_aware_scheduling: ['CENTRAL', 'CLOUD'],
+      resource_trust_availability: ['CENTRAL', 'LOCAL'],
+      security_audit: ['ATTACKER', 'CENTRAL'],
+      data_protection: ['CENTRAL', 'LOCAL']
+    };
+    model.highlightIds = (targets[layer.id] || ['CENTRAL']).filter(function (id) { return !!findNode(id); });
+    if (!model.highlightIds.length) model.highlightIds = ['CENTRAL'];
+    dirty = true;
+    addEvent('security', 'Security layer focused: ' + layer.label + ' (' + layer.status + ').');
+  }
+
+  function showDeviceDetails() {
+    var target = state.selectedDeviceId;
+    if (!target) {
+      var devices = model.nodes.filter(isClickableNode);
+      target = devices.length ? devices[0].id : null;
+    }
+    if (target) openDeviceDetails(target);
+  }
+
+  function showSecurityLayers() {
+    if (!securityPanel) return;
+    securityPanel.hidden = false;
+    if (securityPanel.scrollIntoView) securityPanel.scrollIntoView({ block: 'nearest' });
+    var first = securityPanel.querySelector('button');
+    if (first && first.focus) first.focus();
+  }
+
   function buildModel(data) {
     var nodes = [];
     var links = [];
@@ -733,6 +1284,7 @@
     (data.tiers || []).forEach(function (tier) { tiers[tier.destination_id] = tier; });
 
     nodes.push({ id: 'CENTRAL', label: 'SecureDT Central Server', kind: 'central', status: 'connected', x: 0, y: 0, z: 0, detail: data.server.label });
+    nodes.push({ id: 'CLIENT', label: 'Dataset Submission Client', kind: 'client', status: 'connected', x: -14, y: 1.2, z: 5.5, detail: 'WEB_UPLOAD_CLIENT' });
     nodes.push({ id: 'LOCAL', label: 'LOCAL WORKSTATION', kind: 'local', status: 'connected', x: -11, y: 0.2, z: 2.5 });
     nodes.push({ id: 'CLOUD', label: tiers.CLOUD_STORAGE && tiers.CLOUD_STORAGE.is_emulator ? 'CLOUD EMULATOR' : 'CLOUD TIER', kind: 'cloud', status: 'connected', x: 11, y: 1.4, z: -1.5 });
     nodes.push({ id: 'MEC_STORAGE', label: 'MEC STORAGE TIER', kind: 'edge-store', status: 'connected', x: 0.5, y: 0.4, z: -9 });
@@ -784,6 +1336,7 @@
       taskCount += 1;
     });
 
+    links.push({ id: 'client-CENTRAL', from: 'CLIENT', to: 'CENTRAL', kind: 'connection', state: 'connected' });
     links.push({ id: 'central-LOCAL', from: 'CENTRAL', to: 'LOCAL', kind: 'connection', state: 'connected' });
     links.push({ id: 'central-CLOUD', from: 'CENTRAL', to: 'CLOUD', kind: 'connection', state: 'connected' });
     links.push({ id: 'central-MEC_STORAGE', from: 'CENTRAL', to: 'MEC_STORAGE', kind: 'connection', state: 'connected' });
@@ -938,10 +1491,22 @@
     var meta = buildModel(data);
     applyRecordedActivity(data);
     applyPolicyFocus();
+    populateWorkflowUI();
+    populateAttackScenarios();
+    renderSecurityLayers();
     updateStats(data.server || {});
+    if (state.workflow.active) beginWorkflowStage(state.workflow.index, true);
+    else {
+      renderWorkflowUI();
+      updateWorkflowStatusPanel();
+    }
+    updateModeBadge();
     if (emptyNotice) emptyNotice.hidden = (data.mec_devices || []).length > 0;
     if (engineBadge) engineBadge.textContent = backend.engine + (reducedMotion ? ' | REDUCED MOTION' : '');
+    model.hoverId = state.hoverId;
+    model.selectedDeviceId = state.selectedDeviceId;
     backend.sync(model);
+    if (detailsPanel && !detailsPanel.hidden && state.selectedDeviceId) renderDeviceDetails(state.selectedDeviceId);
     dirty = true;
   }
 
@@ -1007,20 +1572,22 @@
   }
 
   function runAttackSimulation() {
-    var scenario = ATTACK_SCENARIOS[state.attackIndex % ATTACK_SCENARIOS.length];
-    state.attackIndex += 1;
+    var scenario = selectedAttackScenario();
+    var scenarioId = scenario.id || scenario.type;
     state.simulatedCount += 1;
     var token = ++state.simulationToken;
     setMode(true);
-    var target = scenario.target === 'MEC'
-      ? (state.data && state.data.server.connected_mecs > 0
-        ? (state.data.mec_devices.filter(function (m) { return m.connection_state === 'CONNECTED'; })[0] || {}).device_id || 'CENTRAL'
-        : 'CENTRAL')
-      : scenario.target;
+    var target = scenario.target;
+    if (target === 'MEC') {
+      var connected = (state.data && state.data.mec_devices || []).filter(function (mec) {
+        return mec.connection_state === 'CONNECTED';
+      })[0];
+      target = connected && findNode(connected.device_id) ? connected.device_id : 'CENTRAL';
+    }
     if (!findNode(target)) target = 'CENTRAL';
     var linkId = ensureTransferLink('ATTACKER', target, 'attack');
-    var recorded = (state.data && state.data.security_events || []).filter(function (e) {
-      return e.event_type === scenario.type;
+    var recorded = (state.data && state.data.security_events || []).filter(function (event) {
+      return event.event_type === scenarioId;
     })[0];
     setChip('policy', 'SECURITY CHECK (SIMULATED)', 'active');
     setChip('destination', 'TARGET: ' + target, 'active');
@@ -1038,14 +1605,13 @@
         var verdict = recorded ? recorded.verdict + ' (BACKEND AUDIT)' : 'NO BACKEND EVENT';
         setChip('result', verdict, 'blocked');
         setChip('transfer', 'SIMULATION COMPLETE', 'blocked');
-        var text = 'SIMULATED ' + scenario.label + ' -> ' + target + '. ' +
-          (recorded ? 'Matching backend audit record: ' + scenario.type + ' (' + verdict + ').'
-            : 'No matching backend audit record; nothing was blocked or recorded by this simulation.');
-        addEvent('sim', text);
+        addEvent('sim', 'SIMULATED ' + scenario.label + ' -> ' + target + '. ' + verdict + '. '
+          + (scenario.backend_evidence || 'Bounded local visualization only.') + ' No real system was contacted.');
         endSimulation(token);
       }
     });
-    addEvent('sim', 'SIMULATED attack scenario: ' + scenario.label + ' targeting ' + target + '.');
+    addEvent('sim', 'SIMULATED attack scenario: ' + scenario.label + ' -> ' + target + '. '
+      + (scenario.backend_evidence || 'Bounded local visualization only.') + ' No real attack was performed.');
   }
 
   function endSimulation(token) {
@@ -1059,16 +1625,70 @@
     }
   }
 
+  function labelBounds() {
+    var width = stage ? stage.clientWidth : 0;
+    var height = stage ? stage.clientHeight : 0;
+    var bounds = {
+      left: 8,
+      top: 8,
+      right: Math.max(9, width - 8),
+      bottom: Math.max(9, height - 28)
+    };
+    if (detailsPanel && !detailsPanel.hidden) {
+      if (window.innerWidth > 720) {
+        bounds.right = Math.max(bounds.left + 120, width - detailsPanel.offsetWidth - 18);
+      } else {
+        bounds.bottom = Math.max(bounds.top + 80, height - detailsPanel.offsetHeight - 12);
+      }
+    }
+    return bounds;
+  }
+
+  function placeLabel(x, y, width, height, placed, bounds) {
+    var px = clamp(x, bounds.left + width / 2, Math.max(bounds.left + width / 2, bounds.right - width / 2));
+    var py = clamp(y, bounds.top + height / 2, Math.max(bounds.top + height / 2, bounds.bottom - height / 2));
+    for (var attempt = 0; attempt < 6; attempt += 1) {
+      var collision = null;
+      for (var i = 0; i < placed.length; i += 1) {
+        var other = placed[i];
+        if (Math.abs(px - other.x) < (width + other.w) / 2 + 6
+          && Math.abs(py - other.y) < (height + other.h) / 2 + 4) {
+          collision = other;
+          break;
+        }
+      }
+      if (!collision) break;
+      py = collision.y + (collision.h + height) / 2 + 5;
+      if (py > bounds.bottom - height / 2) py = bounds.top + height / 2;
+    }
+    placed.push({ x: px, y: py, w: width, h: height });
+    return { x: px, y: py };
+  }
+
   function updateLabels() {
     if (!state.showLabels || !labelLayer) return;
     var current = {};
+    var placed = [];
+    var bounds = labelBounds();
     model.nodes.forEach(function (node) {
       if (node.kind === 'task' && !state.showLinks) return;
       current[node.id] = true;
+      var clickable = isClickableNode(node);
       var el = labelElements[node.id];
       if (!el) {
-        el = document.createElement('div');
-        el.className = 'dt3d-label';
+        el = document.createElement(clickable ? 'button' : 'div');
+        if (clickable) {
+          el.type = 'button';
+          el.setAttribute('data-node-id', node.id);
+          on(el, 'click', function (event) {
+            event.stopPropagation();
+            openDeviceDetails(node.id);
+          });
+          on(el, 'mouseenter', function () { setHoverNode(node.id); });
+          on(el, 'mouseleave', function () { setHoverNode(null); });
+          on(el, 'focus', function () { setHoverNode(node.id); });
+          on(el, 'blur', function () { setHoverNode(null); });
+        }
         labelLayer.appendChild(el);
         labelElements[node.id] = el;
       }
@@ -1081,10 +1701,25 @@
         + (node.status === 'offline' ? ' is-offline' : '')
         + (node.status === 'connecting' ? ' is-connecting' : '')
         + (node.status === 'simulated' ? ' is-threat' : '')
-        + (state.eligible.indexOf(node.id) !== -1 && node.kind === 'mec' ? ' is-selected' : '');
-      el.style.left = projected.x + 'px';
-      el.style.top = projected.y + 'px';
+        + (state.eligible.indexOf(node.id) !== -1 && node.kind === 'mec' ? ' is-selected' : '')
+        + (clickable ? ' is-clickable' : '')
+        + (state.selectedDeviceId === node.id ? ' is-detail-selected' : '');
+      if (clickable) {
+        el.setAttribute('aria-label', node.label + ', view device details');
+        el.title = 'Click to view device details';
+      }
       el.style.display = projected.visible ? '' : 'none';
+      if (!projected.visible) return;
+      var point = placeLabel(
+        projected.x,
+        projected.y - (node.kind === 'mec' ? 14 : 0),
+        el.offsetWidth || 80,
+        el.offsetHeight || 22,
+        placed,
+        bounds
+      );
+      el.style.left = point.x + 'px';
+      el.style.top = point.y + 'px';
     });
     model.packets.forEach(function (packet) {
       var id = 'packet-' + packet.id;
@@ -1102,21 +1737,31 @@
       var a = link.a || findNode(link.from);
       var b = link.b || findNode(link.to);
       if (!a || !b) return;
-      var point = {
+      var point3d = {
         x: a.x + (b.x - a.x) * t,
         y: a.y + (b.y - a.y) * t + Math.sin(Math.PI * t) * 0.55,
         z: a.z + (b.z - a.z) * t
       };
-      var projected = backend.project(point);
+      var projected = backend.project(point3d);
       el.textContent = packet.label + (packet.simulated ? ' [SIMULATED]' : ' [BACKEND]');
       el.className = 'dt3d-label' + (packet.kind === 'attack' ? ' is-threat' : '');
-      el.style.left = projected.x + 'px';
-      el.style.top = (projected.y - 18) + 'px';
       el.style.display = projected.visible && state.showTransfers ? '' : 'none';
+      if (!projected.visible || !state.showTransfers) return;
+      var point = placeLabel(
+        projected.x,
+        projected.y - 18,
+        el.offsetWidth || 80,
+        el.offsetHeight || 18,
+        placed,
+        bounds
+      );
+      el.style.left = point.x + 'px';
+      el.style.top = point.y + 'px';
     });
     Object.keys(labelElements).forEach(function (id) {
       if (!current[id]) {
-        labelLayer.removeChild(labelElements[id]);
+        var stale = labelElements[id];
+        if (stale.parentNode === labelLayer) labelLayer.removeChild(stale);
         delete labelElements[id];
       }
     });
@@ -1151,10 +1796,12 @@
         }
       });
       model.packets = remaining;
-      backend.sync(model);
       if (hasMotion) active = true;
     }
     if (dirty || active) {
+      model.hoverId = state.hoverId;
+      model.selectedDeviceId = state.selectedDeviceId;
+      backend.sync(model);
       backend.draw(model, state.showSecurity);
       updateLabels();
       dirty = false;
@@ -1203,6 +1850,7 @@
       else if (action === 'security') handler = function () { setToggle(button, 'showSecurity'); };
       else if (action === 'transfer-sim') handler = runTransferSimulation;
       else if (action === 'attack-sim') handler = runAttackSimulation;
+      else if (action === 'close-details') handler = closeDeviceDetails;
       if (handler) on(button, 'click', handler);
     });
 
@@ -1226,7 +1874,12 @@
       canvas.setPointerCapture(event.pointerId);
     });
     on(canvas, 'pointermove', function (event) {
-      if (!dragging) return;
+      if (!dragging) {
+        var rect = canvas.getBoundingClientRect();
+        var hovered = backend.pick ? backend.pick(event.clientX, event.clientY, rect, model.nodes) : null;
+        setHoverNode(hovered && isClickableNode(findNode(hovered)) ? hovered : null);
+        return;
+      }
       var dx = event.clientX - downX, dy = event.clientY - downY;
       if (Math.abs(dx) + Math.abs(dy) > 6) moved = true;
       backend.rotate(event.clientX - lastX, event.clientY - lastY);
@@ -1240,10 +1893,12 @@
       if (wasDragging && !moved) {
         var rect = canvas.getBoundingClientRect();
         var nodeId = backend.pick ? backend.pick(event.clientX, event.clientY, rect, model.nodes) : null;
-        if (nodeId && storageDestForNode(nodeId)) openStorageModal(nodeId);
+        if (nodeId && isClickableNode(findNode(nodeId))) openDeviceDetails(nodeId);
+        else if (!nodeId) closeDeviceDetails();
       }
     });
     on(canvas, 'pointercancel', function () { dragging = false; });
+    on(canvas, 'pointerleave', function () { setHoverNode(null); });
     on(canvas, 'wheel', function (event) {
       event.preventDefault();
       backend.zoom(event.deltaY > 0 ? 1.08 : 0.92);
@@ -1257,11 +1912,31 @@
       else if (event.key === 'ArrowDown') backend.rotate(0, 14);
       else if (event.key === '+' || event.key === '=') backend.zoom(0.86);
       else if (event.key === '-') backend.zoom(1.16);
-      else handled = false;
+      else if (event.key === '[') cycleDeviceSelection(-1);
+      else if (event.key === ']') cycleDeviceSelection(1);
+      else if (event.key === 'Enter' || event.key === ' ') {
+        var targetId = state.hoverId || state.selectedDeviceId;
+        if (!targetId && model.nodes.length) targetId = model.nodes[0].id;
+        if (targetId && isClickableNode(findNode(targetId))) openDeviceDetails(targetId);
+      } else handled = false;
       if (handled) {
         event.preventDefault();
         dirty = true;
       }
+    });
+
+    on(document, 'keydown', function (event) {
+      if (event.key === 'Escape' && detailsPanel && !detailsPanel.hidden) {
+        event.preventDefault();
+        closeDeviceDetails();
+      }
+    });
+    on(document, 'click', function (event) {
+      if (!detailsPanel || detailsPanel.hidden) return;
+      if (detailsPanel.contains(event.target)) return;
+      if (event.target === canvas) return;
+      if (event.target && event.target.getAttribute && event.target.getAttribute('data-node-id')) return;
+      closeDeviceDetails();
     });
 
     on(document, 'visibilitychange', function () {
@@ -1275,6 +1950,7 @@
     if (dead) return;
     dead = true;
     window.clearInterval(pollTimer);
+    window.clearTimeout(state.detailsTimer);
     window.cancelAnimationFrame(rafId);
     listeners.forEach(function (entry) {
       entry[0].removeEventListener(entry[1], entry[2], entry[3]);

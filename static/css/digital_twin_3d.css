@@ -149,6 +149,27 @@
   border-color: rgba(245, 158, 11, 0.85);
 }
 
+.dt3d-label.is-clickable {
+  pointer-events: auto;
+  cursor: pointer;
+  appearance: none;
+}
+
+.dt3d-label.is-clickable:hover {
+  border-color: rgba(125, 211, 252, 0.95);
+  background: rgba(14, 35, 64, 0.96);
+}
+
+.dt3d-label.is-detail-selected {
+  border-color: rgba(251, 191, 36, 0.95);
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.25), 0 3px 12px rgba(0, 0, 0, 0.3);
+}
+
+.dt3d-label.is-clickable:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+
 .dt3d-empty {
   position: absolute;
   top: 50%;
@@ -404,33 +425,457 @@
 
 @media (prefers-reduced-motion: reduce) {
   .dt3d-controls button,
-  .dt3d-controls select { transition: none; }
+  .dt3d-controls select,
+  .dt3d-details { transition: none; }
 }
 
-/* Storage detail modal */
-.dt3d-modal { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.dt3d-modal[hidden] { display: none !important; }
-.dt3d-modal-backdrop { position: absolute; inset: 0; background: rgba(2, 6, 23, 0.62); backdrop-filter: blur(2px); }
-.dt3d-modal-panel { position: relative; width: min(1100px, 96vw); max-height: 88vh; overflow: auto; background: #0b1426; border: 1px solid #28415f; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.45); color: #dbeafe; }
-.dt3d-modal-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding: 16px 18px; border-bottom: 1px solid #1f3552; position: sticky; top: 0; background: #0b1426; z-index: 1; }
-.dt3d-modal-kicker { font-size: 10px; letter-spacing: .1em; color: #67e8f9; font-weight: 700; }
-.dt3d-modal-head h3 { margin: 2px 0; font-size: 20px; color: #f8fafc; }
-.dt3d-modal-sub { font-size: 12px; color: #94a3b8; font-family: Consolas, monospace; }
-.dt3d-modal-stats { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 8px; padding: 14px 18px; border-bottom: 1px solid #1f3552; }
-.dt3d-modal-stat { background: #0f1d35; border: 1px solid #243b5a; border-radius: 8px; padding: 8px 10px; }
-.dt3d-modal-stat span { display: block; font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em; }
-.dt3d-modal-stat strong { display: block; margin-top: 2px; font-size: 14px; color: #e2e8f0; }
-.dt3d-modal-body { padding: 14px 18px 18px; }
-.dt3d-modal-section { margin-bottom: 16px; }
-.dt3d-modal-section h4 { margin: 0 0 8px; font-size: 13px; color: #93c5fd; text-transform: uppercase; letter-spacing: .04em; }
-.dt3d-table-wrap { overflow: auto; border: 1px solid #223a58; border-radius: 8px; }
-.dt3d-modal-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 720px; }
-.dt3d-modal-table th, .dt3d-modal-table td { padding: 8px 10px; border-bottom: 1px solid #1d3350; text-align: left; vertical-align: top; }
-.dt3d-modal-table th { background: #10213a; color: #93c5fd; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; position: sticky; top: 0; }
-.dt3d-modal-table tr:last-child td { border-bottom: 0; }
-.dt3d-muted { color: #64748b; font-size: 11px; margin-top: 2px; }
-.dt3d-mono { font-family: Consolas, monospace; font-size: 11px; color: #cbd5e1; }
-.dt3d-pill { display: inline-block; padding: 2px 7px; border-radius: 999px; background: #163055; color: #bfdbfe; font-size: 10px; font-weight: 700; }
-.dt3d-empty-note { color: #94a3b8; font-size: 12px; padding: 10px 0; margin: 0; }
-@media (max-width: 1180px) { .dt3d-modal-stats { grid-template-columns: repeat(3, minmax(0,1fr)); } }
-@media (max-width: 720px) { .dt3d-modal-stats { grid-template-columns: repeat(2, minmax(0,1fr)); } .dt3d-modal-panel { width: 98vw; max-height: 92vh; } }
+.dt3d-details {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  width: min(330px, 44%);
+  max-height: calc(100% - 24px);
+  overflow: hidden;
+  border: 1px solid #2b4d73;
+  border-radius: 10px;
+  background: rgba(8, 18, 33, 0.97);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+  color: #dbeafe;
+  opacity: 0;
+  transform: translateX(14px);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.dt3d-details[hidden] { display: none; }
+
+.dt3d-details.is-open {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.dt3d-details:focus { outline: none; }
+
+.dt3d-details-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid #1f3552;
+}
+
+.dt3d-details-kicker {
+  color: #67e8f9;
+  font: 700 0.62rem/1.2 'JetBrains Mono', Consolas, monospace;
+  letter-spacing: 0.1em;
+}
+
+.dt3d-details-head h3 {
+  margin: 4px 0 2px;
+  color: #f8fafc;
+  font-size: 1.02rem;
+  line-height: 1.25;
+}
+
+.dt3d-details-id {
+  color: #8aa4c4;
+  font: 500 0.66rem/1.3 'JetBrains Mono', Consolas, monospace;
+  word-break: break-word;
+}
+
+.dt3d-details-close,
+.dt3d-details-close-text {
+  border: 1px solid #33577f;
+  border-radius: 6px;
+  background: #122744;
+  color: #dbeafe;
+  cursor: pointer;
+  font: 600 0.72rem/1 'Inter', sans-serif;
+}
+
+.dt3d-details-close {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.dt3d-details-close-text {
+  margin: 0 14px 12px;
+  padding: 8px 10px;
+}
+
+.dt3d-details-close:hover,
+.dt3d-details-close-text:hover { background: #1b3660; }
+
+.dt3d-details-close:focus-visible,
+.dt3d-details-close-text:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+
+.dt3d-details-subhead {
+  padding: 10px 14px 0;
+}
+
+.dt3d-details-status {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font: 700 0.62rem/1.2 'JetBrains Mono', Consolas, monospace;
+  letter-spacing: 0.05em;
+}
+
+.dt3d-details-status.is-online { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+.dt3d-details-status.is-connecting { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
+.dt3d-details-status.is-simulated { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+.dt3d-details-status.is-offline { background: rgba(100, 116, 139, 0.2); color: #cbd5e1; }
+
+.dt3d-details-body {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 10px 14px 4px;
+}
+
+.dt3d-details-badge {
+  margin-bottom: 10px;
+  padding: 6px 8px;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #fcd34d;
+  font: 700 0.62rem/1.3 'JetBrains Mono', Consolas, monospace;
+  letter-spacing: 0.06em;
+}
+
+.dt3d-details-stats,
+.dt3d-details-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.dt3d-details-stat {
+  padding: 7px 8px;
+  border: 1px solid #243b5a;
+  border-radius: 7px;
+  background: #0f1d35;
+}
+
+.dt3d-details-stat span {
+  display: block;
+  color: #8aa4c4;
+  font: 600 0.6rem/1.2 'Inter', sans-serif;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.dt3d-details-stat strong {
+  display: block;
+  margin-top: 3px;
+  color: #e2e8f0;
+  font: 600 0.75rem/1.25 'JetBrains Mono', Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.dt3d-details-section { margin-top: 12px; }
+
+.dt3d-details-section h4 {
+  margin: 0 0 7px;
+  color: #93c5fd;
+  font: 700 0.66rem/1.2 'Inter', sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.dt3d-details-note {
+  margin-top: 12px;
+  padding: 9px 10px;
+  border-left: 2px solid #38bdf8;
+  background: rgba(37, 99, 235, 0.1);
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.dt3d-details-source {
+  margin-top: 9px;
+  color: #7f9cbe;
+  font: 600 0.6rem/1.2 'JetBrains Mono', Consolas, monospace;
+  letter-spacing: 0.06em;
+}
+
+@media (max-width: 720px) {
+  .dt3d-details {
+    top: auto;
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    width: auto;
+    max-height: 62%;
+    transform: translateY(18px);
+  }
+  .dt3d-details.is-open { transform: none; }
+  .dt3d-details-stats,
+  .dt3d-details-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.dt3d-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dt3d-panel-head h3 { margin-bottom: 0; }
+
+.dt3d-run-badge {
+  padding: 3px 7px;
+  border: 1px solid #2b4d73;
+  border-radius: 999px;
+  background: #10223d;
+  color: #7dd3fc;
+  font: 700 0.58rem/1.2 'JetBrains Mono', Consolas, monospace;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.dt3d-run-badge.is-demo {
+  border-color: rgba(245, 158, 11, 0.55);
+  background: rgba(245, 158, 11, 0.14);
+  color: #fcd34d;
+}
+
+.dt3d-mode-row,
+.dt3d-workflow-jump {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.dt3d-workflow-jump { grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr); }
+
+.dt3d-mode-row label,
+.dt3d-workflow-jump label {
+  color: #8aa4c4;
+  font: 600 0.62rem/1.2 'Inter', sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.dt3d-mode-row select,
+.dt3d-workflow-jump select,
+.dt3d-workflow-controls button,
+.dt3d-security-layer button {
+  min-height: 32px;
+  border: 1px solid #2b4d73;
+  border-radius: 6px;
+  background: #10223d;
+  color: #dbeafe;
+  font: 600 0.68rem/1.2 'Inter', sans-serif;
+}
+
+.dt3d-mode-row select,
+.dt3d-workflow-jump select {
+  width: 100%;
+  padding: 5px 7px;
+}
+
+.dt3d-workflow-current {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #243b5a;
+  border-radius: 7px;
+  background: #0f1d35;
+}
+
+.dt3d-workflow-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: #67e8f9;
+  font: 700 0.6rem/1.2 'JetBrains Mono', Consolas, monospace;
+  letter-spacing: 0.08em;
+}
+
+.dt3d-workflow-current strong {
+  display: block;
+  color: #f8fafc;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
+.dt3d-workflow-current p {
+  margin: 5px 0 0;
+  color: #a8bdd9;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.dt3d-progress {
+  height: 8px;
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid #244064;
+  border-radius: 999px;
+  background: #0a1528;
+}
+
+.dt3d-progress span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0ea5e9, #22d3ee);
+  transition: width 0.12s linear;
+}
+
+.dt3d-workflow-time {
+  margin-top: 6px;
+  color: #87a4c8;
+  font: 500 0.62rem/1.2 'JetBrains Mono', Consolas, monospace;
+}
+
+.dt3d-workflow-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.dt3d-workflow-controls button { padding: 7px 8px; cursor: pointer; }
+
+.dt3d-workflow-controls button:hover,
+.dt3d-security-layer button:hover { background: #1b3660; }
+
+.dt3d-workflow-controls button:focus-visible,
+.dt3d-mode-row select:focus-visible,
+.dt3d-workflow-jump select:focus-visible,
+.dt3d-security-layer button:focus-visible,
+.dt3d-workflow-step:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+}
+
+.dt3d-workflow-controls .dt3d-primary {
+  grid-column: 1 / -1;
+  border-color: #0e7490;
+  background: #0c4a6e;
+  color: #e0f2fe;
+}
+
+.dt3d-workflow-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 11px;
+}
+
+.dt3d-workflow-step {
+  padding: 4px 7px;
+  border: 1px solid #29466b;
+  border-radius: 999px;
+  background: #0d1b31;
+  color: #93a9c7;
+  cursor: pointer;
+  font: 600 0.6rem/1.2 'JetBrains Mono', Consolas, monospace;
+}
+
+.dt3d-workflow-step.is-complete {
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #6ee7b7;
+}
+
+.dt3d-workflow-step.is-active {
+  border-color: #38bdf8;
+  background: rgba(14, 165, 233, 0.18);
+  color: #e0f2fe;
+}
+
+.dt3d-security-layers {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.dt3d-security-placeholder {
+  color: #8aa4c4;
+  font-size: 0.72rem;
+}
+
+.dt3d-security-layer {
+  padding: 8px 9px;
+  border: 1px solid #243b5a;
+  border-radius: 7px;
+  background: #0f1d35;
+}
+
+.dt3d-security-layer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dt3d-security-layer-head strong {
+  color: #dbeafe;
+  font-size: 0.74rem;
+}
+
+.dt3d-security-layer-head button {
+  padding: 4px 7px;
+  min-height: 26px;
+  cursor: pointer;
+  font-size: 0.6rem;
+}
+
+.dt3d-security-status {
+  padding: 2px 6px;
+  border-radius: 999px;
+  font: 700 0.58rem/1.2 'JetBrains Mono', Consolas, monospace;
+  letter-spacing: 0.04em;
+}
+
+.dt3d-security-status.is-enforced { background: rgba(16, 185, 129, 0.16); color: #6ee7b7; }
+.dt3d-security-status.is-partial { background: rgba(245, 158, 11, 0.16); color: #fcd34d; }
+.dt3d-security-status.is-policy-only { background: rgba(96, 165, 250, 0.16); color: #93c5fd; }
+
+.dt3d-security-layer p {
+  margin: 6px 0 0;
+  color: #9db4d2;
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.dt3d-util-bar {
+  height: 7px;
+  margin: 8px 0 2px;
+  overflow: hidden;
+  border: 1px solid #244064;
+  border-radius: 999px;
+  background: #0a1528;
+}
+
+.dt3d-util-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0ea5e9, #f59e0b);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dt3d-progress span,
+  .dt3d-details { transition: none; }
+}
+
+@media (max-width: 720px) {
+  .dt3d-workflow-jump { grid-template-columns: auto minmax(0, 1fr); }
+  .dt3d-workflow-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

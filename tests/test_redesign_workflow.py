@@ -11,6 +11,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from mec_manager.models import MECAgent
 from datasets.models import (
+    DatasetStorageReplica,
     DatasetUpload,
     DatasetInventoryItem,
     DatasetAnalysisReport,
@@ -174,6 +175,14 @@ class RedesignWorkflowTests(TestCase):
         self.assertIn('scheduling', data)
         self.assertIn('security_events', data)
         self.assertIn('policies', data)
+        self.assertIn('device_details', data)
+
+        details = data['device_details']
+        for device_id in ['CENTRAL', 'LOCAL', 'CLOUD', 'MEC_STORAGE', 'MEC-901', 'ATTACKER']:
+            self.assertIn(device_id, details)
+        self.assertEqual(details['LOCAL']['device_type'], 'STORAGE_TIER')
+        self.assertIn('utilization_percent', details['LOCAL'])
+        self.assertTrue(details['MEC-901']['storage_is_shared'])
 
         self.assertFalse(data['capabilities']['encryption_confirmed'])
         self.assertTrue(data['capabilities']['policy_enforcement'])
@@ -190,6 +199,43 @@ class RedesignWorkflowTests(TestCase):
         raw = resp.content.decode('utf-8')
         for forbidden in ['auth_token', 'scene-test-token', 'last_known_ip', 'source_ip', 'description']:
             self.assertNotIn(forbidden, raw)
+
+    def test_digital_twin_scene_device_details_are_sanitized(self):
+        """Device details expose aggregate storage fields without file paths or checksums."""
+        local = StorageDestination.objects.get(destination_id='LOCAL_STORAGE')
+        local.capacity_bytes = 0
+        local.used_bytes = 5
+        local.save(update_fields=['capacity_bytes', 'used_bytes'])
+        DatasetStorageReplica.objects.create(
+            replica_id='secret-replica-id',
+            dataset_id='SECRET-DATASET',
+            storage_destination=local,
+            relative_key='patient/chest-xray.dcm',
+            absolute_path='/srv/medical/patient/chest-xray.dcm',
+            file_size_bytes=1024,
+            sha256_checksum='secret-checksum-value',
+            replication_status='VERIFIED',
+        )
+
+        resp = self.client.get(reverse('digital_twin_scene'))
+        self.assertEqual(resp.status_code, 200)
+        details = resp.json()['device_details']['LOCAL']
+        self.assertIsNone(details['utilization_percent'])
+        self.assertEqual(details['free_bytes'], 0)
+        self.assertEqual(details['replica_count'], 1)
+
+        raw = resp.content.decode('utf-8')
+        for forbidden in [
+            'secret-replica-id',
+            'patient/chest-xray.dcm',
+            'secret-checksum-value',
+            '/srv/medical',
+        ]:
+            self.assertNotIn(forbidden, raw)
+        self.assertEqual(
+            self.client.get('/api/digital-twin/storage/detail/?destination=LOCAL').status_code,
+            404,
+        )
 
     def test_digital_twin_scene_has_no_fabricated_mecs(self):
         """With no registered agents, the scene reports an empty MEC list."""
@@ -208,6 +254,9 @@ class RedesignWorkflowTests(TestCase):
         self.assertContains(resp, 'Interactive 3D Digital Twin Operations Map')
         self.assertContains(resp, 'Protection Policy Visualization')
         self.assertContains(resp, 'id="dt3d-stage"')
+        self.assertContains(resp, 'id="dt3d-details"')
+        self.assertContains(resp, 'Close Details')
+        self.assertContains(resp, 'id="dt3d-details-body"')
         self.assertContains(resp, 'data-scene-url="/api/digital-twin/scene/"')
         self.assertContains(resp, 'Run Transfer Simulation')
         self.assertContains(resp, 'Run Attack Simulation')

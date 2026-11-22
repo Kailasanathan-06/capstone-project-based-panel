@@ -81,114 +81,6 @@ class DigitalTwinViewSet(viewsets.ViewSet):
         sim = StorageSimulator()
         return Response(sim.status())
 
-    def storage_detail(self, request):
-        """Return stored files/replicas for a storage tier (for 3D node click details)."""
-        from datasets.models import DatasetInventoryItem, DatasetStorageReplica, DatasetUpload, StorageDestination
-
-        dest = str(request.query_params.get("destination", "")).upper().strip()
-        mapping = {
-            "LOCAL": "LOCAL_STORAGE",
-            "LOCAL_STORAGE": "LOCAL_STORAGE",
-            "MEC_STORAGE": "MEC_STORAGE",
-            "MEC": "MEC_STORAGE",
-            "CLOUD": "CLOUD_STORAGE",
-            "CLOUD_STORAGE": "CLOUD_STORAGE",
-        }
-        dest_id = mapping.get(dest)
-        if not dest_id:
-            return Response({"error": "Unknown destination. Use LOCAL, MEC_STORAGE, or CLOUD."}, status=400)
-
-        try:
-            destination = StorageDestination.objects.get(destination_id=dest_id)
-        except StorageDestination.DoesNotExist:
-            return Response({"error": "Storage destination not configured"}, status=404)
-
-        replicas = (
-            DatasetStorageReplica.objects.filter(storage_destination=destination)
-            .select_related("storage_destination", "scenario")
-            .order_by("-created_at")[:50]
-        )
-        replica_rows = []
-        for r in replicas:
-            replica_rows.append({
-                "replica_id": r.replica_id,
-                "dataset_id": r.dataset_id,
-                "scenario_id": r.scenario.scenario_id if r.scenario else "",
-                "file_name": os.path.basename(r.relative_key or r.absolute_path or ""),
-                "relative_key": r.relative_key,
-                "file_size_bytes": r.file_size_bytes,
-                "file_size": self._fmt_bytes(r.file_size_bytes),
-                "sha256_checksum": r.sha256_checksum,
-                "replication_status": r.replication_status,
-                "is_available": r.is_available,
-                "stored_at": r.created_at.isoformat() if r.created_at else None,
-                "stored_at_display": r.created_at.strftime("%Y-%m-%d %H:%M:%S") if r.created_at else None,
-                "last_verified_at": r.last_verified_at.isoformat() if r.last_verified_at else None,
-                "last_verified_display": r.last_verified_at.strftime("%Y-%m-%d %H:%M:%S") if r.last_verified_at else None,
-                "last_error": r.last_error or "",
-            })
-
-        items = (
-            DatasetInventoryItem.objects.filter(selected_destination=dest_id)
-            .select_related("upload")
-            .order_by("-id")[:50]
-        )
-        item_rows = []
-        for i in items:
-            item_rows.append({
-                "file_name": i.file_name,
-                "relative_path": i.relative_path,
-                "file_size_bytes": i.file_size,
-                "file_size": self._fmt_bytes(i.file_size),
-                "format": i.format,
-                "privacy_policy": i.privacy_policy,
-                "status": i.status,
-                "upload_id": i.upload.upload_id if i.upload_id else "",
-                "stored_at": i.upload.uploaded_at.isoformat() if i.upload_id and i.upload.uploaded_at else None,
-                "stored_at_display": i.upload.uploaded_at.strftime("%Y-%m-%d %H:%M:%S") if i.upload_id and i.upload.uploaded_at else None,
-            })
-
-        uploads = DatasetUpload.objects.filter(selected_destination=dest_id).order_by("-uploaded_at")[:20]
-        upload_rows = [{
-            "upload_id": u.upload_id,
-            "file_name": u.file_name,
-            "file_size": self._fmt_bytes(u.file_size),
-            "status": u.status,
-            "uploaded_at": u.uploaded_at.isoformat() if u.uploaded_at else None,
-            "uploaded_at_display": u.uploaded_at.strftime("%Y-%m-%d %H:%M:%S") if u.uploaded_at else None,
-            "file_count": u.file_count,
-        } for u in uploads]
-
-        return Response({
-            "destination_id": destination.destination_id,
-            "name": destination.name,
-            "destination_type": destination.destination_type,
-            "is_emulator": bool(destination.is_emulator),
-            "capacity_bytes": destination.capacity_bytes,
-            "used_bytes": destination.used_bytes,
-            "capacity": self._fmt_bytes(destination.capacity_bytes),
-            "used": self._fmt_bytes(destination.used_bytes),
-            "free": self._fmt_bytes(max(0, destination.capacity_bytes - destination.used_bytes)),
-            "replicas_count": len(replica_rows),
-            "inventory_items_count": len(item_rows),
-            "uploads_count": len(upload_rows),
-            "replicas": replica_rows,
-            "inventory_items": item_rows,
-            "uploads": upload_rows,
-        })
-
-    @staticmethod
-    def _fmt_bytes(n):
-        try:
-            n = float(n or 0)
-        except Exception:
-            return "0 B"
-        for unit in ["B", "KB", "MB", "GB", "TB"]:
-            if n < 1024 or unit == "TB":
-                return f"{n:.2f} {unit}" if unit != "B" else f"{int(n)} B"
-            n /= 1024.0
-        return f"{n:.2f} TB"
-
     def storage_attack(self, request):
         """Simulate an attack on virtual storage (never touches real disks)."""
         sim = StorageSimulator()
@@ -257,11 +149,14 @@ class DigitalTwinViewSet(viewsets.ViewSet):
         import posixpath
 
         from django.conf import settings
+        from django.db.models import Count
         from django.utils import timezone
 
         from datasets.models import (
+            DatasetAnalysisReport,
             DatasetInventoryItem,
             DatasetStorageReplica,
+            DatasetUpload,
             SecurityAuditEvent,
             StorageDestination,
         )
@@ -342,6 +237,27 @@ class DigitalTwinViewSet(viewsets.ViewSet):
 
         destination_rows = {
             d.destination_id: d for d in StorageDestination.objects.all()
+        }
+        replica_counts = {
+            row["storage_destination__destination_id"]: row["count"]
+            for row in DatasetStorageReplica.objects.values(
+                "storage_destination__destination_id"
+            ).annotate(count=Count("id"))
+        }
+        inventory_counts = {
+            row["selected_destination"]: row["count"]
+            for row in DatasetInventoryItem.objects.exclude(
+                selected_destination="UNASSIGNED"
+            )
+            .values("selected_destination")
+            .annotate(count=Count("id"))
+        }
+        tier_task_counts = {
+            row["assigned_tier"]: row["count"]
+            for row in Task.objects.filter(status__in=["ASSIGNED", "RUNNING"])
+            .exclude(assigned_tier="")
+            .values("assigned_tier")
+            .annotate(count=Count("id"))
         }
         tiers = []
         for key, dest in destination_rows.items():
@@ -478,25 +394,397 @@ class DigitalTwinViewSet(viewsets.ViewSet):
                 }
             )
 
+        latest_upload_row = DatasetUpload.objects.order_by("-uploaded_at").first()
+        latest_report_row = DatasetAnalysisReport.objects.order_by("-created_at").first()
+        latest_upload = None
+        if latest_upload_row:
+            latest_upload = {
+                "upload_id": latest_upload_row.upload_id,
+                "status": latest_upload_row.status,
+                "execution_mode": latest_upload_row.execution_mode,
+                "total_files_count": latest_upload_row.total_files_count,
+                "total_uncompressed_bytes": latest_upload_row.total_uncompressed_bytes,
+                "uploaded_at": latest_upload_row.uploaded_at.isoformat()
+                if latest_upload_row.uploaded_at
+                else None,
+            }
+        latest_analysis = None
+        if latest_report_row:
+            latest_analysis = {
+                "report_id": latest_report_row.report_id,
+                "created_at": latest_report_row.created_at.isoformat()
+                if latest_report_row.created_at
+                else None,
+                "analysis_duration_ms": round(latest_report_row.analysis_duration_ms, 1),
+                "scheduling_duration_ms": round(latest_report_row.scheduling_duration_ms, 1),
+                "has_inventory": bool(latest_report_row.inventory_json),
+                "has_allocation": bool(latest_report_row.allocation_json),
+            }
+
+        has_validation_failure = any(
+            e["event_type"] == "ZIP_VALIDATION_ERROR" for e in events
+        )
+        has_policy_violation = any(
+            e["event_type"] == "PRIVACY_POLICY_VIOLATION" for e in events
+        )
+        completed_tasks = sum(1 for t in tasks if t["status"] in ("COMPLETED", "SUCCEEDED"))
+        connected_mecs = sum(
+            1 for m in mecs if m["connection_state"] == "CONNECTED"
+        )
+        server = {
+            "id": "CENTRAL",
+            "label": "SecureDT Central Server",
+            "status": "ONLINE",
+            "registered_mecs": len(mecs),
+            "connected_mecs": connected_mecs,
+            "active_tasks": len(active_counts),
+            "active_transfers": sum(
+                1
+                for t in transfers
+                if t["state"] in ("TRANSFERRING", "WAITING")
+            ),
+        }
+        capabilities = {
+            "encryption_confirmed": False,
+            "policy_enforcement": True,
+            "ga_scheduler": True,
+            "heartbeat_timeout_seconds": timeout,
+            "transfer_progress_available": False,
+        }
+
+        def stage(step, stage_id, title, source, destination, status, detail, data_source):
+            return {
+                "step": step,
+                "id": stage_id,
+                "title": title,
+                "source": source,
+                "destination": destination,
+                "status": status,
+                "detail": detail,
+                "data_source": data_source,
+            }
+
+        workflow_stages = [
+            stage(1, "infrastructure", "Infrastructure Overview", "CENTRAL", "CENTRAL",
+                  "AVAILABLE", f"{connected_mecs} connected of {len(mecs)} registered MEC agents.", "BACKEND"),
+            stage(2, "dataset_source", "Dataset Source Selection", "CLIENT", "CENTRAL",
+                  "AVAILABLE" if latest_upload else "PENDING",
+                  f"Latest sanitized upload record: {latest_upload['upload_id']}" if latest_upload
+                  else "No dataset upload record yet.", "BACKEND"),
+            stage(3, "zip_upload", "ZIP Upload", "CLIENT", "CENTRAL",
+                  "AVAILABLE" if latest_upload else "PENDING",
+                  f"Latest upload status: {latest_upload['status']} ({latest_upload['execution_mode']})"
+                  if latest_upload else "No upload status is recorded yet.", "BACKEND"),
+            stage(4, "zip_validation", "Archive Validation", "CENTRAL", "CENTRAL",
+                  "BLOCKED" if has_validation_failure else "AVAILABLE" if latest_upload else "PENDING",
+                  "A recorded ZIP validation error exists." if has_validation_failure
+                  else "Validation is enforced; no recorded failure in recent events."
+                  if latest_upload else "No validation result is recorded yet.", "BACKEND"),
+            stage(5, "dataset_analysis", "Dataset Analysis", "CENTRAL", "CENTRAL",
+                  "AVAILABLE" if latest_analysis else "PENDING",
+                  f"Latest report {latest_analysis['report_id']} is available."
+                  if latest_analysis else "No analysis report is recorded yet.", "BACKEND"),
+            stage(6, "privacy_policy", "Privacy Policy Check", "CENTRAL", "CENTRAL",
+                  "AVAILABLE",
+                  f"{len(policies)} policies available; "
+                  f"{'a policy violation is recorded' if has_policy_violation else 'no recent policy violation recorded'}.",
+                  "BACKEND"),
+            stage(7, "resource_monitoring", "Digital Twin Resource State", "CENTRAL", "LOCAL",
+                  "AVAILABLE", f"{len(resources)} resources report digital-twin state.", "BACKEND"),
+            stage(8, "ga_scheduling", "Genetic Algorithm Scheduling", "CENTRAL", "CENTRAL",
+                  "AVAILABLE" if decisions else "BACKEND_CAPABILITY",
+                  f"{len(decisions)} recorded benchmark decision(s)." if decisions
+                  else "GA service is available; normal dispatch decisions are not persisted.", "BACKEND"),
+            stage(9, "resource_selection", "Resource Selection", "CENTRAL",
+                  decisions[0]["selected_resource"] if decisions else "CENTRAL",
+                  "AVAILABLE" if decisions else "PENDING",
+                  f"Latest recorded selection: {decisions[0]['selected_resource']}" if decisions
+                  else "No recorded selection is available.", "BACKEND"),
+            stage(10, "file_transfer", "Data Transfer", "LOCAL", "MEC_STORAGE",
+                   "AVAILABLE" if transfers else "PENDING",
+                   f"{len(transfers)} recorded transfer state(s)." if transfers
+                   else "No replica transfer record is available.", "BACKEND"),
+            stage(11, "task_processing", "Task Processing", "CENTRAL", "LOCAL",
+                   "AVAILABLE" if tasks else "PENDING",
+                   f"{len(tasks)} task record(s); {completed_tasks} complete.", "BACKEND"),
+            stage(12, "result_delivery", "Result Delivery", "LOCAL", "CENTRAL",
+                   "AVAILABLE" if completed_tasks else "PENDING",
+                   f"{completed_tasks} completed task record(s)." if completed_tasks
+                   else "No completed task is recorded yet.", "BACKEND"),
+            stage(13, "storage_allocation", "Storage Allocation", "CENTRAL", "MEC_STORAGE",
+                   "AVAILABLE", f"{len(tiers)} storage tier(s) are configured.", "BACKEND"),
+            stage(14, "task_completion", "Task Completion", "CENTRAL", "LOCAL",
+                   "AVAILABLE" if completed_tasks else "PENDING",
+                   f"{completed_tasks} task(s) reached a completed state." if completed_tasks
+                   else "No confirmed task completion is recorded.", "BACKEND"),
+            stage(15, "security_audit", "Security Audit Summary", "ATTACKER", "CENTRAL",
+                   "AVAILABLE" if events else "PENDING",
+                   f"{len(events)} recent audit event(s)." if events
+                   else "No recent audit event is recorded.", "BACKEND"),
+        ]
+        workflow = {
+            "live_mode_available": bool(latest_upload or tasks or events),
+            "latest_upload": latest_upload,
+            "latest_analysis": latest_analysis,
+            "stages": workflow_stages,
+        }
+        security_layers = [
+            {
+                "id": "upload_validation",
+                "label": "Upload Validation",
+                "status": "ENFORCED",
+                "evidence": "ZIP readability, corruption, path-traversal, executable-extension and archive-size checks.",
+            },
+            {
+                "id": "authentication_authorization",
+                "label": "Authentication & Authorization",
+                "status": "PARTIAL",
+                "evidence": "MEC task and result endpoints require agent authentication; several dashboard APIs are AllowAny.",
+            },
+            {
+                "id": "privacy_aware_scheduling",
+                "label": "Privacy-Aware Scheduling",
+                "status": "ENFORCED",
+                "evidence": "Policy engine screens eligible resources and replication blocks policy violations.",
+            },
+            {
+                "id": "resource_trust_availability",
+                "label": "Resource Trust & Availability",
+                "status": "ENFORCED",
+                "evidence": "MEC approval, revocation and heartbeat staleness determine eligibility.",
+            },
+            {
+                "id": "security_audit",
+                "label": "Security Audit",
+                "status": "ENFORCED",
+                "evidence": "Persistent audit records exist for validation, policy, authentication and task events.",
+            },
+            {
+                "id": "data_protection",
+                "label": "Data Protection",
+                "status": "POLICY_ONLY",
+                "evidence": "Transport encryption is not confirmed; the shield is a policy visualization only.",
+            },
+        ]
+        simulation_catalog = [
+            {
+                "id": "UNAUTHORIZED_TASK_SUBMISSION",
+                "label": "Unauthorized Task Submission",
+                "target": "CENTRAL",
+                "backend_evidence": "UNAUTHORIZED_TASK_SUBMISSION audit event type exists.",
+            },
+            {
+                "id": "INVALID_MEC_AUTH",
+                "label": "Invalid MEC Credentials",
+                "target": "MEC",
+                "backend_evidence": "INVALID_MEC_AUTH audit event type exists.",
+            },
+            {
+                "id": "ZIP_VALIDATION_ERROR",
+                "label": "Invalid ZIP Archive",
+                "target": "CENTRAL",
+                "backend_evidence": "Archive validation errors are recorded in audit events.",
+            },
+            {
+                "id": "PRIVACY_POLICY_VIOLATION",
+                "label": "Privacy Policy Violation",
+                "target": "CLOUD",
+                "backend_evidence": "Policy engine blocks ineligible destinations.",
+            },
+            {
+                "id": "OFFLINE_MEC_RESOURCE",
+                "label": "Offline MEC Resource",
+                "target": "MEC",
+                "backend_evidence": "Heartbeat staleness and approval state mark MEC resources offline.",
+            },
+            {
+                "id": "TASK_QUEUE_ACCESS",
+                "label": "Unauthorized Queue Access",
+                "target": "CENTRAL",
+                "backend_evidence": "Task queue access control is not confirmed.",
+            },
+            {
+                "id": "REPEATED_SUSPICIOUS_REQUESTS",
+                "label": "Repeated Suspicious Requests",
+                "target": "CENTRAL",
+                "backend_evidence": "Bounded visualization only; no real requests are generated.",
+            },
+            {
+                "id": "TRANSFER_INTERRUPTION",
+                "label": "Transfer Interruption",
+                "target": "MEC_STORAGE",
+                "backend_evidence": "Replica states record FAILED and UNAVAILABLE outcomes.",
+            },
+        ]
+        client_devices = [
+            {
+                "client_id": "CLIENT-LOCAL",
+                "label": "Dataset Submission Client",
+                "client_type": "WEB_UPLOAD_CLIENT",
+                "is_simulated": False,
+                "note": "Logical client represented by the existing web upload interface.",
+            }
+        ]
+
+        def clean_number(value, default=None):
+            try:
+                number = float(value)
+            except (TypeError, ValueError):
+                return default
+            if number != number or number in (float("inf"), float("-inf")):
+                return default
+            return number
+
+        def non_negative_int(value):
+            number = clean_number(value)
+            if number is None:
+                return None
+            return max(0, int(number))
+
+        def safe_percent(used, capacity):
+            if used is None or capacity is None or capacity <= 0:
+                return None
+            return round(min(100.0, used * 100.0 / capacity), 1)
+
+        def telemetry_for(resource_id, fallback):
+            res = state_by_id.get(resource_id)
+            if not res:
+                return {
+                    "status": "UNKNOWN",
+                    "telemetry_mode": fallback,
+                    "is_simulated": False,
+                    "is_stale": False,
+                    "freshness_seconds": None,
+                    "cpu_utilization": None,
+                    "memory_utilization": None,
+                    "network_latency_ms": None,
+                    "active_tasks": 0,
+                }
+            return {
+                "status": res["status"],
+                "telemetry_mode": res["telemetry_mode"],
+                "is_simulated": bool(res["is_simulated"]),
+                "is_stale": bool(res["is_stale"]),
+                "freshness_seconds": round(res["freshness_seconds"], 1),
+                "cpu_utilization": round(res["cpu_utilization"], 3),
+                "memory_utilization": round(res["memory_utilization"], 3),
+                "network_latency_ms": round(res["network_latency_ms"], 1),
+                "active_tasks": res["active_tasks"],
+            }
+
+        def storage_detail(node_id, destination_id, label, node_kind, status, resource_id=None):
+            dest = destination_rows.get(destination_id)
+            used = non_negative_int(dest.used_bytes) if dest else None
+            capacity = non_negative_int(dest.capacity_bytes) if dest else None
+            free = (
+                max(0, capacity - used)
+                if used is not None and capacity is not None
+                else None
+            )
+            telemetry = telemetry_for(
+                resource_id,
+                "SIMULATED_CLOUD" if dest and dest.is_emulator else "CONFIGURED_STORAGE",
+            )
+            simulated = bool(dest and dest.is_emulator) or bool(telemetry["is_simulated"])
+            note = (
+                "CLOUD is an emulator; storage figures are SIMULATED STORAGE DATA."
+                if simulated
+                else "Storage figures are read from configured backend records."
+            )
+            return {
+                "device_id": node_id,
+                "label": label,
+                "device_type": "STORAGE_TIER",
+                "node_kind": node_kind,
+                "status": status,
+                "telemetry_mode": telemetry["telemetry_mode"],
+                "is_simulated": simulated,
+                "is_emulator": bool(dest.is_emulator) if dest else False,
+                "is_stale": telemetry["is_stale"],
+                "freshness_seconds": telemetry["freshness_seconds"],
+                "cpu_utilization": telemetry["cpu_utilization"],
+                "memory_utilization": telemetry["memory_utilization"],
+                "network_latency_ms": telemetry["network_latency_ms"],
+                "privacy_tier_allowed": dest.privacy_tier_allowed if dest else "Not available",
+                "capacity_bytes": capacity,
+                "used_bytes": used,
+                "free_bytes": free,
+                "utilization_percent": safe_percent(used, capacity),
+                "replica_count": replica_counts.get(destination_id, 0),
+                "inventory_item_count": inventory_counts.get(destination_id, 0),
+                "assigned_task_count": tier_task_counts.get(destination_id, 0),
+                "details_note": note,
+            }
+
+        device_details = {
+            "CENTRAL": {
+                "device_id": "CENTRAL",
+                "label": server["label"],
+                "device_type": "CONTROL_PLANE",
+                "node_kind": "central",
+                "status": server["status"],
+                "telemetry_mode": "BACKEND_SNAPSHOT",
+                "is_simulated": False,
+                "registered_mecs": server["registered_mecs"],
+                "connected_mecs": server["connected_mecs"],
+                "active_tasks": server["active_tasks"],
+                "active_transfers": server["active_transfers"],
+                "policy_enforcement": capabilities["policy_enforcement"],
+                "encryption_confirmed": capabilities["encryption_confirmed"],
+                "details_note": "Protection policy visualization only; no transport encryption is confirmed by the application.",
+            },
+            "LOCAL": storage_detail(
+                "LOCAL", "LOCAL_STORAGE", "Local Workstation", "local", "ONLINE", "LOCAL"
+            ),
+            "CLOUD": storage_detail(
+                "CLOUD",
+                "CLOUD_STORAGE",
+                "Cloud Storage Tier",
+                "cloud",
+                "ONLINE",
+                "CLOUD",
+            ),
+            "MEC_STORAGE": storage_detail(
+                "MEC_STORAGE", "MEC_STORAGE", "MEC Storage Tier", "edge-store", "ONLINE"
+            ),
+        }
+        for mec in mecs:
+            rid = mec["device_id"]
+            res = state_by_id.get(rid.upper())
+            device_details[rid] = {
+                "device_id": rid,
+                "label": rid,
+                "device_type": "EDGE_AGENT",
+                "node_kind": "mec",
+                "status": mec["connection_state"],
+                "telemetry_mode": mec["telemetry_mode"],
+                "is_simulated": False,
+                "is_stale": bool(res and res["is_stale"]),
+                "freshness_seconds": mec["heartbeat_freshness_seconds"],
+                "cpu_utilization": mec["cpu_utilization"],
+                "memory_utilization": mec["memory_utilization"],
+                "network_latency_ms": res["network_latency_ms"] if res else None,
+                "active_tasks": mec["active_tasks"],
+                "shared_storage_tier_id": "MEC_STORAGE",
+                "storage_is_shared": True,
+                "details_note": "Storage is reported at the shared MEC_STORAGE tier, not for this individual agent.",
+            }
+        device_details["ATTACKER"] = {
+            "device_id": "ATTACKER",
+            "label": "Simulated Attacker",
+            "device_type": "SIMULATION",
+            "node_kind": "attacker",
+            "status": "SIMULATED",
+            "telemetry_mode": "LOCAL_SIMULATION",
+            "is_simulated": True,
+            "details_note": "This node exists only for labeled defensive attack simulations; no real host is represented.",
+        }
+
         return Response(
             {
                 "mode": "live",
                 "generated_at": timezone.now().isoformat(),
-                "server": {
-                    "id": "CENTRAL",
-                    "label": "SecureDT Central Server",
-                    "status": "ONLINE",
-                    "registered_mecs": len(mecs),
-                    "connected_mecs": sum(
-                        1 for m in mecs if m["connection_state"] == "CONNECTED"
-                    ),
-                    "active_tasks": len(active_counts),
-                    "active_transfers": sum(
-                        1
-                        for t in transfers
-                        if t["state"] in ("TRANSFERRING", "WAITING")
-                    ),
-                },
+                "server": server,
                 "resources": resources,
                 "mec_devices": mecs,
                 "tiers": tiers,
@@ -508,13 +796,12 @@ class DigitalTwinViewSet(viewsets.ViewSet):
                 },
                 "security_events": events,
                 "policies": policies,
-                "capabilities": {
-                    "encryption_confirmed": False,
-                    "policy_enforcement": True,
-                    "ga_scheduler": True,
-                    "heartbeat_timeout_seconds": timeout,
-                    "transfer_progress_available": False,
-                },
+                "capabilities": capabilities,
+                "device_details": device_details,
+                "workflow": workflow,
+                "security_layers": security_layers,
+                "simulation_catalog": simulation_catalog,
+                "client_devices": client_devices,
             }
         )
 

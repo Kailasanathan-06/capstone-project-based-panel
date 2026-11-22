@@ -5,7 +5,7 @@
 {% block body_page %}digital_twin{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/digital_twin_3d.css' %}?v=20261121-v1">
+<link rel="stylesheet" href="{% static 'css/digital_twin_3d.css' %}?v=20261122-v3">
 {% endblock %}
 
 {% block content %}
@@ -36,9 +36,24 @@
     <div class="dt3d-stage-column">
       <div class="dt3d-stage" id="dt3d-stage" data-scene-url="{% url 'digital_twin_scene' %}" aria-describedby="dt3d-stage-note">
         <canvas id="dt3d-canvas" tabindex="0" role="img" aria-label="Interactive 3D map of SecureDT central server, storage tiers, registered MEC agents, recorded transfers, and simulated attacker"></canvas>
-        <div class="dt3d-labels" id="dt3d-labels" aria-hidden="true"></div>
+        <div class="dt3d-labels" id="dt3d-labels" role="group" aria-label="Device labels; select a label to view details"></div>
         <div class="dt3d-empty" id="dt3d-empty" hidden>No MEC agents are registered. The view shows only configured storage tiers until an edge agent connects.</div>
-        <div class="dt3d-stage-note" id="dt3d-stage-note">DRAG TO ORBIT &bull; SCROLL TO ZOOM &bull; ARROW KEYS ROTATE</div>
+        <div class="dt3d-stage-note" id="dt3d-stage-note">DRAG TO ORBIT &bull; SCROLL TO ZOOM &bull; ARROW KEYS ROTATE &bull; TAB LABELS / ENTER DETAILS</div>
+        <aside class="dt3d-details" id="dt3d-details" role="dialog" aria-labelledby="dt3d-details-title" tabindex="-1" hidden>
+          <div class="dt3d-details-head">
+            <div>
+              <div class="dt3d-details-kicker" id="dt3d-details-kicker">DEVICE DETAILS</div>
+              <h3 id="dt3d-details-title">Device</h3>
+              <div class="dt3d-details-id" id="dt3d-details-id">ID: -</div>
+            </div>
+            <button type="button" class="dt3d-details-close" data-dt3d-action="close-details" aria-label="Close device details">&times;</button>
+          </div>
+          <div class="dt3d-details-subhead">
+            <span class="dt3d-details-status" id="dt3d-details-status">UNKNOWN</span>
+          </div>
+          <div class="dt3d-details-body" id="dt3d-details-body"></div>
+          <button type="button" class="dt3d-details-close-text" data-dt3d-action="close-details">Close Details</button>
+        </aside>
       </div>
 
       <div class="dt3d-legend" aria-label="Visualization legend">
@@ -51,6 +66,72 @@
     </div>
 
     <aside class="dt3d-side" aria-label="Digital twin details">
+      <section class="dt3d-panel" id="dt3d-workflow-panel">
+        <div class="dt3d-panel-head">
+          <h3>Guided Workflow</h3>
+          <span class="dt3d-run-badge" id="dt3d-run-mode-badge">LIVE BACKEND</span>
+        </div>
+        <div class="dt3d-mode-row">
+          <label for="dt3d-run-mode">Mode</label>
+          <select id="dt3d-run-mode" title="Choose recorded backend data or a clearly labeled simulation">
+            <option value="live" selected>LIVE BACKEND</option>
+            <option value="demo">DEMONSTRATION MODE — SIMULATED DATA</option>
+          </select>
+        </div>
+        <div class="dt3d-workflow-current">
+          <span class="dt3d-workflow-kicker" id="dt3d-workflow-kicker">STAGE 1 / 15</span>
+          <strong id="dt3d-workflow-status">Infrastructure Overview</strong>
+          <p id="dt3d-workflow-detail">Loading recorded workflow stages from the backend.</p>
+        </div>
+        <div class="dt3d-progress" role="progressbar" aria-label="Guided workflow progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="dt3d-workflow-progress">
+          <span id="dt3d-workflow-progress-fill"></span>
+        </div>
+        <div class="dt3d-workflow-time" id="dt3d-workflow-time">Step 1 / 15 · 00:00 / 01:18</div>
+        <div class="dt3d-workflow-controls">
+          <button type="button" data-dt3d-action="workflow-play" class="dt3d-primary">Run Guided Workflow</button>
+          <button type="button" data-dt3d-action="workflow-prev" title="Previous workflow stage">Previous</button>
+          <button type="button" data-dt3d-action="workflow-next" title="Next workflow stage">Next</button>
+          <button type="button" data-dt3d-action="workflow-restart" title="Restart the workflow from stage one">Restart</button>
+        </div>
+        <div class="dt3d-workflow-jump">
+          <label for="dt3d-workflow-stage">Stage</label>
+          <select id="dt3d-workflow-stage" title="Jump to a workflow stage"></select>
+          <label for="dt3d-workflow-speed">Speed</label>
+          <select id="dt3d-workflow-speed" title="Set the guided walkthrough speed">
+            <option value="0.5">0.5x</option>
+            <option value="1" selected>1x</option>
+            <option value="2">2x</option>
+            <option value="4">4x</option>
+          </select>
+        </div>
+        <div class="dt3d-workflow-steps" id="dt3d-workflow-steps" aria-label="Workflow stages"></div>
+      </section>
+
+      <section class="dt3d-panel" id="dt3d-status-panel">
+        <div class="dt3d-panel-head">
+          <h3>Workflow Status</h3>
+          <span class="dt3d-run-badge" id="dt3d-current-data-source">BACKEND RECORD</span>
+        </div>
+        <div class="dt3d-stats">
+          <div class="dt3d-stat"><span>Source</span><strong id="dt3d-current-source">CLIENT</strong></div>
+          <div class="dt3d-stat"><span>Destination</span><strong id="dt3d-current-destination">CENTRAL</strong></div>
+          <div class="dt3d-stat"><span>Task / Upload</span><strong id="dt3d-current-task">Not available</strong></div>
+          <div class="dt3d-stat"><span>Artifact</span><strong id="dt3d-current-artifact">Not available</strong></div>
+        </div>
+        <p class="dt3d-detail" id="dt3d-current-detail">Waiting for a guided workflow stage.</p>
+      </section>
+
+      <section class="dt3d-panel" id="dt3d-security-panel">
+        <div class="dt3d-panel-head">
+          <h3>Security Layers</h3>
+          <span class="dt3d-run-badge" id="dt3d-security-summary">LOADING</span>
+        </div>
+        <div class="dt3d-security-layers" id="dt3d-security-layers" aria-live="polite">
+          <span class="dt3d-security-placeholder">Loading recorded security controls...</span>
+        </div>
+        <p class="dt3d-protection-note" id="dt3d-security-note">Statuses reflect recorded application controls. They are not claims of transport encryption.</p>
+      </section>
+
       <section class="dt3d-panel">
         <h3>Live Snapshot</h3>
         <div class="dt3d-stats">
@@ -94,14 +175,18 @@
     <button type="button" data-dt3d-action="links" aria-pressed="true" title="Toggle connection lines">Connection Lines: On</button>
     <button type="button" data-dt3d-action="transfers" aria-pressed="true" title="Toggle data transfer animation">Transfer Animation: On</button>
     <button type="button" data-dt3d-action="security" aria-pressed="true" title="Toggle security layer">Security Layer: On</button>
+    <button type="button" data-dt3d-action="show-details" title="Open details for the selected device">Show Device Details</button>
+    <button type="button" data-dt3d-action="show-security" title="Focus the security layer panel">Show Security Layers</button>
     <span class="dt3d-control-separator" aria-hidden="true"></span>
-    <span class="text-xs text-dim" style="margin-left:6px;">Tip: click LOCAL/MEC STORAGE/CLOUD node for stored file details.</span>
+    <span class="text-xs text-dim" style="margin-left:6px;">Tip: click any device node or label for backend details. Press [ / ] to cycle devices.</span>
     <label for="dt3d-policy">Policy</label>
     <select id="dt3d-policy" title="Select the backend policy used for eligibility checks">
       <option value="TRUSTED_EDGE" selected>TRUSTED_EDGE</option>
       <option value="LOCAL_ONLY">LOCAL_ONLY</option>
       <option value="CLOUD_ALLOWED">CLOUD_ALLOWED</option>
     </select>
+    <label for="dt3d-attack-scenario">Attack</label>
+    <select id="dt3d-attack-scenario" title="Select a labeled attack scenario; no real attack is performed"></select>
     <button type="button" class="dt3d-sim" data-dt3d-action="transfer-sim" title="Animate a policy-checked transfer simulation; no file is transferred">Run Transfer Simulation</button>
     <button type="button" class="dt3d-sim" data-dt3d-action="attack-sim" title="Animate a labeled attack scenario; no real attack is performed">Run Attack Simulation</button>
   </div>
@@ -313,7 +398,7 @@
 
 {% block extra_js %}
 <script src="{% static 'vendor/three.min.js' %}"></script>
-<script src="{% static 'js/digital_twin_3d.js' %}?v=20261121-v1"></script>
+<script src="{% static 'js/digital_twin_3d.js' %}?v=20261122-v3"></script>
 <script>
   const btnRefresh = document.getElementById('btn-refresh-twin');
   btnRefresh.addEventListener('click', async () => {

@@ -1620,6 +1620,7 @@
     if (!state.simulatedCount) {
       setMode(false);
       applyPolicyFocus();
+      if (state.workflow.active) beginWorkflowStage(state.workflow.index, true);
       setChip('transfer', 'TRANSFER ACTIVITY: ' + (state.data ? state.data.server.active_transfers : 0), 'active');
       setChip('result', state.data && state.data.server ? 'LIVE SNAPSHOT READY' : 'NO DATA', 'active');
     }
@@ -1773,6 +1774,7 @@
     lastFrame = now;
     var active = false;
     if (!state.paused && !document.hidden) {
+      updateWorkflow(dt * 1000, now);
       var remaining = [];
       var hasMotion = false;
       model.packets.forEach(function (packet) {
@@ -1838,18 +1840,19 @@
       if (action === 'reset') handler = function () { backend.resetView(); dirty = true; };
       else if (action === 'zoom-in') handler = function () { backend.zoom(0.85); dirty = true; };
       else if (action === 'zoom-out') handler = function () { backend.zoom(1.18); dirty = true; };
-      else if (action === 'pause') handler = function () {
-        state.paused = !state.paused;
-        button.setAttribute('aria-pressed', state.paused ? 'true' : 'false');
-        button.textContent = state.paused ? 'Resume Animation' : 'Pause Animation';
-        dirty = true;
-      };
+      else if (action === 'pause') handler = function () { setAnimationPaused(!state.paused); };
       else if (action === 'labels') handler = function () { setToggle(button, 'showLabels'); };
       else if (action === 'links') handler = function () { setToggle(button, 'showLinks'); };
       else if (action === 'transfers') handler = function () { setToggle(button, 'showTransfers'); };
       else if (action === 'security') handler = function () { setToggle(button, 'showSecurity'); };
       else if (action === 'transfer-sim') handler = runTransferSimulation;
       else if (action === 'attack-sim') handler = runAttackSimulation;
+      else if (action === 'workflow-play') handler = toggleWorkflowPlay;
+      else if (action === 'workflow-prev') handler = function () { advanceWorkflow(-1); };
+      else if (action === 'workflow-next') handler = function () { advanceWorkflow(1); };
+      else if (action === 'workflow-restart') handler = restartWorkflow;
+      else if (action === 'show-details') handler = showDeviceDetails;
+      else if (action === 'show-security') handler = showSecurityLayers;
       else if (action === 'close-details') handler = closeDeviceDetails;
       if (handler) on(button, 'click', handler);
     });
@@ -1858,6 +1861,24 @@
       on(policySelect, 'change', function () {
         state.policy = policySelect.value;
         applyPolicyFocus();
+        if (state.workflow.active) beginWorkflowStage(state.workflow.index, true);
+      });
+    }
+
+    if (runModeSelect) {
+      on(runModeSelect, 'change', function () { setWorkflowMode(runModeSelect.value); });
+    }
+    if (workflowSpeedSelect) {
+      on(workflowSpeedSelect, 'change', function () {
+        var parsed = Number(workflowSpeedSelect.value);
+        state.workflow.speed = isFinite(parsed) && parsed > 0 ? parsed : 1;
+        renderWorkflowUI();
+      });
+    }
+    if (workflowStageSelect) {
+      on(workflowStageSelect, 'change', function () {
+        var parsed = Number(workflowStageSelect.value);
+        jumpToWorkflowStage(isFinite(parsed) ? parsed : 0);
       });
     }
 
@@ -1929,6 +1950,20 @@
       if (event.key === 'Escape' && detailsPanel && !detailsPanel.hidden) {
         event.preventDefault();
         closeDeviceDetails();
+        return;
+      }
+      var target = event.target;
+      var tag = target && target.tagName ? target.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+      if (event.shiftKey && event.key === 'ArrowRight') {
+        event.preventDefault();
+        advanceWorkflow(1);
+      } else if (event.shiftKey && event.key === 'ArrowLeft') {
+        event.preventDefault();
+        advanceWorkflow(-1);
+      } else if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === 'p') {
+        event.preventDefault();
+        toggleWorkflowPlay();
       }
     });
     on(document, 'click', function (event) {

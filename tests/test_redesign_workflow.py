@@ -262,3 +262,65 @@ class RedesignWorkflowTests(TestCase):
         self.assertContains(resp, 'Run Attack Simulation')
         self.assertContains(resp, 'vendor/three.min.js')
         self.assertContains(resp, 'js/digital_twin_3d.js')
+
+    def test_digital_twin_scene_exposes_guided_workflow_metadata(self):
+        """The scene API supplies labeled workflow, security, and simulation metadata."""
+        resp = self.client.get(reverse('digital_twin_scene'))
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+
+        workflow = data['workflow']
+        self.assertIn('stages', workflow)
+        self.assertEqual(len(workflow['stages']), 15)
+        for stage in workflow['stages']:
+            for field in ['step', 'id', 'title', 'status', 'source', 'destination', 'detail', 'data_source']:
+                self.assertIn(field, stage)
+        self.assertFalse(workflow['live_mode_available'])
+
+        layers = data['security_layers']
+        self.assertEqual(len(layers), 6)
+        layer_ids = {layer['id'] for layer in layers}
+        self.assertEqual(layer_ids, {
+            'upload_validation',
+            'authentication_authorization',
+            'privacy_aware_scheduling',
+            'resource_trust_availability',
+            'security_audit',
+            'data_protection',
+        })
+        self.assertTrue(all(layer['status'] and layer['evidence'] for layer in layers))
+
+        scenarios = data['simulation_catalog']
+        self.assertEqual(len(scenarios), 8)
+        self.assertEqual(len({scenario['id'] for scenario in scenarios}), 8)
+        self.assertTrue(all(scenario['label'] and scenario['backend_evidence'] for scenario in scenarios))
+
+        self.assertEqual(data['client_devices'][0]['client_id'], 'CLIENT-LOCAL')
+        self.assertFalse(data['client_devices'][0]['is_simulated'])
+        self.assertFalse(data['capabilities']['encryption_confirmed'])
+
+    def test_digital_twin_page_includes_guided_workflow_controls(self):
+        """The page includes every guided workflow, status, and security panel hook."""
+        resp = self.client.get('/digital-twin/')
+        self.assertEqual(resp.status_code, 200)
+        for needle in [
+            'id="dt3d-run-mode"',
+            'DEMONSTRATION MODE — SIMULATED DATA',
+            'id="dt3d-workflow-status"',
+            'id="dt3d-workflow-progress"',
+            'data-dt3d-action="workflow-play"',
+            'data-dt3d-action="workflow-prev"',
+            'data-dt3d-action="workflow-next"',
+            'data-dt3d-action="workflow-restart"',
+            'id="dt3d-workflow-speed"',
+            'id="dt3d-workflow-steps"',
+            'id="dt3d-current-source"',
+            'id="dt3d-current-destination"',
+            'id="dt3d-current-task"',
+            'id="dt3d-current-artifact"',
+            'id="dt3d-security-layers"',
+            'id="dt3d-attack-scenario"',
+            'data-dt3d-action="show-details"',
+            'data-dt3d-action="show-security"',
+        ]:
+            self.assertContains(resp, needle)
